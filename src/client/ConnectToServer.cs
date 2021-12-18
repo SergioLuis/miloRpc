@@ -12,11 +12,11 @@ public class ConnectToServer
         mServerEndpoint = connectTo;
     }
 
-    public async Task<TcpClient> ConnectAsync(CancellationToken ct)
+    public async Task<ConnectionToServer> ConnectAsync(CancellationToken ct)
     {
-        TcpClient result = new();
-        await result.ConnectAsync(mServerEndpoint, ct);
-        return result;
+        TcpClient tcpClient = new();
+        await tcpClient.ConnectAsync(mServerEndpoint, ct);
+        return new(tcpClient);
     }
 
     readonly IPEndPoint mServerEndpoint;
