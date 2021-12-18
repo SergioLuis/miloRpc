@@ -31,6 +31,7 @@ public class TcpServer : IServer
             try
             {
                 Socket socket = await tcpListener.AcceptSocketAsync(ct);
+                RpcSocket rcpSocket = new(socket);
 
                 // TODO: Maybe this socket needs some settings, define and apply them
                 // TODO: Handle the call (easy...!)
