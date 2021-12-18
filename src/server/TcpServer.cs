@@ -31,10 +31,13 @@ public class TcpServer : IServer
             try
             {
                 Socket socket = await tcpListener.AcceptSocketAsync(ct);
-                RpcSocket rcpSocket = new(socket);
+                RpcSocket rpcSocket = new(socket);
+                ConnectionFromClient connectionFromClient = new(rpcSocket);
 
                 // TODO: Maybe this socket needs some settings, define and apply them
-                // TODO: Handle the call (easy...!)
+
+                // FIXME: this blocks new accepts until the call finishes
+                await connectionFromClient.StartProcessingMessages(ct);
             }
             catch (SocketException ex)
             {
