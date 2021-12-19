@@ -63,7 +63,7 @@ class Program
         {
             try
             {
-                IServer tcpServer = new TcpServer(endpoint);
+                IServer tcpServer = new TcpServer(endpoint, Timeout.Infinite);
                 await tcpServer.ListenAsync(ct);
                 Console.WriteLine("RunServer ListenAsync task completed without errors");
                 return true;

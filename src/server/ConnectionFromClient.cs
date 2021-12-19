@@ -18,7 +18,7 @@ internal class ConnectionFromClient
         mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
     }
 
-    internal async ValueTask StartProcessingMessages(CancellationToken ct)
+    internal async ValueTask ProcessConnMessagesLoop(CancellationToken ct)
     {
         uint connectionId = mServerMetrics.ConnectionStart();
         try
@@ -53,6 +53,8 @@ internal class ConnectionFromClient
         {
             mServerMetrics.ConnectionEnd();
         }
+
+        mLog.LogTrace("ProcessConnMessagesLoop completed");
     }
 
     void ProcessMethodCall(uint connectionId, uint methodCallId, CancellationToken ct)

@@ -17,10 +17,16 @@ public interface IServer
 public class TcpServer : IServer
 {
     public RpcMetrics.RpcCounters MetricCounters => mMetrics.Counters;
+    public int ConnIdleTimeoutMillis
+    {
+        get => mRunningConns.ConnIdleTimeoutMillis;
+        set => mRunningConns.ConnIdleTimeoutMillis = value;
+    }
 
-    public TcpServer(IPEndPoint bindTo)
+    public TcpServer(IPEndPoint bindTo, int initialConnIdleTimeoutMillis)
     {
         mMetrics = new();
+        mRunningConns = new(mMetrics, initialConnIdleTimeoutMillis);
         mBindEndpoint = bindTo;
         mLog = RpcLoggerFactory.CreateLogger("TcpServer");
     }
@@ -46,19 +52,12 @@ public class TcpServer : IServer
             try
             {
                 Socket socket = await tcpListener.AcceptSocketAsync(ct);
-
-                CancellationTokenSource connCts =
-                    CancellationTokenSource.CreateLinkedTokenSource(ct);
-
-                RpcSocket rpcSocket = new(socket, connCts.Token);
-                ConnectionFromClient connectionFromClient = new(mMetrics, rpcSocket);
-
-                mLog.LogTrace("New connection stablished from {0}", rpcSocket.RemoteEndPoint);
-
                 // TODO: Maybe this socket needs some settings, define and apply them
-
-                // FIXME: this blocks new accepts until the call finishes
-                await connectionFromClient.StartProcessingMessages(connCts.Token);
+                mRunningConns.EnqueueNewConnection(socket, ct);
+            }
+            catch (OperationCanceledException ex)
+            {
+                // The server is exiting - nothing to do for now
             }
             catch (SocketException ex)
             {
@@ -71,9 +70,12 @@ public class TcpServer : IServer
                 throw;
             }
         }
+
+        mLog.LogTrace("AcceptLoop completed");
     }
 
     readonly RpcMetrics mMetrics;
+    readonly RunningConnections mRunningConns;
     readonly IPEndPoint mBindEndpoint;
     readonly ILogger mLog;
 }
