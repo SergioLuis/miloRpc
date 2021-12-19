@@ -18,16 +18,18 @@ class Program
         Task serverTask = RunServer.Run(cts.Token);
         await Task.Delay(3 * 1000); // Wait for the server to listen to requests
 
-        Task clientTask = RunClient.Run(cts.Token);
+        Task client1Task = RunClient.Run("client 1", cts.Token);
+        Task client2Task = RunClient.Run("client 2", cts.Token);
+        Task client3Task = RunClient.Run("client 3", cts.Token);
 
-        await Task.WhenAll(serverTask, clientTask);
+        await Task.WhenAll(serverTask, client1Task);
 
         return 0;
     }
 
     static class RunClient
     {
-        public static async Task<bool> Run(CancellationToken ct)
+        public static async Task<bool> Run(string clientName, CancellationToken ct)
         {
             try
             {
@@ -38,11 +40,11 @@ class Program
                 Console.WriteLine("Connection stablished!");
 
                 await Task.Delay(10_000);
-                connectionToServer.InvokeEchoRequest("Echo 1");
-                connectionToServer.InvokeEchoRequest("Echo 2");
-                connectionToServer.InvokeEchoRequest("Echo 3");
-                connectionToServer.InvokeEchoRequest("Echo 4");
-                connectionToServer.InvokeEchoRequest("Echo 5");
+                Console.WriteLine(connectionToServer.InvokeEchoRequest($"{clientName} Echo 1"));
+                Console.WriteLine(connectionToServer.InvokeEchoRequest($"{clientName} Echo 2"));
+                Console.WriteLine(connectionToServer.InvokeEchoRequest($"{clientName} Echo 3"));
+                Console.WriteLine(connectionToServer.InvokeEchoRequest($"{clientName} Echo 4"));
+                Console.WriteLine(connectionToServer.InvokeEchoRequest($"{clientName} Echo 5"));
 
                 return true;
             }
