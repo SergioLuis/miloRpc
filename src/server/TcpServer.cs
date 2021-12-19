@@ -34,6 +34,13 @@ public class TcpServer : IServer
         TcpListener tcpListener = new(mBindEndpoint);
         tcpListener.Start();
 
+        ct.Register(() =>
+        {
+            mLog.LogTrace("Cancellation requested, stopping TcpListener");
+            tcpListener.Stop();
+            mLog.LogTrace("TCP listener stopped");
+        });
+
         while (!ct.IsCancellationRequested)
         {
             try
