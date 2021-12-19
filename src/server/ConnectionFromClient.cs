@@ -3,24 +3,38 @@ using System.IO;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+
+using dotnetRpc.Shared;
 
 namespace dotnetRpc.Server;
 
 internal class ConnectionFromClient
 {
-    internal ConnectionFromClient(RpcSocket socket)
+    internal ConnectionFromClient(RpcMetrics serverMetrics, RpcSocket socket)
     {
+        mServerMetrics = serverMetrics;
         mRpcSocket = socket;
+        mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
     }
 
     internal async ValueTask StartProcessingMessages(CancellationToken ct)
     {
+        uint connectionId = mServerMetrics.ConnectionStart();
         try
         {
             while (!ct.IsCancellationRequested)
             {
                 await mRpcSocket.BeginReceiveAsync(ct);
-                ProcessMethodCall(ct);
+                try
+                {
+                    uint methodCallId = mServerMetrics.MethodCallStart();
+                    ProcessMethodCall(connectionId, methodCallId, ct);
+                }
+                finally
+                {
+                    mServerMetrics.MethodCallEnd();
+                }
             }
         }
         catch (OperationCanceledException ex)
@@ -35,9 +49,13 @@ internal class ConnectionFromClient
         {
             throw;
         }
+        finally
+        {
+            mServerMetrics.ConnectionEnd();
+        }
     }
 
-    void ProcessMethodCall(CancellationToken ct)
+    void ProcessMethodCall(uint connectionId, uint methodCallId, CancellationToken ct)
     {
         mReader ??= new(mRpcSocket.Stream);
         mWriter ??= new(mRpcSocket.Stream);
@@ -81,5 +99,7 @@ internal class ConnectionFromClient
     BinaryReader? mReader;
     BinaryWriter? mWriter;
 
+    readonly RpcMetrics mServerMetrics;
     readonly RpcSocket mRpcSocket;
+    readonly ILogger mLog;
 }
