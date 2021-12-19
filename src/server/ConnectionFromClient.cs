@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
@@ -11,10 +12,13 @@ namespace dotnetRpc.Server;
 
 internal class ConnectionFromClient
 {
+    public TimeSpan IdleTime => mIdleStopwatch.Elapsed;
+
     internal ConnectionFromClient(RpcMetrics serverMetrics, RpcSocket socket)
     {
         mServerMetrics = serverMetrics;
         mRpcSocket = socket;
+        mIdleStopwatch = new();
         mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
     }
 
@@ -25,7 +29,9 @@ internal class ConnectionFromClient
         {
             while (!ct.IsCancellationRequested)
             {
+                mIdleStopwatch.Start();
                 await mRpcSocket.BeginReceiveAsync(ct);
+                mIdleStopwatch.Reset();
                 try
                 {
                     uint methodCallId = mServerMetrics.MethodCallStart();
@@ -103,5 +109,6 @@ internal class ConnectionFromClient
 
     readonly RpcMetrics mServerMetrics;
     readonly RpcSocket mRpcSocket;
+    readonly Stopwatch mIdleStopwatch;
     readonly ILogger mLog;
 }
