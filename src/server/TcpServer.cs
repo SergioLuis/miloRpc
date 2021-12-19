@@ -19,12 +19,13 @@ public class TcpServer : IServer
     }
 
     Task IServer.ListenAsync(CancellationToken ct)
-        => Task.Factory.StartNew(AcceptLoop, ct, TaskCreationOptions.LongRunning);
+        => Task.Factory.StartNew(AcceptLoop, ct, TaskCreationOptions.LongRunning).Unwrap();
 
     async Task AcceptLoop(object? state)
     {
         CancellationToken ct = (CancellationToken)state!;
         TcpListener tcpListener = new(mBindEndpoint);
+        tcpListener.Start();
 
         while (!ct.IsCancellationRequested)
         {
