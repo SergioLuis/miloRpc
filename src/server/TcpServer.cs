@@ -39,7 +39,11 @@ public class TcpServer : IServer
             try
             {
                 Socket socket = await tcpListener.AcceptSocketAsync(ct);
-                RpcSocket rpcSocket = new(socket);
+
+                CancellationTokenSource connCts =
+                    CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+                RpcSocket rpcSocket = new(socket, connCts.Token);
                 ConnectionFromClient connectionFromClient = new(mMetrics, rpcSocket);
 
                 mLog.LogTrace("New connection stablished from {0}", rpcSocket.RemoteEndPoint);
@@ -47,7 +51,7 @@ public class TcpServer : IServer
                 // TODO: Maybe this socket needs some settings, define and apply them
 
                 // FIXME: this blocks new accepts until the call finishes
-                await connectionFromClient.StartProcessingMessages(ct);
+                await connectionFromClient.StartProcessingMessages(connCts.Token);
             }
             catch (SocketException ex)
             {
