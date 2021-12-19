@@ -30,7 +30,7 @@ internal class ConnectionFromClient
             while (!ct.IsCancellationRequested)
             {
                 mIdleStopwatch.Start();
-                await mRpcSocket.BeginReceiveAsync(ct);
+                await mRpcSocket.WaitForDataAsync(ct);
                 mIdleStopwatch.Reset();
                 try
                 {

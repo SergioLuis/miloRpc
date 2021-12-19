@@ -29,8 +29,10 @@ internal class RpcSocket
         });
     }
 
-    internal async ValueTask BeginReceiveAsync(CancellationToken ct)
+    internal async ValueTask WaitForDataAsync(CancellationToken ct)
     {
+        // The call returns once there is new data to be read in the socket,
+        // without actually reading anything.
         await mSocket.ReceiveAsync(Memory<byte>.Empty, SocketFlags.None, ct);
     }
 
