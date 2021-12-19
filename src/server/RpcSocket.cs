@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 using dotnetRpc.Shared;
 
@@ -18,8 +19,14 @@ internal class RpcSocket
         mSocket = socket;
         mMeteredStream = new(new NetworkStream(mSocket));
         mRemoteEndPoint = (IPEndPoint)mSocket.RemoteEndPoint!;
+        mLog = RpcLoggerFactory.CreateLogger("RpcSocket");
 
-        ct.Register(CloseSocket, socket);
+        ct.Register(() =>
+        {
+            mLog.LogTrace("Cancellation requested, closing RpcSocket");
+            Close();
+            mLog.LogTrace("RpcSocket closed");
+        });
     }
 
     internal async ValueTask BeginReceiveAsync(CancellationToken ct)
@@ -27,17 +34,14 @@ internal class RpcSocket
         await mSocket.ReceiveAsync(Memory<byte>.Empty, SocketFlags.None, ct);
     }
 
-    static void CloseSocket(object? state)
+    internal void Close()
     {
-        Socket? socket = state as Socket;
-        if (socket == null)
-            return;
-
-        socket.Shutdown(SocketShutdown.Both);
-        socket.Close();
+        mSocket.Shutdown(SocketShutdown.Both);
+        mSocket.Close();
     }
 
     readonly Socket mSocket;
     readonly MeteredStream mMeteredStream;
     readonly IPEndPoint mRemoteEndPoint;
+    readonly ILogger mLog;
 }
