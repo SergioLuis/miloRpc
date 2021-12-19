@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,17 +17,27 @@ internal class ConnectionFromClient
     {
         try
         {
-            await mRpcSocket.BeginReceiveAsync(ct);
-            ProcessMethodCall();
+            while (!ct.IsCancellationRequested)
+            {
+                await mRpcSocket.BeginReceiveAsync(ct);
+                ProcessMethodCall(ct);
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            // The server is exiting - nothing to do for now
+        }
+        catch (SocketException ex)
+        {
+            // Most probably the client closed the connection
         }
         catch (Exception ex)
         {
-            // TOOD: Handle the exception
             throw;
         }
     }
 
-    void ProcessMethodCall()
+    void ProcessMethodCall(CancellationToken ct)
     {
         mReader ??= new(mRpcSocket.Stream);
         mWriter ??= new(mRpcSocket.Stream);
@@ -55,6 +66,8 @@ internal class ConnectionFromClient
         }
 
         mWriter.Flush();
+
+        ct.ThrowIfCancellationRequested();
     }
 
     static void ProcessEchoRequest(BinaryReader reader, BinaryWriter writer)
