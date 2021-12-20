@@ -16,18 +16,17 @@ public interface IServer
 
 public class TcpServer : IServer
 {
-    public RpcMetrics.RpcCounters MetricCounters => mMetrics.Counters;
-    public int ConnIdleTimeoutMillis
-    {
-        get => mRunningConns.ConnIdleTimeoutMillis;
-        set => mRunningConns.ConnIdleTimeoutMillis = value;
-    }
+    public ActiveConnections ActiveConnections { get => mActiveConns; }
 
-    public TcpServer(IPEndPoint bindTo, int initialConnIdleTimeoutMillis)
+    public TcpServer(
+        IPEndPoint bindTo,
+        int initialConnIdleTimeoutMillis = Timeout.Infinite,
+        int initialConnRunTimeoutMillis = Timeout.Infinite)
     {
-        mMetrics = new();
-        mRunningConns = new(mMetrics, initialConnIdleTimeoutMillis);
         mBindEndpoint = bindTo;
+        mActiveConns = new(
+            initialConnIdleTimeoutMillis,
+            initialConnRunTimeoutMillis);
         mLog = RpcLoggerFactory.CreateLogger("TcpServer");
     }
 
@@ -53,7 +52,7 @@ public class TcpServer : IServer
             {
                 Socket socket = await tcpListener.AcceptSocketAsync(ct);
                 // TODO: Maybe this socket needs some settings, define and apply them
-                mRunningConns.EnqueueNewConnection(socket, ct);
+                mActiveConns.EnqueueNewConnection(socket, ct);
             }
             catch (OperationCanceledException ex)
             {
@@ -74,8 +73,7 @@ public class TcpServer : IServer
         mLog.LogTrace("AcceptLoop completed");
     }
 
-    readonly RpcMetrics mMetrics;
-    readonly RunningConnections mRunningConns;
+    readonly ActiveConnections mActiveConns;
     readonly IPEndPoint mBindEndpoint;
     readonly ILogger mLog;
 }
