@@ -19,7 +19,7 @@ internal class ConnectionFromClient
         Reading,
         Running,
         Writing,
-        Errored
+        Exited
     }
 
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
@@ -63,7 +63,7 @@ internal class ConnectionFromClient
                 try
                 {
                     uint methodCallId = mServerMetrics.MethodCallStart();
-                    ProcessMethodCall(connectionId, methodCallId, ct);
+                    await ProcessMethodCall(connectionId, methodCallId, ct);
                 }
                 finally
                 {
@@ -73,25 +73,19 @@ internal class ConnectionFromClient
         }
         catch (OperationCanceledException ex)
         {
-            if (!ct.IsCancellationRequested)
-                CurrentStatus = Status.Errored;
             // The server is exiting - nothing to do for now
         }
         catch (SocketException ex)
         {
-            if (!ct.IsCancellationRequested)
-                CurrentStatus = Status.Errored;
             // Most probably the client closed the connection
         }
         catch (Exception ex)
         {
-            if (!ct.IsCancellationRequested)
-                CurrentStatus = Status.Errored;
-
             throw;
         }
         finally
         {
+            CurrentStatus = Status.Exited;
             mServerMetrics.ConnectionEnd();
         }
 
