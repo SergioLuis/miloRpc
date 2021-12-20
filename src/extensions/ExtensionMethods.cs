@@ -31,4 +31,11 @@ internal static class ExtensionMethods
                 ex);
         }
     }
+
+    internal static CancellationToken CancelAfterTimeout(this CancellationToken originalCt, int timeoutMillis)
+    {
+        CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(originalCt);
+        cts.CancelAfter(timeoutMillis);
+        return cts.Token;
+    }
 }
