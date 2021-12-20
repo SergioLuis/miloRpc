@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 using dotnetRpc.Shared;
@@ -9,6 +11,36 @@ namespace dotnetRpc.Server;
 
 public class ActiveConnections
 {
+    class ActiveConnection
+    {
+        internal ConnectionFromClient Conn { get; private set; }
+        internal CancellationTokenSource Cts { get; private set; }
+
+        internal ActiveConnection(
+            ConnectionFromClient conn, CancellationTokenSource cts)
+        {
+            Conn = conn;
+            Cts = cts;
+        }
+
+        public override int GetHashCode()
+        {
+            return (int)Conn.ConnectionId;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (ReferenceEquals(this, obj))
+                return true;
+
+            ActiveConnection? other = obj as ActiveConnection;
+            if (other == null)
+                return false;
+
+            return other.Conn.ConnectionId == this.Conn.ConnectionId;
+        }
+    }
+
     public RpcMetrics.RpcCounters Counters { get => mMetrics.Counters; }
     public int ConnIdleTimeoutMillis { get; set; }
     public int ConnRunTimeoutMillis { get; set; }
@@ -17,49 +49,150 @@ public class ActiveConnections
         int initialConnIdleTimeoutMillis = Timeout.Infinite,
         int initialConnRunTimeoutMillis = Timeout.Infinite)
     {
-        mMetrics = new();
         ConnIdleTimeoutMillis = initialConnIdleTimeoutMillis;
         ConnRunTimeoutMillis = initialConnRunTimeoutMillis;
         mLog = RpcLoggerFactory.CreateLogger("RunningConnections");
     }
 
-    internal void EnqueueNewConnection(Socket socket, CancellationToken ct)
+    internal Task MonitorConnectionsAsync(TimeSpan loopWaitTime, CancellationToken ct)
     {
-        if (ConnIdleTimeoutMillis == Timeout.Infinite)
-        {
-            LaunchNoMonitor(socket, ct);
-            return;
-        }
-
-        LaunchMonitor(socket, ct);
+        mbIsMonitorLoopRunning = true;
+        return Task.Factory.StartNew(
+            MonitorActiveConnectionsLoop,
+            new LoopParams(loopWaitTime, ct),
+            TaskCreationOptions.LongRunning).Unwrap();
     }
 
-    void LaunchNoMonitor(Socket socket, CancellationToken ct)
+    internal void LaunchNewConnection(Socket socket, CancellationToken ct)
     {
-        // The server does not have a timeout configured to purge idle connectiosn
-        // We launch the task in a "fire and forget" fashion
-        RpcSocket rpcSocket = new(socket, ct);
-        mLog.LogTrace(
-            "New connection stablished from {0}. IdleTimeout: {1} ms. RunTimeout: {2} ms.",
-            rpcSocket.RemoteEndPoint,
-            ConnIdleTimeoutMillis,
-            ConnRunTimeoutMillis);
+        if (!mbIsMonitorLoopRunning)
+            throw new InvalidOperationException("The MonitorConnections loop is not running!");
 
+        CancellationTokenSource cts =
+            CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        RpcSocket rpcSocket = new(socket, cts.Token);
+        uint connectionId = mMetrics.ConnectionStart();
         ConnectionFromClient connFromClient = new(
+            connectionId,
             mMetrics,
             rpcSocket,
             ConnIdleTimeoutMillis,
             ConnRunTimeoutMillis);
 
+        mLog.LogTrace(
+            "New connection stablished. Id: {0}. From {1}. IdleTimeout: {2} ms. RunTimeout: {3} ms.",
+            connectionId,
+            rpcSocket.RemoteEndPoint,
+            ConnIdleTimeoutMillis,
+            ConnRunTimeoutMillis);
+
+        AddConnection(new(connFromClient, cts));
+
         connFromClient.ProcessConnMessagesLoop(ct).ConfigureAwait(false);
     }
 
-    void LaunchMonitor(Socket socket, CancellationToken ct)
+    void AddConnection(ActiveConnection activeConn)
     {
-        throw new NotImplementedException();
+        lock (mActiveConnections)
+        {
+            mActiveConnections.Add(activeConn);
+            mLog.LogTrace(
+                "Active connections after new one: {0}",
+                mActiveConnections.Count);
+            Monitor.Pulse(mActiveConnections);
+        }
     }
 
-    readonly RpcMetrics mMetrics;
-    readonly object mSyncLock = new();
+    async Task MonitorActiveConnectionsLoop(object? state)
+    {
+        LoopParams? loopParams = state as LoopParams;
+        if (loopParams == null)
+            throw new InvalidOperationException();
+
+        TimeSpan loopWaitTime = loopParams.LoopWaitTime;
+        CancellationToken ct = loopParams.CancellationToken;
+
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                HashSet<ActiveConnection> connections;
+                lock (mActiveConnections)
+                {
+                    if (mActiveConnections.Count == 0)
+                        Monitor.Wait(mActiveConnections, loopWaitTime);
+
+                    if (ct.IsCancellationRequested)
+                        break;
+
+                    if (mActiveConnections.Count == 0)
+                        continue;
+
+                    connections = new(mActiveConnections);
+                }
+
+                List<ActiveConnection> connsToRemove = new();
+                foreach (ActiveConnection activeConn in connections)
+                {
+                    if (ct.IsCancellationRequested)
+                        break;
+
+                    ConnectionFromClient connFromClient = activeConn.Conn;
+                    if (connFromClient.CurrentStatus == ConnectionFromClient.Status.Exited)
+                    {
+                        mLog.LogDebug(
+                            "Connection {0} identified as exited and queued for removal",
+                            connFromClient.ConnectionId);
+
+                        activeConn.Cts.Cancel();
+                        connsToRemove.Add(activeConn);
+                    }
+
+                    if (!connFromClient.IsRpcSocketConnected())
+                    {
+                        mLog.LogDebug(
+                            "Connection {0} not identified as exited but its socket is disconnected",
+                            connFromClient.ConnectionId);
+
+                        activeConn.Cts.Cancel();
+                    }
+                }
+
+                mLog.LogDebug(
+                    "Going to evict {0} exited connections from the system",
+                    connsToRemove.Count);
+
+                lock (mActiveConnections)
+                {
+                    mActiveConnections.ExceptWith(connsToRemove);
+                    mLog.LogTrace(
+                        "Active connections after eviction: {0}",
+                        mActiveConnections.Count);
+                }
+
+                await Task.Delay(loopWaitTime, ct);
+            }
+        }
+        catch (OperationCanceledException) { }
+
+        mLog.LogTrace("MonitorActiveConnectionsLoop completed");
+    }
+
+    volatile bool mbIsMonitorLoopRunning = false;
+    readonly RpcMetrics mMetrics = new();
+    readonly HashSet<ActiveConnection> mActiveConnections = new();
     readonly ILogger mLog;
+
+    class LoopParams
+    {
+        internal TimeSpan LoopWaitTime { get; private set; }
+        internal CancellationToken CancellationToken { get; private set; }
+
+        internal LoopParams(TimeSpan loopWaitTime, CancellationToken ct)
+        {
+            LoopWaitTime = loopWaitTime;
+            CancellationToken = ct;
+        }
+    }
 }
