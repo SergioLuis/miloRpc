@@ -38,10 +38,15 @@ internal class RpcSocket
 
     internal void Close()
     {
+        if (mbIsClosed)
+            return;
+
         mSocket.Shutdown(SocketShutdown.Both);
         mSocket.Close();
+        mbIsClosed = true;
     }
 
+    bool mbIsClosed = false;
     readonly Socket mSocket;
     readonly MeteredStream mMeteredStream;
     readonly IPEndPoint mRemoteEndPoint;
