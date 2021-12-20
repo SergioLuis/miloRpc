@@ -46,29 +46,34 @@ public class TcpServer : IServer
             mLog.LogTrace("TCP listener stopped");
         });
 
-        while (!ct.IsCancellationRequested)
+        Task activeConnsMonitorLoop =
+            mActiveConns.MonitorConnectionsAsync(TimeSpan.FromSeconds(30), ct);
+
+        try
         {
-            try
+            while (!ct.IsCancellationRequested)
             {
                 Socket socket = await tcpListener.AcceptSocketAsync(ct);
                 // TODO: Maybe this socket needs some settings, define and apply them
-                mActiveConns.EnqueueNewConnection(socket, ct);
-            }
-            catch (OperationCanceledException ex)
-            {
-                // The server is exiting - nothing to do for now
-            }
-            catch (SocketException ex)
-            {
-                // TODO: Handle the exception
-                throw;
-            }
-            catch (Exception ex)
-            {
-                // TODO: Handle the exception
-                throw;
+                mActiveConns.LaunchNewConnection(socket, ct);
             }
         }
+        catch (OperationCanceledException ex)
+        {
+            // The server is exiting - nothing to do for now
+        }
+        catch (SocketException ex)
+        {
+            // TODO: Handle the exception
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // TODO: Handle the exception
+            throw;
+        }
+
+        await activeConnsMonitorLoop;
 
         mLog.LogTrace("AcceptLoop completed");
     }
