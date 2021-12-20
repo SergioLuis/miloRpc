@@ -22,6 +22,7 @@ internal class ConnectionFromClient
         Exited
     }
 
+    public uint ConnectionId => mConnectionId;
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
     public TimeSpan CurrentRunningTime => mRunStopwatch.Elapsed;
     public ulong TotalBytesRead => mRpcSocket.Stream.ReadBytes;
@@ -32,11 +33,13 @@ internal class ConnectionFromClient
     public Status CurrentStatus { get; private set; }
 
     internal ConnectionFromClient(
+        uint connectionId,
         RpcMetrics serverMetrics,
         RpcSocket socket,
         int idlingTimeoutMillis,
         int runningTimeoutMillis)
     {
+        mConnectionId = connectionId;
         mServerMetrics = serverMetrics;
         mRpcSocket = socket;
         mIdleTimeoutMillis = idlingTimeoutMillis;
@@ -46,9 +49,10 @@ internal class ConnectionFromClient
         mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
     }
 
+    internal bool IsRpcSocketConnected() => mRpcSocket.IsConnected();
+
     internal async ValueTask ProcessConnMessagesLoop(CancellationToken ct)
     {
-        uint connectionId = mServerMetrics.ConnectionStart();
         try
         {
             while (!ct.IsCancellationRequested)
@@ -63,7 +67,7 @@ internal class ConnectionFromClient
                 try
                 {
                     uint methodCallId = mServerMetrics.MethodCallStart();
-                    await ProcessMethodCall(connectionId, methodCallId, ct);
+                    await ProcessMethodCall(methodCallId, ct);
                 }
                 finally
                 {
@@ -92,7 +96,7 @@ internal class ConnectionFromClient
         mLog.LogTrace("ProcessConnMessagesLoop completed");
     }
 
-    async Task ProcessMethodCall(uint connectionId, uint methodCallId, CancellationToken ct)
+    async Task ProcessMethodCall(uint methodCallId, CancellationToken ct)
     {
         mReader ??= new(mRpcSocket.Stream);
         mWriter ??= new(mRpcSocket.Stream);
@@ -147,6 +151,7 @@ internal class ConnectionFromClient
     BinaryReader? mReader;
     BinaryWriter? mWriter;
 
+    readonly uint mConnectionId;
     readonly RpcMetrics mServerMetrics;
     readonly RpcSocket mRpcSocket;
     readonly int mIdleTimeoutMillis;
