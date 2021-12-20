@@ -36,14 +36,31 @@ internal class RpcSocket
         await mSocket.ReceiveAsync(Memory<byte>.Empty, SocketFlags.None, ct);
     }
 
+    internal bool IsConnected()
+    {
+        // TODO: Missing implementation
+        return true;
+    }
+
     internal void Close()
     {
         if (mbIsClosed)
             return;
 
-        mSocket.Shutdown(SocketShutdown.Both);
-        mSocket.Close();
-        mbIsClosed = true;
+        try
+        {
+            mSocket.Shutdown(SocketShutdown.Both);
+            mSocket.Close();
+        }
+        catch (Exception ex)
+        {
+            mLog.LogError("There was an error closing RpcSocket: {0}", ex.Message);
+            mLog.LogDebug("StackTrace:{0}{1}", Environment.NewLine, ex.StackTrace);
+        }
+        finally
+        {
+            mbIsClosed = true;
+        }
     }
 
     bool mbIsClosed = false;
