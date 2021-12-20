@@ -7,18 +7,22 @@ using dotnetRpc.Shared;
 
 namespace dotnetRpc.Server;
 
-internal class RunningConnections
+public class ActiveConnections
 {
-    public int ConnIdleTimeoutMillis { get; set; } = Timeout.Infinite;
+    public int ConnIdleTimeoutMillis { get; set; }
+    public int ConnRunTimeoutMillis { get; set; }
 
-    public RunningConnections(RpcMetrics metrics, int initialConnIdleTimeoutMillis)
+    internal ActiveConnections(
+        int initialConnIdleTimeoutMillis = Timeout.Infinite,
+        int initialConnRunTimeoutMillis = Timeout.Infinite)
     {
-        mMetrics = metrics;
+        mMetrics = new();
         ConnIdleTimeoutMillis = initialConnIdleTimeoutMillis;
+        ConnRunTimeoutMillis = initialConnRunTimeoutMillis;
         mLog = RpcLoggerFactory.CreateLogger("RunningConnections");
     }
 
-    public void EnqueueNewConnection(Socket socket, CancellationToken ct)
+    internal void EnqueueNewConnection(Socket socket, CancellationToken ct)
     {
         if (ConnIdleTimeoutMillis == Timeout.Infinite)
         {
@@ -34,9 +38,17 @@ internal class RunningConnections
         // The server does not have a timeout configured to purge idle connectiosn
         // We launch the task in a "fire and forget" fashion
         RpcSocket rpcSocket = new(socket, ct);
-        mLog.LogTrace("New connection stablished from {0}", rpcSocket.RemoteEndPoint);
+        mLog.LogTrace(
+            "New connection stablished from {0}. IdleTimeout: {1} ms. RunTimeout: {2} ms.",
+            rpcSocket.RemoteEndPoint,
+            ConnIdleTimeoutMillis,
+            ConnRunTimeoutMillis);
 
-        ConnectionFromClient connFromClient = new(mMetrics, rpcSocket);
+        ConnectionFromClient connFromClient = new(
+            mMetrics,
+            rpcSocket,
+            ConnIdleTimeoutMillis,
+            ConnRunTimeoutMillis);
 
         connFromClient.ProcessConnMessagesLoop(ct).ConfigureAwait(false);
     }
