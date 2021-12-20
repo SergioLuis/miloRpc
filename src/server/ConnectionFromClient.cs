@@ -6,19 +6,43 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
+using dotnetRpc.Extensions;
 using dotnetRpc.Shared;
 
 namespace dotnetRpc.Server;
 
 internal class ConnectionFromClient
 {
-    public TimeSpan IdleTime => mIdleStopwatch.Elapsed;
+    public enum Status
+    {
+        Idling,
+        Reading,
+        Running,
+        Writing,
+        Errored
+    }
 
-    internal ConnectionFromClient(RpcMetrics serverMetrics, RpcSocket socket)
+    public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
+    public TimeSpan CurrentRunningTime => mRunStopwatch.Elapsed;
+    public ulong TotalBytesRead => mRpcSocket.Stream.ReadBytes;
+    public ulong TotalBytesWritten => mRpcSocket.Stream.WrittenBytes;
+    public TimeSpan TotalTimeReading => mRpcSocket.Stream.ReadTime;
+    public TimeSpan TotalTimeWritting => mRpcSocket.Stream.WriteTime;
+
+    public Status CurrentStatus { get; private set; }
+
+    internal ConnectionFromClient(
+        RpcMetrics serverMetrics,
+        RpcSocket socket,
+        int idlingTimeoutMillis,
+        int runningTimeoutMillis)
     {
         mServerMetrics = serverMetrics;
         mRpcSocket = socket;
+        mIdleTimeoutMillis = idlingTimeoutMillis;
+        mRunTimeoutMillis = runningTimeoutMillis;
         mIdleStopwatch = new();
+        mRunStopwatch = new();
         mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
     }
 
@@ -29,9 +53,13 @@ internal class ConnectionFromClient
         {
             while (!ct.IsCancellationRequested)
             {
+                CurrentStatus = Status.Idling;
+
                 mIdleStopwatch.Start();
-                await mRpcSocket.WaitForDataAsync(ct);
+                await mRpcSocket.WaitForDataAsync(
+                    ct.CancelAfterTimeout(mIdleTimeoutMillis));
                 mIdleStopwatch.Reset();
+
                 try
                 {
                     uint methodCallId = mServerMetrics.MethodCallStart();
@@ -45,14 +73,21 @@ internal class ConnectionFromClient
         }
         catch (OperationCanceledException ex)
         {
+            if (!ct.IsCancellationRequested)
+                CurrentStatus = Status.Errored;
             // The server is exiting - nothing to do for now
         }
         catch (SocketException ex)
         {
+            if (!ct.IsCancellationRequested)
+                CurrentStatus = Status.Errored;
             // Most probably the client closed the connection
         }
         catch (Exception ex)
         {
+            if (!ct.IsCancellationRequested)
+                CurrentStatus = Status.Errored;
+
             throw;
         }
         finally
@@ -63,26 +98,34 @@ internal class ConnectionFromClient
         mLog.LogTrace("ProcessConnMessagesLoop completed");
     }
 
-    void ProcessMethodCall(uint connectionId, uint methodCallId, CancellationToken ct)
+    async Task ProcessMethodCall(uint connectionId, uint methodCallId, CancellationToken ct)
     {
         mReader ??= new(mRpcSocket.Stream);
         mWriter ??= new(mRpcSocket.Stream);
 
         byte[] protocolCapabilities = new byte[8];
 
+        CurrentStatus = Status.Reading;
+
         byte protocolVersion = mReader.ReadByte();
         mReader.Read(protocolCapabilities, 0, 8);
 
+        CurrentStatus = Status.Writing;
         mWriter.Write(protocolCapabilities); // For now we return the same capabilities we read
         mWriter.Flush();
 
+        CurrentStatus = Status.Reading;
         byte method = mReader.ReadByte();
 
         // All of this must be tidied up...
+        CurrentStatus = Status.Running;
         switch (method)
         {
             case ((byte)255):
-                ProcessEchoRequest(mReader, mWriter);
+                string result = await ProcessEchoRequest(
+                    mReader, mWriter, ct.CancelAfterTimeout(mRunTimeoutMillis));
+                CurrentStatus = Status.Writing;
+                mWriter.Write(result);
                 break;
 
 
@@ -96,12 +139,15 @@ internal class ConnectionFromClient
         ct.ThrowIfCancellationRequested();
     }
 
-    static void ProcessEchoRequest(BinaryReader reader, BinaryWriter writer)
+    static async Task<string> ProcessEchoRequest(
+        BinaryReader reader, BinaryWriter writer, CancellationToken ct)
     {
         string echoRequest = reader.ReadString();
-        string reply = $"Reply: {echoRequest}";
 
-        writer.Write(reply);
+        await Task.Delay(300);
+
+        string reply = $"Reply: {echoRequest}";
+        return reply;
     }
 
     BinaryReader? mReader;
@@ -109,6 +155,9 @@ internal class ConnectionFromClient
 
     readonly RpcMetrics mServerMetrics;
     readonly RpcSocket mRpcSocket;
+    readonly int mIdleTimeoutMillis;
+    readonly int mRunTimeoutMillis;
     readonly Stopwatch mIdleStopwatch;
+    readonly Stopwatch mRunStopwatch;
     readonly ILogger mLog;
 }
