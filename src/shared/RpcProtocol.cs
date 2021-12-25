@@ -1,22 +1,35 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Threading.Tasks;
 
 namespace dotnetRpc.Shared;
 
-public interface INegotiateProtocol
+public class RpcProtocolNegotiationResult
+{
+    public Stream Stream { get; private set; }
+    public BinaryReader Reader { get; private set; }
+    public BinaryWriter Writer { get; private set; }
+
+    public RpcProtocolNegotiationResult(
+        Stream stream, BinaryReader reader, BinaryWriter writer)
+    {
+        Stream = stream;
+        Reader = reader;
+        Writer = writer;
+    }
+}
+
+public interface INegotiateRpcProtocol
 {
     byte CurrentProtocolVersion { get; }
     bool CanHandleProtocolVersion(int version);
-    void NegotiateProtocol(
+    Task<RpcProtocolNegotiationResult> NegotiateProtocolAsync(
         int version,
         IPEndPoint remoteEndPoint,
         Stream baseStream,
         BinaryReader tempReader,
-        BinaryWriter tempWriter,
-        out Stream resultStream,
-        out BinaryReader newReader,
-        out BinaryWriter newWriter);
+        BinaryWriter tempWriter);
 }
 
 public class RpcProtocol
@@ -24,7 +37,7 @@ public class RpcProtocol
     public RpcProtocol(
         Stream baseStream,
         IPEndPoint remoteEndPoint,
-        INegotiateProtocol negotiateConnection)
+        INegotiateRpcProtocol negotiateConnection)
     {
         mBaseStream = baseStream;
         mReader = new(baseStream);
@@ -33,7 +46,7 @@ public class RpcProtocol
         mNegotiateConnection = negotiateConnection;
     }
 
-    public void BeginConnectionFromClient()
+    public async Task NegotiateConnectionFromClientAsync()
     {
         byte clientVersion = mReader.ReadByte();
         byte versionToUse = Math.Min(
@@ -48,18 +61,19 @@ public class RpcProtocol
                 $"Protocol version {versionToUse} is not supported");
         }
 
-        mNegotiateConnection.NegotiateProtocol(
+        var result = await mNegotiateConnection.NegotiateProtocolAsync(
             versionToUse,
             mRemoteEndPoint,
             mBaseStream,
             mReader,
-            mWriter,
-            out mBaseStream,
-            out mReader,
-            out mWriter);
+            mWriter);
+
+        mBaseStream = result.Stream;
+        mReader = result.Reader;
+        mWriter = result.Writer;
     }
 
-    public void BeginConnectionToServer()
+    public async Task NegotiateConnectionToServerAsync()
     {
         BinaryReader tempReader = new(mBaseStream);
         BinaryWriter tempWriter = new(mBaseStream);
@@ -74,15 +88,16 @@ public class RpcProtocol
                 $"Protocol version {versionToUse} is not supported");
         }
 
-        mNegotiateConnection.NegotiateProtocol(
+        var result = await mNegotiateConnection.NegotiateProtocolAsync(
             versionToUse,
             mRemoteEndPoint,
             mBaseStream,
             mReader,
-            mWriter,
-            out mBaseStream,
-            out mReader,
-            out mWriter);
+            mWriter);
+
+        mBaseStream = result.Stream;
+        mReader = result.Reader;
+        mWriter = result.Writer;
     }
 
     Stream mBaseStream;
@@ -90,5 +105,5 @@ public class RpcProtocol
     BinaryWriter mWriter;
 
     readonly IPEndPoint mRemoteEndPoint;
-    readonly INegotiateProtocol mNegotiateConnection;
+    readonly INegotiateRpcProtocol mNegotiateConnection;
 }
