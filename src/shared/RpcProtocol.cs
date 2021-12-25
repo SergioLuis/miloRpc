@@ -4,73 +4,91 @@ using System.Net;
 
 namespace dotnetRpc.Shared;
 
-public class RpcProtocol : IDisposable
+public interface INegotiateProtocol
 {
-    public BinaryReader Reader => mReader;
-    public BinaryWriter Writer => mWriter;
-
-    public RpcProtocol(
+    byte CurrentProtocolVersion { get; }
+    bool CanHandleProtocolVersion(int version);
+    void NegotiateProtocol(
+        int version,
         IPEndPoint remoteEndPoint,
-        BinaryReader reader,
-        BinaryWriter writer)
+        Stream baseStream,
+        BinaryReader tempReader,
+        BinaryWriter tempWriter,
+        out Stream resultStream,
+        out BinaryReader newReader,
+        out BinaryWriter newWriter);
+}
+
+public class RpcProtocol
+{
+    public RpcProtocol(
+        Stream baseStream,
+        IPEndPoint remoteEndPoint,
+        INegotiateProtocol negotiateConnection)
     {
+        mBaseStream = baseStream;
+        mReader = new(baseStream);
+        mWriter = new(baseStream);
         mRemoteEndPoint = remoteEndPoint;
-        mReader = reader;
-        mWriter = writer;
+        mNegotiateConnection = negotiateConnection;
     }
 
-    public bool BeginConnectionFromClient()
+    public void BeginConnectionFromClient()
     {
         byte clientVersion = mReader.ReadByte();
         byte versionToUse = Math.Min(
-            (byte)CURRENT_VERSION, (byte)clientVersion);
+            (byte)mNegotiateConnection.CurrentProtocolVersion,
+            (byte)clientVersion);
         mWriter.Write((byte)versionToUse);
         mWriter.Flush();
 
-        // TODO: Negotiate protocol
-
-        throw new NotSupportedException(
-            "Something catastrophic happened negotiating protocol version. "
-            + "If you are reading this exception, pray whatever you know.");
-    }
-
-    public bool BeginConnectionToServer()
-    {
-        mWriter.Write((byte)CURRENT_VERSION);
-        mWriter.Flush();
-        byte versionToUse = mReader.ReadByte();
-
-        // TODO: Negotiate protocol
-
-        throw new NotSupportedException(
-            "Something catastrophic happened negotiating protocol version. "
-            + "If you are reading this exception, pray whatever you know.");
-    }
-
-    public void Dispose()
-    {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (mbDisposed)
-            return;
-
-        if (disposing)
+        if (!mNegotiateConnection.CanHandleProtocolVersion(versionToUse))
         {
-            mReader.Dispose();
-            mWriter.Dispose();
+            throw new NotSupportedException(
+                $"Protocol version {versionToUse} is not supported");
         }
-        mbDisposed = true;
+
+        mNegotiateConnection.NegotiateProtocol(
+            versionToUse,
+            mRemoteEndPoint,
+            mBaseStream,
+            mReader,
+            mWriter,
+            out mBaseStream,
+            out mReader,
+            out mWriter);
     }
 
-    bool mbDisposed = false;
+    public void BeginConnectionToServer()
+    {
+        BinaryReader tempReader = new(mBaseStream);
+        BinaryWriter tempWriter = new(mBaseStream);
+
+        tempWriter.Write((byte)mNegotiateConnection.CurrentProtocolVersion);
+        tempWriter.Flush();
+        byte versionToUse = tempReader.ReadByte();
+
+        if (!mNegotiateConnection.CanHandleProtocolVersion(versionToUse))
+        {
+            throw new NotSupportedException(
+                $"Protocol version {versionToUse} is not supported");
+        }
+
+        mNegotiateConnection.NegotiateProtocol(
+            versionToUse,
+            mRemoteEndPoint,
+            mBaseStream,
+            mReader,
+            mWriter,
+            out mBaseStream,
+            out mReader,
+            out mWriter);
+    }
+
+    Stream mBaseStream;
+    BinaryReader mReader;
+    BinaryWriter mWriter;
 
     readonly IPEndPoint mRemoteEndPoint;
-    readonly BinaryReader mReader;
-    readonly BinaryWriter mWriter;
-
-    const byte CURRENT_VERSION = 1;
+    readonly INegotiateProtocol mNegotiateConnection;
 }
