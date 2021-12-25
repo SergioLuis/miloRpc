@@ -2,37 +2,26 @@ using System;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 using dotnetRpc.Shared;
+using RpcCapabilities = dotnetRpc.Shared.DefaultProtocolNegotiation.RpcCapabilities;
+using Compression = dotnetRpc.Shared.DefaultProtocolNegotiation.Compression;
 
 namespace dotnetRpc.Client;
 
 public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
 {
-    [Flags]
-    public enum RpcCapabilities : byte
-    {
-        None            = 0,
-        Ssl             = 1 << 0,
-        Compression     = 1 << 1
-    }
-
-    [Flags]
-    public enum CompressionFlags : byte
-    {
-        None            = 0,
-        Brotli          = 1 << 0,
-        GZip            = 1 << 1,
-        ZLib            = 1 << 2
-    }
-
     byte INegotiateRpcProtocol.CurrentProtocolVersion => CURRENT_VERSION;
 
     bool INegotiateRpcProtocol.CanHandleProtocolVersion(int version) => version == CURRENT_VERSION;
 
-    public DefaultClientProtocolNegotiation()
+    public DefaultClientProtocolNegotiation(
+        RpcCapabilities mandatoryCapabilites,
+        RpcCapabilities optionalCapabilities,
+        Compression compressionFlags)
     {
-        
+        mLog = RpcLoggerFactory.CreateLogger("DefaultClientProtocolNegotiation");
     }
 
     Task<RpcProtocolNegotiationResult> INegotiateRpcProtocol.NegotiateProtocolAsync(
@@ -61,5 +50,6 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         throw new NotImplementedException();
     }
 
+    readonly ILogger mLog;
     const byte CURRENT_VERSION = 1;
 }
