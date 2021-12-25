@@ -44,22 +44,25 @@ internal class RpcSocket
 
     internal void Close()
     {
-        if (mbIsClosed)
-            return;
+        lock (this)
+        {
+            if (mbIsClosed)
+                return;
 
-        try
-        {
-            mSocket.Shutdown(SocketShutdown.Both);
-            mSocket.Close();
-        }
-        catch (Exception ex)
-        {
-            mLog.LogError("There was an error closing RpcSocket: {0}", ex.Message);
-            mLog.LogDebug("StackTrace:{0}{1}", Environment.NewLine, ex.StackTrace);
-        }
-        finally
-        {
-            mbIsClosed = true;
+            try
+            {
+                mSocket.Shutdown(SocketShutdown.Both);
+                mSocket.Close();
+            }
+            catch (Exception ex)
+            {
+                mLog.LogError("There was an error closing RpcSocket: {0}", ex.Message);
+                mLog.LogDebug("StackTrace:{0}{1}", Environment.NewLine, ex.StackTrace);
+            }
+            finally
+            {
+                mbIsClosed = true;
+            }
         }
     }
 
