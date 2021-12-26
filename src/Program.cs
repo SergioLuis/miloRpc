@@ -5,6 +5,7 @@ using System.Net;
 
 using dotnetRpc.Client;
 using dotnetRpc.Server;
+using dotnetRpc.Shared;
 
 namespace Orchestrator.Rpc;
 
@@ -22,7 +23,7 @@ class Program
         Task client2Task = RunClient.Run("client 2", cts.Token);
         Task client3Task = RunClient.Run("client 3", cts.Token);
 
-        await Task.WhenAll(serverTask, client1Task);
+        await Task.WhenAll(serverTask, client1Task, client2Task, client3Task);
 
         return 0;
     }
@@ -33,7 +34,11 @@ class Program
         {
             try
             {
-                ConnectToServer connectToServer = new(endpoint);
+                DefaultClientProtocolNegotiation protocolNegotiation = new(
+                    RpcCapabilities.None,
+                    RpcCapabilities.None,
+                    Compression.None);
+                ConnectToServer connectToServer = new(endpoint, protocolNegotiation);
                 ConnectionToServer connectionToServer =
                     await connectToServer.ConnectAsync(30000, ct);
 
@@ -63,7 +68,11 @@ class Program
         {
             try
             {
-                IServer tcpServer = new TcpServer(endpoint, Timeout.Infinite);
+                DefaultServerProtocolNegotiation protocolNegotiation = new(
+                    RpcCapabilities.None,
+                    RpcCapabilities.None,
+                    Compression.None);
+                IServer tcpServer = new TcpServer(endpoint, protocolNegotiation, Timeout.Infinite);
                 await tcpServer.ListenAsync(ct);
                 Console.WriteLine("RunServer ListenAsync task completed without errors");
                 return true;

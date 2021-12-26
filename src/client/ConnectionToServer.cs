@@ -1,14 +1,16 @@
 using System.IO;
 using System.Net.Sockets;
+
 using dotnetRpc.Shared;
 
 namespace dotnetRpc.Client;
 
 public class ConnectionToServer
 {
-    public ConnectionToServer(TcpClient tcpClient)
+    public ConnectionToServer(TcpClient tcpClient, INegotiateRpcProtocol negotiateProtocol)
     {
         mTcpClient = tcpClient;
+        mNegotiateProtocol = negotiateProtocol;
     }
 
     public string InvokeEchoRequest(string echoRequest) // Temporary code to test changes
@@ -39,4 +41,5 @@ public class ConnectionToServer
     BinaryWriter? mWriter;
 
     readonly TcpClient mTcpClient;
+    readonly INegotiateRpcProtocol mNegotiateProtocol;
 }

@@ -46,9 +46,11 @@ public class ActiveConnections
     public int ConnRunTimeoutMillis { get; set; }
 
     internal ActiveConnections(
+        INegotiateRpcProtocol negotiateProtocol,
         int initialConnIdleTimeoutMillis = Timeout.Infinite,
         int initialConnRunTimeoutMillis = Timeout.Infinite)
     {
+        mNegotiateProtocol = negotiateProtocol;
         ConnIdleTimeoutMillis = initialConnIdleTimeoutMillis;
         ConnRunTimeoutMillis = initialConnRunTimeoutMillis;
         mLog = RpcLoggerFactory.CreateLogger("RunningConnections");
@@ -75,6 +77,7 @@ public class ActiveConnections
         uint connectionId = mMetrics.ConnectionStart();
         ConnectionFromClient connFromClient = new(
             connectionId,
+            mNegotiateProtocol,
             mMetrics,
             rpcSocket,
             ConnIdleTimeoutMillis,
@@ -180,6 +183,7 @@ public class ActiveConnections
     }
 
     volatile bool mbIsMonitorLoopRunning = false;
+    readonly INegotiateRpcProtocol mNegotiateProtocol;
     readonly RpcMetrics mMetrics = new();
     readonly HashSet<ActiveConnection> mActiveConnections = new();
     readonly ILogger mLog;

@@ -34,6 +34,7 @@ internal class ConnectionFromClient
 
     internal ConnectionFromClient(
         uint connectionId,
+        INegotiateRpcProtocol negotiateProtocol,
         RpcMetrics serverMetrics,
         RpcSocket socket,
         int idlingTimeoutMillis,

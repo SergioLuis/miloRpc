@@ -20,11 +20,13 @@ public class TcpServer : IServer
 
     public TcpServer(
         IPEndPoint bindTo,
+        INegotiateRpcProtocol negotiateProtocol,
         int initialConnIdleTimeoutMillis = Timeout.Infinite,
         int initialConnRunTimeoutMillis = Timeout.Infinite)
     {
         mBindEndpoint = bindTo;
         mActiveConns = new(
+            negotiateProtocol,
             initialConnIdleTimeoutMillis,
             initialConnRunTimeoutMillis);
         mLog = RpcLoggerFactory.CreateLogger("TcpServer");
