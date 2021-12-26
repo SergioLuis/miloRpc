@@ -5,8 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 using dotnetRpc.Shared;
-using RpcCapabilities = dotnetRpc.Shared.DefaultProtocolNegotiation.RpcCapabilities;
-using Compression = dotnetRpc.Shared.DefaultProtocolNegotiation.Compression;
 
 namespace dotnetRpc.Client;
 
@@ -17,16 +15,20 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
     bool INegotiateRpcProtocol.CanHandleProtocolVersion(int version) => version == CURRENT_VERSION;
 
     public DefaultClientProtocolNegotiation(
-        RpcCapabilities mandatoryCapabilites,
+        RpcCapabilities mandatoryCapabilities,
         RpcCapabilities optionalCapabilities,
         Compression compressionFlags)
     {
         mLog = RpcLoggerFactory.CreateLogger("DefaultClientProtocolNegotiation");
+        mMandatoryCapabilities = mandatoryCapabilities;
+        mOptionalCapabilities = optionalCapabilities;
+        mCompressionFlags = compressionFlags;
     }
 
     Task<RpcProtocolNegotiationResult> INegotiateRpcProtocol.NegotiateProtocolAsync(
+        uint connId,
+        IPEndPoint remoteEndpoint,
         int version,
-        IPEndPoint _,
         Stream baseStream,
         BinaryReader tempReader,
         BinaryWriter tempWriter)
@@ -34,22 +36,64 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         if (version == 1)
         {
             return NegotiateProtocolV1Async(
+                connId,
+                remoteEndpoint,
                 baseStream,
                 tempReader,
                 tempWriter);
         }
 
-        throw new NotImplementedException();
+        throw new InvalidOperationException(
+            $"Not prepared to negotiate protocol version {version}");
     }
 
     Task<RpcProtocolNegotiationResult> NegotiateProtocolV1Async(
+        uint connId,
+        IPEndPoint remoteEndPoint,
         Stream baseStream,
         BinaryReader tempReader,
         BinaryWriter tempWriter)
     {
-        throw new NotImplementedException();
+        tempWriter.Write((byte)mMandatoryCapabilities);
+        tempWriter.Write((byte)mOptionalCapabilities);
+        tempWriter.Flush();
+
+        RpcCapabilities serverMandatory = (RpcCapabilities)tempReader.ReadByte();
+        RpcCapabilities serverOptional = (RpcCapabilities)tempReader.ReadByte();
+
+        RpcCapabilitiesNegotiationResult negotiationResult =
+            RpcCapabilitiesNegotiationResult.Build(
+                mMandatoryCapabilities,
+                mOptionalCapabilities,
+                serverMandatory,
+                serverOptional);
+
+        if (!negotiationResult.NegotiatedOk)
+        {
+            string exMessage = string.Format(
+                "Protocol was not correctly negotiated for conn {0}. "
+                + "Required missing capabilities: {1}",
+                connId,
+                negotiationResult.RequiredMissingCapabilities);
+            throw new NotSupportedException(exMessage);
+        }
+
+        // TODO: Check SSL capabilities
+        // TODO: Check compression capabilities
+
+        mLog.LogInformation(
+            "Protocol was correctly negotiated for conn {0}. " +
+            "Optional missing capabilities: {1}",
+            connId,
+            negotiationResult.OptionalMissingCapabilities);
+
+        return Task.FromResult(new RpcProtocolNegotiationResult(
+            baseStream, tempReader, tempWriter));
     }
 
     readonly ILogger mLog;
+    readonly RpcCapabilities mMandatoryCapabilities;
+    readonly RpcCapabilities mOptionalCapabilities;
+    readonly Compression mCompressionFlags;
     const byte CURRENT_VERSION = 1;
 }

@@ -7,9 +7,9 @@ namespace dotnetRpc.Shared;
 
 public class RpcProtocolNegotiationResult
 {
-    public Stream Stream { get; private set; }
-    public BinaryReader Reader { get; private set; }
-    public BinaryWriter Writer { get; private set; }
+    internal Stream Stream { get; private set; }
+    internal BinaryReader Reader { get; private set; }
+    internal BinaryWriter Writer { get; private set; }
 
     public RpcProtocolNegotiationResult(
         Stream stream, BinaryReader reader, BinaryWriter writer)
@@ -25,8 +25,9 @@ public interface INegotiateRpcProtocol
     byte CurrentProtocolVersion { get; }
     bool CanHandleProtocolVersion(int version);
     Task<RpcProtocolNegotiationResult> NegotiateProtocolAsync(
-        int version,
+        uint connId,
         IPEndPoint remoteEndPoint,
+        int version,
         Stream baseStream,
         BinaryReader tempReader,
         BinaryWriter tempWriter);
@@ -35,10 +36,12 @@ public interface INegotiateRpcProtocol
 public class RpcProtocol
 {
     public RpcProtocol(
-        Stream baseStream,
+        uint connId,
         IPEndPoint remoteEndPoint,
+        Stream baseStream,
         INegotiateRpcProtocol negotiateConnection)
     {
+        mConnId = connId;
         mBaseStream = baseStream;
         mReader = new(baseStream);
         mWriter = new(baseStream);
@@ -62,8 +65,9 @@ public class RpcProtocol
         }
 
         var result = await mNegotiateConnection.NegotiateProtocolAsync(
-            versionToUse,
+            mConnId,
             mRemoteEndPoint,
+            versionToUse,
             mBaseStream,
             mReader,
             mWriter);
@@ -89,8 +93,9 @@ public class RpcProtocol
         }
 
         var result = await mNegotiateConnection.NegotiateProtocolAsync(
-            versionToUse,
+            mConnId,
             mRemoteEndPoint,
+            versionToUse,
             mBaseStream,
             mReader,
             mWriter);
@@ -104,6 +109,7 @@ public class RpcProtocol
     BinaryReader mReader;
     BinaryWriter mWriter;
 
+    readonly uint mConnId;
     readonly IPEndPoint mRemoteEndPoint;
     readonly INegotiateRpcProtocol mNegotiateConnection;
 }
