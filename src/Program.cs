@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Net;
 
 using dotnetRpc.Client;
+using dotnetRpc.Extensions;
 using dotnetRpc.Server;
 using dotnetRpc.Shared;
 
@@ -34,13 +35,15 @@ class Program
         {
             try
             {
+                CancellationToken connectCt = ct.CancelLinkedTokenAfter(TimeSpan.FromSeconds(30));
+
                 DefaultClientProtocolNegotiation protocolNegotiation = new(
                     RpcCapabilities.None,
                     RpcCapabilities.None,
                     Compression.None);
                 ConnectToServer connectToServer = new(endpoint, protocolNegotiation);
                 ConnectionToServer connectionToServer =
-                    await connectToServer.ConnectAsync(30000, ct);
+                    await connectToServer.ConnectAsync(connectCt);
 
                 Console.WriteLine("Connection stablished!");
 

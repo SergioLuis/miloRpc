@@ -17,10 +17,10 @@ public class ConnectToServer
         mMetrics = new();
     }
 
-    public async Task<ConnectionToServer> ConnectAsync(int connectionTimeout, CancellationToken ct)
+    public async Task<ConnectionToServer> ConnectAsync(CancellationToken ct)
     {
         TcpClient tcpClient = new();
-        await tcpClient.ConnectAsync(mServerEndpoint, connectionTimeout, ct);
+        await tcpClient.ConnectAsync(mServerEndpoint, ct);
         return new(mNegotiateProtocol, mMetrics, tcpClient);
     }
 
