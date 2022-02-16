@@ -11,10 +11,6 @@ namespace dotnetRpc.Server;
 
 public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 {
-    byte INegotiateRpcProtocol.CurrentProtocolVersion => CURRENT_VERSION;
-
-    bool INegotiateRpcProtocol.CanHandleProtocolVersion(int version) => version == CURRENT_VERSION;
-
     public DefaultServerProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
         RpcCapabilities optionalCapabilities,
@@ -46,12 +42,18 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
     Task<RpcProtocolNegotiationResult> INegotiateRpcProtocol.NegotiateProtocolAsync(
         uint connId,
         IPEndPoint remoteEndPoint,
-        int version,
-        Stream baseStream,
-        BinaryReader tempReader,
-        BinaryWriter tempWriter)
+        Stream baseStream)
     {
-        if (version == 1)
+        BinaryReader tempReader = new(baseStream);
+        BinaryWriter tempWriter = new(baseStream);
+
+        byte clientVersion = tempReader.ReadByte();
+        byte versionToUse = Math.Min(clientVersion, CURRENT_VERSION);
+
+        tempWriter.Write((byte)versionToUse);
+        tempWriter.Flush();
+
+        if (versionToUse == 1)
         {
             return NegotiateProtocolV1Async(
                 connId,
@@ -62,7 +64,7 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         }
 
         throw new InvalidOperationException(
-            $"Not prepared to negotiate protocol version {version}");
+            $"Not prepared to negotiate protocol version {versionToUse}");
     }
 
     Task<RpcProtocolNegotiationResult> NegotiateProtocolV1Async(
