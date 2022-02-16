@@ -74,9 +74,7 @@ public class ActiveConnections
             CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         RpcSocket rpcSocket = new(socket, cts.Token);
-        uint connectionId = mMetrics.ConnectionStart();
         ConnectionFromClient connFromClient = new(
-            connectionId,
             mNegotiateProtocol,
             mMetrics,
             rpcSocket,
@@ -85,8 +83,8 @@ public class ActiveConnections
 
         mLog.LogTrace(
             "New connection stablished. Id: {0}. From {1}. IdleTimeout: {2} ms. RunTimeout: {3} ms.",
-            connectionId,
-            rpcSocket.RemoteEndPoint,
+            connFromClient.ConnectionId,
+            connFromClient.RemoteEndPoint,
             ConnIdleTimeoutMillis,
             ConnRunTimeoutMillis);
 
