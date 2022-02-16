@@ -14,15 +14,17 @@ public class ConnectToServer
     {
         mServerEndpoint = connectTo;
         mNegotiateProtocol = negotiateProtocol;
+        mMetrics = new();
     }
 
     public async Task<ConnectionToServer> ConnectAsync(int connectionTimeout, CancellationToken ct)
     {
         TcpClient tcpClient = new();
         await tcpClient.ConnectAsync(mServerEndpoint, connectionTimeout, ct);
-        return new(tcpClient, mNegotiateProtocol);
+        return new(mNegotiateProtocol, mMetrics, tcpClient);
     }
 
     readonly IPEndPoint mServerEndpoint;
     readonly INegotiateRpcProtocol mNegotiateProtocol;
+    readonly RpcMetrics mMetrics;
 }
