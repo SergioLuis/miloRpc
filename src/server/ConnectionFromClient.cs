@@ -39,14 +39,13 @@ internal class ConnectionFromClient
         INegotiateRpcProtocol negotiateProtocol,
         RpcMetrics serverMetrics,
         RpcSocket socket,
-        int idlingTimeoutMillis,
-        int runningTimeoutMillis)
+        ConnectionTimeouts connectionTimeouts)
     {
         mNegotiateProtocol = negotiateProtocol;
         mServerMetrics = serverMetrics;
         mRpcSocket = socket;
-        mIdleTimeoutMillis = idlingTimeoutMillis;
-        mRunTimeoutMillis = runningTimeoutMillis;
+        mConnectionTimeouts = connectionTimeouts;
+
         mIdleStopwatch = new();
         mRunStopwatch = new();
         mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
@@ -58,6 +57,8 @@ internal class ConnectionFromClient
 
     internal async ValueTask ProcessConnMessagesLoop(CancellationToken ct)
     {
+        CancellationToken idlingCt = CancellationToken.None;
+        CancellationToken runningCt = CancellationToken.None;
         try
         {
             while (!ct.IsCancellationRequested)
@@ -65,14 +66,50 @@ internal class ConnectionFromClient
                 CurrentStatus = Status.Idling;
 
                 mIdleStopwatch.Start();
-                await mRpcSocket.WaitForDataAsync(
-                    ct.CancelAfterTimeout(mIdleTimeoutMillis));
+                idlingCt = ct.CancelLinkedTokenAfter(mConnectionTimeouts.Idling);
+                await mRpcSocket.WaitForDataAsync(idlingCt);
+                idlingCt = CancellationToken.None;
                 mIdleStopwatch.Reset();
 
                 try
                 {
                     uint methodCallId = mServerMetrics.MethodCallStart();
-                    await ProcessMethodCall(methodCallId, ct);
+
+                    if (mRpc is null)
+                    {
+                        CurrentStatus = Status.NegotiatingProtocol;
+                        mRpc = await mNegotiateProtocol.NegotiateProtocolAsync(
+                            mConnectionId,
+                            mRpcSocket.RemoteEndPoint,
+                            mRpcSocket.Stream);
+                    }
+
+                    CurrentStatus = Status.Reading;
+                    byte method = mRpc.Reader.ReadByte();
+
+                    switch (method)
+                    {
+                        case ((byte)255):
+                            mRunStopwatch.Start();
+                            runningCt = ct.CancelLinkedTokenAfter(mConnectionTimeouts.Running);
+                            string result = await ProcessEchoRequestAsync(
+                                mRpc.Reader, mRpc.Writer, runningCt);
+                            runningCt = CancellationToken.None;
+                            mRunStopwatch.Reset();
+
+                            CurrentStatus = Status.Writing;
+                            mRpc.Writer.Write(result);
+                            break;
+
+
+                        default:
+                            // What happens if we invoked a non-supported method...?
+                            break;
+                    }
+
+                    mRpc.Writer.Flush();
+
+                    ct.ThrowIfCancellationRequested();
                 }
                 finally
                 {
@@ -80,60 +117,25 @@ internal class ConnectionFromClient
                 }
             }
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException) when (
+            ct.IsCancellationRequested
+            || idlingCt.IsCancellationRequested
+            || runningCt.IsCancellationRequested)
         {
-            // The server is exiting - nothing to do for now
+            // Nothing to do, a timeout expired or the server is being shut down
         }
         catch (SocketException ex)
         {
             // Most probably the client closed the connection
         }
-        catch (Exception ex)
-        {
-            throw;
-        }
         finally
         {
             CurrentStatus = Status.Exited;
             mServerMetrics.ConnectionEnd();
+            mRpcSocket.Close();
         }
 
         mLog.LogTrace("ProcessConnMessagesLoop completed");
-    }
-
-    async Task ProcessMethodCall(uint methodCallId, CancellationToken ct)
-    {
-        if (mRpc is null)
-        {
-            CurrentStatus = Status.NegotiatingProtocol;
-            mRpc = await mNegotiateProtocol.NegotiateProtocolAsync(
-                mConnectionId,
-                mRpcSocket.RemoteEndPoint,
-                mRpcSocket.Stream);
-        }
-
-        CurrentStatus = Status.Reading;
-        byte method = mRpc.Reader.ReadByte();
-
-        // All of this must be tidied up...
-        switch (method)
-        {
-            case ((byte)255):
-                string result = await ProcessEchoRequestAsync(
-                    mRpc.Reader, mRpc.Writer, ct.CancelAfterTimeout(mRunTimeoutMillis));
-                CurrentStatus = Status.Writing;
-                mRpc.Writer.Write(result);
-                break;
-
-
-            default:
-                // What happens if we invoked a non-supported method...?
-                break;
-        }
-
-        mRpc.Writer.Flush();
-
-        ct.ThrowIfCancellationRequested();
     }
 
     async Task<string> ProcessEchoRequestAsync(
@@ -154,8 +156,7 @@ internal class ConnectionFromClient
     readonly INegotiateRpcProtocol mNegotiateProtocol;
     readonly RpcMetrics mServerMetrics;
     readonly RpcSocket mRpcSocket;
-    readonly int mIdleTimeoutMillis;
-    readonly int mRunTimeoutMillis;
+    readonly ConnectionTimeouts mConnectionTimeouts;
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mRunStopwatch;
     readonly ILogger mLog;

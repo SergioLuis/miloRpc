@@ -42,17 +42,13 @@ public class ActiveConnections
     }
 
     public RpcMetrics.RpcCounters Counters { get => mMetrics.Counters; }
-    internal int ConnIdleTimeoutMillis { get; set; }
-    internal int ConnRunTimeoutMillis { get; set; }
 
     internal ActiveConnections(
         INegotiateRpcProtocol negotiateProtocol,
-        int initialConnIdleTimeoutMillis = Timeout.Infinite,
-        int initialConnRunTimeoutMillis = Timeout.Infinite)
+        ConnectionTimeouts connectionTimeouts)
     {
         mNegotiateProtocol = negotiateProtocol;
-        ConnIdleTimeoutMillis = initialConnIdleTimeoutMillis;
-        ConnRunTimeoutMillis = initialConnRunTimeoutMillis;
+        mConnectionTimeouts = connectionTimeouts;
         mLog = RpcLoggerFactory.CreateLogger("RunningConnections");
     }
 
@@ -75,18 +71,14 @@ public class ActiveConnections
 
         RpcSocket rpcSocket = new(socket, cts.Token);
         ConnectionFromClient connFromClient = new(
-            mNegotiateProtocol,
-            mMetrics,
-            rpcSocket,
-            ConnIdleTimeoutMillis,
-            ConnRunTimeoutMillis);
+            mNegotiateProtocol, mMetrics, rpcSocket, mConnectionTimeouts);
 
         mLog.LogTrace(
-            "New connection stablished. Id: {0}. From {1}. IdleTimeout: {2} ms. RunTimeout: {3} ms.",
+            "New connection stablished. Id: {0}. From {1}. IdlingTimeout: {2} ms. RunningTimeout: {3} ms.",
             connFromClient.ConnectionId,
             connFromClient.RemoteEndPoint,
-            ConnIdleTimeoutMillis,
-            ConnRunTimeoutMillis);
+            mConnectionTimeouts.Idling,
+            mConnectionTimeouts.Running);
 
         AddConnection(new(connFromClient, cts));
 
@@ -182,6 +174,7 @@ public class ActiveConnections
 
     volatile bool mbIsMonitorLoopRunning = false;
     readonly INegotiateRpcProtocol mNegotiateProtocol;
+    readonly ConnectionTimeouts mConnectionTimeouts;
     readonly RpcMetrics mMetrics = new();
     readonly HashSet<ActiveConnection> mActiveConnections = new();
     readonly ILogger mLog;

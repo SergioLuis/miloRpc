@@ -72,7 +72,7 @@ class Program
                     RpcCapabilities.None,
                     RpcCapabilities.None,
                     Compression.None);
-                IServer tcpServer = new TcpServer(endpoint, protocolNegotiation, Timeout.Infinite);
+                IServer tcpServer = new TcpServer(endpoint, protocolNegotiation);
                 await tcpServer.ListenAsync(ct);
                 Console.WriteLine("RunServer ListenAsync task completed without errors");
                 return true;

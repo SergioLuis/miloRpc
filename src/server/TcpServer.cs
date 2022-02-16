@@ -12,36 +12,26 @@ namespace dotnetRpc.Server;
 public interface IServer
 {
     ActiveConnections ActiveConnections { get; }
-    int ConnIdleTimeoutMillis { get; }
-    int ConnRunTimeoutMillis { get; }
+    ConnectionTimeouts ConnectionTimeouts { get; }
     Task ListenAsync(CancellationToken ct);
 }
 
 public class TcpServer : IServer
 {
     public ActiveConnections ActiveConnections { get => mActiveConns; }
-    public int ConnIdleTimeoutMillis
-    {
-        get => mActiveConns.ConnIdleTimeoutMillis;
-        set => mActiveConns.ConnIdleTimeoutMillis = value;
-    }
-    public int ConnRunTimeoutMillis
-    {
-        get => mActiveConns.ConnRunTimeoutMillis;
-        set => mActiveConns.ConnRunTimeoutMillis = value;
-    }
+    public ConnectionTimeouts ConnectionTimeouts { get => mConnectionTimeouts; }
+
+    public TcpServer(IPEndPoint bindTo, INegotiateRpcProtocol negotiateProtocol)
+        : this(bindTo, negotiateProtocol, ConnectionTimeouts.AllInfinite) { }
 
     public TcpServer(
         IPEndPoint bindTo,
         INegotiateRpcProtocol negotiateProtocol,
-        int initialConnIdleTimeoutMillis = Timeout.Infinite,
-        int initialConnRunTimeoutMillis = Timeout.Infinite)
+        ConnectionTimeouts connectionTimeouts)
     {
         mBindEndpoint = bindTo;
-        mActiveConns = new(
-            negotiateProtocol,
-            initialConnIdleTimeoutMillis,
-            initialConnRunTimeoutMillis);
+        mConnectionTimeouts = connectionTimeouts;
+        mActiveConns = new(negotiateProtocol, connectionTimeouts);
         mLog = RpcLoggerFactory.CreateLogger("TcpServer");
     }
 
@@ -94,6 +84,7 @@ public class TcpServer : IServer
     }
 
     readonly ActiveConnections mActiveConns;
+    readonly ConnectionTimeouts mConnectionTimeouts;
     readonly IPEndPoint mBindEndpoint;
     readonly ILogger mLog;
 }
