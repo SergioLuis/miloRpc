@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +17,7 @@ internal class ConnectionFromClient
     public enum Status
     {
         Idling,
+        NegotiatingProtocol,
         Reading,
         Running,
         Writing,
@@ -23,6 +25,7 @@ internal class ConnectionFromClient
     }
 
     public uint ConnectionId => mConnectionId;
+    public IPEndPoint RemoteEndPoint => mRpcSocket.RemoteEndPoint;
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
     public TimeSpan CurrentRunningTime => mRunStopwatch.Elapsed;
     public ulong TotalBytesRead => mRpcSocket.Stream.ReadBytes;
@@ -33,14 +36,13 @@ internal class ConnectionFromClient
     public Status CurrentStatus { get; private set; }
 
     internal ConnectionFromClient(
-        uint connectionId,
         INegotiateRpcProtocol negotiateProtocol,
         RpcMetrics serverMetrics,
         RpcSocket socket,
         int idlingTimeoutMillis,
         int runningTimeoutMillis)
     {
-        mConnectionId = connectionId;
+        mNegotiateProtocol = negotiateProtocol;
         mServerMetrics = serverMetrics;
         mRpcSocket = socket;
         mIdleTimeoutMillis = idlingTimeoutMillis;
@@ -48,6 +50,8 @@ internal class ConnectionFromClient
         mIdleStopwatch = new();
         mRunStopwatch = new();
         mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
+
+        mConnectionId = mServerMetrics.ConnectionStart();
     }
 
     internal bool IsRpcSocketConnected() => mRpcSocket.IsConnected();
@@ -99,32 +103,26 @@ internal class ConnectionFromClient
 
     async Task ProcessMethodCall(uint methodCallId, CancellationToken ct)
     {
-        mReader ??= new(mRpcSocket.Stream);
-        mWriter ??= new(mRpcSocket.Stream);
-
-        byte[] protocolCapabilities = new byte[8];
-
-        CurrentStatus = Status.Reading;
-
-        byte protocolVersion = mReader.ReadByte();
-        mReader.Read(protocolCapabilities, 0, 8);
-
-        CurrentStatus = Status.Writing;
-        mWriter.Write(protocolCapabilities); // For now we return the same capabilities we read
-        mWriter.Flush();
+        if (mRpc is null)
+        {
+            CurrentStatus = Status.NegotiatingProtocol;
+            mRpc = await mNegotiateProtocol.NegotiateProtocolAsync(
+                mConnectionId,
+                mRpcSocket.RemoteEndPoint,
+                mRpcSocket.Stream);
+        }
 
         CurrentStatus = Status.Reading;
-        byte method = mReader.ReadByte();
+        byte method = mRpc.Reader.ReadByte();
 
         // All of this must be tidied up...
-        CurrentStatus = Status.Running;
         switch (method)
         {
             case ((byte)255):
-                string result = await ProcessEchoRequest(
-                    mReader, mWriter, ct.CancelAfterTimeout(mRunTimeoutMillis));
+                string result = await ProcessEchoRequestAsync(
+                    mRpc.Reader, mRpc.Writer, ct.CancelAfterTimeout(mRunTimeoutMillis));
                 CurrentStatus = Status.Writing;
-                mWriter.Write(result);
+                mRpc.Writer.Write(result);
                 break;
 
 
@@ -133,26 +131,27 @@ internal class ConnectionFromClient
                 break;
         }
 
-        mWriter.Flush();
+        mRpc.Writer.Flush();
 
         ct.ThrowIfCancellationRequested();
     }
 
-    static async Task<string> ProcessEchoRequest(
+    async Task<string> ProcessEchoRequestAsync(
         BinaryReader reader, BinaryWriter writer, CancellationToken ct)
     {
         string echoRequest = reader.ReadString();
 
-        await Task.Delay(300);
+        CurrentStatus = Status.Running;
+        await Task.Delay(300, ct);
 
         string reply = $"Reply: {echoRequest}";
         return reply;
     }
 
-    BinaryReader? mReader;
-    BinaryWriter? mWriter;
+    RpcProtocolNegotiationResult? mRpc;
 
     readonly uint mConnectionId;
+    readonly INegotiateRpcProtocol mNegotiateProtocol;
     readonly RpcMetrics mServerMetrics;
     readonly RpcSocket mRpcSocket;
     readonly int mIdleTimeoutMillis;
