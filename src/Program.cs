@@ -45,11 +45,11 @@ class Program
                 Console.WriteLine("Connection stablished!");
 
                 await Task.Delay(10_000);
-                Console.WriteLine(connectionToServer.InvokeEchoRequest($"{clientName} Echo 1"));
-                Console.WriteLine(connectionToServer.InvokeEchoRequest($"{clientName} Echo 2"));
-                Console.WriteLine(connectionToServer.InvokeEchoRequest($"{clientName} Echo 3"));
-                Console.WriteLine(connectionToServer.InvokeEchoRequest($"{clientName} Echo 4"));
-                Console.WriteLine(connectionToServer.InvokeEchoRequest($"{clientName} Echo 5"));
+                Console.WriteLine(await connectionToServer.InvokeEchoRequest($"{clientName} Echo 1"));
+                Console.WriteLine(await connectionToServer.InvokeEchoRequest($"{clientName} Echo 2"));
+                Console.WriteLine(await connectionToServer.InvokeEchoRequest($"{clientName} Echo 3"));
+                Console.WriteLine(await connectionToServer.InvokeEchoRequest($"{clientName} Echo 4"));
+                Console.WriteLine(await connectionToServer.InvokeEchoRequest($"{clientName} Echo 5"));
 
                 return true;
             }
