@@ -63,10 +63,7 @@ public class TcpServer : IServer
                 mActiveConns.LaunchNewConnection(socket, ct);
             }
         }
-        catch (OperationCanceledException ex)
-        {
-            // The server is exiting - nothing to do for now
-        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (SocketException ex)
         {
             // TODO: Handle the exception
