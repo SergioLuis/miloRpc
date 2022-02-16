@@ -11,12 +11,25 @@ namespace dotnetRpc.Server;
 
 public interface IServer
 {
+    ActiveConnections ActiveConnections { get; }
+    int ConnIdleTimeoutMillis { get; }
+    int ConnRunTimeoutMillis { get; }
     Task ListenAsync(CancellationToken ct);
 }
 
 public class TcpServer : IServer
 {
     public ActiveConnections ActiveConnections { get => mActiveConns; }
+    public int ConnIdleTimeoutMillis
+    {
+        get => mActiveConns.ConnIdleTimeoutMillis;
+        set => mActiveConns.ConnIdleTimeoutMillis = value;
+    }
+    public int ConnRunTimeoutMillis
+    {
+        get => mActiveConns.ConnRunTimeoutMillis;
+        set => mActiveConns.ConnRunTimeoutMillis = value;
+    }
 
     public TcpServer(
         IPEndPoint bindTo,

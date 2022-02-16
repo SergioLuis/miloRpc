@@ -42,8 +42,8 @@ public class ActiveConnections
     }
 
     public RpcMetrics.RpcCounters Counters { get => mMetrics.Counters; }
-    public int ConnIdleTimeoutMillis { get; set; }
-    public int ConnRunTimeoutMillis { get; set; }
+    internal int ConnIdleTimeoutMillis { get; set; }
+    internal int ConnRunTimeoutMillis { get; set; }
 
     internal ActiveConnections(
         INegotiateRpcProtocol negotiateProtocol,
