@@ -10,7 +10,7 @@ using dotnetRpc.Extensions;
 using dotnetRpc.Server;
 using dotnetRpc.Shared;
 
-namespace Orchestrator.Rpc;
+namespace dotnetRpc.Examples;
 
 class Program
 {
@@ -73,10 +73,10 @@ class Program
 
             async Task<string> IPing.PingDirectAsync(string pingMessage, CancellationToken ct)
             {
-                NonNullableStringMessage req = new();
-                req.String = pingMessage;
+                NetworkMessage<string> req = new();
+                req.Val = pingMessage;
 
-                NonNullableStringMessage res = new();
+                NetworkMessage<string> res = new();
 
                 RpcNetworkMessages messages = new(req, res);
 
@@ -85,15 +85,15 @@ class Program
                     messages,
                     ct);
 
-                return res.String;
+                return res.Val!;
             }
 
             async Task<string> IPing.PingReverseAsync(string pingMessage, CancellationToken ct)
             {
-                NonNullableStringMessage req = new();
-                req.String = pingMessage;
+                NetworkMessage<string> req = new();
+                req.Val = pingMessage;
 
-                NonNullableStringMessage res = new();
+                NetworkMessage<string> res = new();
 
                 RpcNetworkMessages messages = new(req, res);
 
@@ -102,7 +102,7 @@ class Program
                     messages,
                     ct);
 
-                return res.String;
+                return res.Val!;
             }
 
             readonly ConnectionToServer mConnectionToServer;
@@ -200,14 +200,14 @@ class Program
                 BinaryReader reader,
                 Func<CancellationToken> beginMethodRunCallback)
             {
-                NonNullableStringMessage req = new();
+                NetworkMessage<string> req = new();
                 req.Deserialize(reader);
 
                 string result = await mPing.PingDirectAsync(
-                    req.String, beginMethodRunCallback());
+                    req.Val!, beginMethodRunCallback());
 
-                NonNullableStringMessage res = new();
-                res.String = result;
+                NetworkMessage<string> res = new();
+                res.Val = result;
 
                 return new RpcNetworkMessages(req, res);
             }
@@ -216,14 +216,14 @@ class Program
                 BinaryReader reader,
                 Func<CancellationToken> beginMethodRunCallback)
             {
-                NonNullableStringMessage req = new();
+                NetworkMessage<string> req = new();
                 req.Deserialize(reader);
 
                 string result = await mPing.PingReverseAsync(
-                    req.String, beginMethodRunCallback());
+                    req.Val!, beginMethodRunCallback());
 
-                NonNullableStringMessage res = new();
-                res.String = result;
+                NetworkMessage<string> res = new();
+                res.Val = result;
 
                 return new RpcNetworkMessages(req, res);
             }
@@ -246,21 +246,6 @@ class Program
 
         public static readonly DefaultMethodId PingDirect = new(PingDirectId, "PingDirect");
         public static readonly DefaultMethodId PingReverse = new(PingReverseId, "PingReverse");
-    }
-
-    public class NonNullableStringMessage : INetworkMessage
-    {
-        public string String { get; set; } = string.Empty;
-
-        public void Deserialize(BinaryReader reader)
-        {
-            String = reader.ReadString();
-        }
-
-        public void Serialize(BinaryWriter writer)
-        {
-            writer.Write((string)String);
-        }
     }
 
     static readonly IPEndPoint endpoint = new(IPAddress.Loopback, 7890);
