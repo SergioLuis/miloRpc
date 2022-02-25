@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace dotnetRpc.Extensions;
 
-internal static class ExtensionMethods
+public static class ExtensionMethods
 {
-    internal static CancellationToken CancelLinkedTokenAfter(
+    public static CancellationToken CancelLinkedTokenAfter(
         this CancellationToken originalCt, TimeSpan timeout)
     {
         CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(originalCt);

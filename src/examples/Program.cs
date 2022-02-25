@@ -49,7 +49,7 @@ class Program
                 ConnectToServer connectToServer = new(
                     endpoint,
                     protocolNegotiation,
-                    new WriteMethodId(),
+                    new DefaultWriteMethodId(),
                     new ReadMethodCallResult());
 
                 ConnectionToServer connectionToServer =
@@ -120,12 +120,6 @@ class Program
             readonly ConnectionToServer mConnectionToServer;
         }
 
-        class WriteMethodId : IWriteMethodId
-        {
-            void IWriteMethodId.WriteMethodId(BinaryWriter writer, IMethodId methodId)
-                => writer.Write((byte)Unsafe.As<MethodId>(methodId).Id);
-        }
-
         class ReadMethodCallResult : IReadMethodCallResult
         {
             void IReadMethodCallResult.ReadMethodCallResult(
@@ -167,7 +161,7 @@ class Program
                     endpoint,
                     stubCollection,
                     protocolNegotiation,
-                    new ReadMethodId(),
+                    new DefaultReadMethodId(),
                     new WriteMethodCallResult());
 
                 await tcpServer.ListenAsync(ct);
@@ -279,12 +273,6 @@ class Program
             readonly Dictionary<IMethodId, ProcessMethodCallAsyncDelegate> mHandlingFunctions;
         }
 
-        class ReadMethodId : IReadMethodId
-        {
-            IMethodId IReadMethodId.ReadMethodId(BinaryReader reader)
-                => new MethodId(reader.ReadByte());
-        }
-
         class WriteMethodCallResult : IWriteMethodCallResult
         {
             void IWriteMethodCallResult.WriteFailedMethodCallResult(BinaryWriter writer, Exception ex)
@@ -310,56 +298,13 @@ class Program
         Task<string> PingReverseAsync(string pingMessage, CancellationToken ct);
     }
 
-    public class MethodId : IMethodId
-    {
-        public string Name => mName;
-        public byte Id => mId;
-
-        public MethodId(byte id)
-        {
-            mId = id;
-            mName = string.Empty;
-        }
-
-        public MethodId(byte id, string name)
-        {
-            mId = id;
-            mName = name;
-        }
-
-        public bool Equals(IMethodId? other)
-        {
-            if (ReferenceEquals(this, other))
-                return true;
-
-            if (other is not MethodId otherMethodId)
-                return false;
-
-            return mId == otherMethodId.mId;
-        }
-
-        public override int GetHashCode() => mId.GetHashCode();
-        
-        public override string ToString() => string.IsNullOrEmpty(mName)
-            ? $"[0x{mId:X} (NO_NAME)]"
-            : $"[0x{mId:X} ({mName})]";
-
-        public void SetSolvedMethodName(string? name)
-        {
-            mName = name ?? string.Empty;
-        }
-
-        string mName;
-        readonly byte mId;
-    }
-
     public static class Methods
     {
         public const byte PingDirectId = 1;
         public const byte PingReverseId = 2;
 
-        public static readonly MethodId PingDirect = new(PingDirectId, "PingDirect");
-        public static readonly MethodId PingReverse = new(PingReverseId, "PingReverse");
+        public static readonly DefaultMethodId PingDirect = new(PingDirectId, "PingDirect");
+        public static readonly DefaultMethodId PingReverse = new(PingReverseId, "PingReverse");
     }
 
     public enum MethodResult : byte
