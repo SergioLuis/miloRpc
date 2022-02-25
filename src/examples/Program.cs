@@ -9,6 +9,7 @@ using dotnetRpc.Client;
 using dotnetRpc.Extensions;
 using dotnetRpc.Server;
 using dotnetRpc.Shared;
+using dotnetRpc.Shared.Serialization;
 
 namespace dotnetRpc.Examples;
 
