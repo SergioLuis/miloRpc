@@ -40,19 +40,8 @@ class Program
             {
                 CancellationToken connectCt = ct.CancelLinkedTokenAfter(TimeSpan.FromSeconds(3000));
 
-                DefaultClientProtocolNegotiation protocolNegotiation = new(
-                    RpcCapabilities.None,
-                    RpcCapabilities.None,
-                    Compression.None);
-
-                ConnectToServer connectToServer = new(
-                    endpoint,
-                    protocolNegotiation,
-                    new DefaultWriteMethodId(),
-                    new ReadMethodCallResult());
-
-                ConnectionToServer connectionToServer =
-                    await connectToServer.ConnectAsync(connectCt);
+                ConnectToServer connectToServer = new(endpoint);
+                ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(connectCt);
 
                 IPing pingProxy = new PingProxy(connectionToServer);
 
@@ -118,26 +107,6 @@ class Program
 
             readonly ConnectionToServer mConnectionToServer;
         }
-
-        class ReadMethodCallResult : IReadMethodCallResult
-        {
-            void IReadMethodCallResult.ReadMethodCallResult(
-                BinaryReader reader,
-                out bool isResultAvailable,
-                out Exception? ex)
-            {
-                MethodResult methodResult = (MethodResult)reader.ReadByte();
-                if (methodResult == MethodResult.Ok)
-                {
-                    isResultAvailable = true;
-                    ex = null;
-                    return;
-                }
-
-                isResultAvailable = false;
-                ex = null;
-            }
-        }
     }
 
     static class RunServer
@@ -151,20 +120,11 @@ class Program
             stubCollection.RegisterStub(pingStub);
             try
             {
-                DefaultServerProtocolNegotiation protocolNegotiation = new(
-                    RpcCapabilities.None,
-                    RpcCapabilities.None,
-                    Compression.None);
-
-                IServer tcpServer = new TcpServer(
-                    endpoint,
-                    stubCollection,
-                    protocolNegotiation,
-                    new DefaultReadMethodId(),
-                    new WriteMethodCallResult());
+                IServer tcpServer = new TcpServer(endpoint, stubCollection);
 
                 await tcpServer.ListenAsync(ct);
                 Console.WriteLine("RunServer ListenAsync task completed without errors");
+
                 return true;
             }
             catch (Exception ex)
@@ -271,24 +231,6 @@ class Program
             readonly IPing mPing;
             readonly Dictionary<IMethodId, ProcessMethodCallAsyncDelegate> mHandlingFunctions;
         }
-
-        class WriteMethodCallResult : IWriteMethodCallResult
-        {
-            void IWriteMethodCallResult.WriteFailedMethodCallResult(BinaryWriter writer, Exception ex)
-            {
-                writer.Write((byte)MethodResult.Failed);
-            }
-
-            void IWriteMethodCallResult.WriteNotSupportedMethodCallResult(BinaryWriter writer)
-            {
-                writer.Write((byte)MethodResult.NotSupported);
-            }
-
-            void IWriteMethodCallResult.WriteOkMethodCallResult(BinaryWriter writer)
-            {
-                writer.Write((byte)MethodResult.Ok);
-            }
-        }
     }
 
     interface IPing
@@ -304,13 +246,6 @@ class Program
 
         public static readonly DefaultMethodId PingDirect = new(PingDirectId, "PingDirect");
         public static readonly DefaultMethodId PingReverse = new(PingReverseId, "PingReverse");
-    }
-
-    public enum MethodResult : byte
-    {
-        Ok = 0,
-        NotSupported = 1,
-        Failed = 2
     }
 
     public class NonNullableStringMessage : INetworkMessage
