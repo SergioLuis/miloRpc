@@ -100,7 +100,7 @@ internal class ConnectionFromClient
                         mLog.LogWarning(
                             "Client tried to run an unsupport method (connId {0}): {1}",
                             mConnectionId, methodId);
-                        mWriteMethodCallResult.WriteNotSupportedMethodCallResult(mRpc.Writer);
+                        mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.NotSupported);
                         continue;
                     }
 
@@ -117,7 +117,7 @@ internal class ConnectionFromClient
                     runningCt = CancellationToken.None;
                     mRunStopwatch.Reset();
 
-                    mWriteMethodCallResult.WriteOkMethodCallResult(mRpc.Writer);
+                    mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.OK);
                     messages.Response.Serialize(mRpc.Writer);
                     mRpc.Writer.Flush();
 
@@ -149,8 +149,7 @@ internal class ConnectionFromClient
                     if (CurrentStatus == Status.Reading
                         || CurrentStatus == Status.Running)
                     {
-                        mWriteMethodCallResult
-                            .WriteFailedMethodCallResult(mRpc.Writer, ex);
+                        mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.Failed, ex);
                     }
                 }
                 finally
