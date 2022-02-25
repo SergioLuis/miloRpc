@@ -23,7 +23,7 @@ public class ConnectionToServer : IDisposable
 
     public Status CurrentStatus { get; private set; } = Status.Idling;
 
-    public ConnectionToServer(
+    internal ConnectionToServer(
         INegotiateRpcProtocol negotiateProtocol,
         IWriteMethodId writeMethodId,
         IReadMethodCallResult readMethodCallResult,
@@ -72,7 +72,7 @@ public class ConnectionToServer : IDisposable
             // We could even time out
 
             CurrentStatus = Status.Reading;
-            mReadMethodCallResult.ReadMethodCallResult(
+            MethodCallResult result = mReadMethodCallResult.Read(
                 mRpc.Reader,
                 out bool isResultAvailable,
                 out Exception? ex);
@@ -82,6 +82,12 @@ public class ConnectionToServer : IDisposable
 
             if (ex is not null)
                 throw ex;
+
+            if (result == MethodCallResult.NotSupported)
+            {
+                throw new NotSupportedException(
+                    $"Method {methodId} is not supported by the server");
+            }
         }
         finally
         {
@@ -106,7 +112,7 @@ public class ConnectionToServer : IDisposable
         if (disposing)
         {
             mClientMetrics.ConnectionEnd();
-
+            mTcpClient.Dispose();
         }
 
         mDisposed = true;
