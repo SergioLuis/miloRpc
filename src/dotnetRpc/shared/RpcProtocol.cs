@@ -5,6 +5,14 @@ using System.Threading.Tasks;
 
 namespace dotnetRpc.Shared;
 
+public enum MethodCallResult : byte
+{
+    OK           = 0,
+    Failed       = 1,
+    NotSupported = 2
+}
+
+
 public class RpcProtocolNegotiationResult
 {
     internal Stream Stream { get; private set; }
@@ -43,27 +51,4 @@ public interface INegotiateRpcProtocol
         Stream baseStream);
 }
 
-public interface IReadMethodId
-{
-    IMethodId ReadMethodId(BinaryReader reader);
-}
 
-public interface IWriteMethodId
-{
-    void WriteMethodId(BinaryWriter writer, IMethodId methodId);
-}
-
-public interface IWriteMethodCallResult
-{
-    void WriteOkMethodCallResult(BinaryWriter writer);
-    void WriteFailedMethodCallResult(BinaryWriter writer, Exception ex);
-    void WriteNotSupportedMethodCallResult(BinaryWriter writer);
-}
-
-public interface IReadMethodCallResult
-{
-    void ReadMethodCallResult(
-        BinaryReader reader,
-        out bool isResultAvailable,
-        out Exception? ex);
-}
