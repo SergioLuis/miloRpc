@@ -23,6 +23,25 @@ public class TcpServer : IServer
 
     public TcpServer(
         IPEndPoint bindTo,
+        StubCollection stubCollection) : this(
+            bindTo,
+            stubCollection,
+            DefaultServerProtocolNegotiation.Instance,
+            DefaultReadMethodId.Instance,
+            DefaultWriteMethodCallResult.Instance) { }
+
+    public TcpServer(
+        IPEndPoint bindTo,
+        StubCollection stubCollection,
+        INegotiateRpcProtocol negotiateProtocol) : this(
+            bindTo,
+            stubCollection,
+            negotiateProtocol,
+            DefaultReadMethodId.Instance,
+            DefaultWriteMethodCallResult.Instance) { }
+
+    public TcpServer(
+        IPEndPoint bindTo,
         StubCollection stubCollection,
         INegotiateRpcProtocol negotiateProtocol,
         IReadMethodId readMethodId,

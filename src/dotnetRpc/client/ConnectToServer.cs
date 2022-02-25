@@ -9,6 +9,20 @@ namespace dotnetRpc.Client;
 
 public class ConnectToServer
 {
+    public ConnectToServer(IPEndPoint connectTo) : this(
+        connectTo,
+        DefaultClientProtocolNegotiation.Instance,
+        DefaultWriteMethodId.Instance,
+        DefaultReadMethodCallResult.Instance) { }
+
+    public ConnectToServer(
+        IPEndPoint connectTo,
+        INegotiateRpcProtocol negotiateProtocol) : this(
+            connectTo,
+            negotiateProtocol,
+            DefaultWriteMethodId.Instance,
+            DefaultReadMethodCallResult.Instance) { }
+
     public ConnectToServer(
         IPEndPoint connectTo,
         INegotiateRpcProtocol negotiateProtocol,
