@@ -97,4 +97,10 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
     readonly RpcCapabilities mOptionalCapabilities;
     readonly Compression mCompressionFlags;
     const byte CURRENT_VERSION = 1;
+
+    public static readonly INegotiateRpcProtocol Instance =
+        new DefaultClientProtocolNegotiation(
+            mandatoryCapabilities: RpcCapabilities.None,
+            optionalCapabilities: RpcCapabilities.None,
+            compressionFlags: Compression.None);
 }

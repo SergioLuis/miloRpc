@@ -145,4 +145,10 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
     readonly Compression mCompressionFlags;
     readonly X509Certificate? mServerCertificate;
     const byte CURRENT_VERSION = 1;
+
+    public static readonly INegotiateRpcProtocol Instance =
+        new DefaultServerProtocolNegotiation(
+            mandatoryCapabilities: RpcCapabilities.None,
+            optionalCapabilities: RpcCapabilities.None,
+            compressionFlags: Compression.None);
 }
