@@ -36,12 +36,18 @@ internal class ConnectionFromClient
     public Status CurrentStatus { get; private set; }
 
     internal ConnectionFromClient(
+        StubCollection stubCollection,
         INegotiateRpcProtocol negotiateProtocol,
+        IReadMethodId readMethodId,
+        IWriteMethodCallResult writeMethodCallResult,
         RpcMetrics serverMetrics,
         RpcSocket socket,
         ConnectionTimeouts connectionTimeouts)
     {
+        mStubCollection = stubCollection;
         mNegotiateProtocol = negotiateProtocol;
+        mReadMethodId = readMethodId;
+        mWriteMethodCallResult = writeMethodCallResult;
         mServerMetrics = serverMetrics;
         mRpcSocket = socket;
         mConnectionTimeouts = connectionTimeouts;
@@ -85,44 +91,73 @@ internal class ConnectionFromClient
                     }
 
                     CurrentStatus = Status.Reading;
-                    byte method = mRpc.Reader.ReadByte();
+                    IMethodId methodId = mReadMethodId.ReadMethodId(mRpc.Reader);
+                    methodId.SetSolvedMethodName(mStubCollection.SolveMethodName(methodId));
 
-                    switch (method)
+                    IStub? stub = mStubCollection.FindStub(methodId);
+                    if (stub == null)
                     {
-                        case ((byte)255):
-                            mRunStopwatch.Start();
-                            runningCt = ct.CancelLinkedTokenAfter(mConnectionTimeouts.Running);
-                            string result = await ProcessEchoRequestAsync(
-                                mRpc.Reader, mRpc.Writer, runningCt);
-                            runningCt = CancellationToken.None;
-                            mRunStopwatch.Reset();
-
-                            CurrentStatus = Status.Writing;
-                            mRpc.Writer.Write(result);
-                            break;
-
-
-                        default:
-                            // What happens if we invoked a non-supported method...?
-                            break;
+                        mLog.LogWarning(
+                            "Client tried to run an unsupport method (connId {0}): {1}",
+                            mConnectionId, methodId);
+                        mWriteMethodCallResult.WriteNotSupportedMethodCallResult(mRpc.Writer);
+                        continue;
                     }
 
+                    Func<CancellationToken> beginMethodRunCallback = () =>
+                    {
+                        CurrentStatus = Status.Running;
+                        mRunStopwatch.Start();
+                        runningCt = ct.CancelLinkedTokenAfter(mConnectionTimeouts.Running);
+                        return runningCt;
+                    };
+
+                    RpcNetworkMessages messages =
+                        await stub.RunMethodCallAsync(methodId, mRpc.Reader, beginMethodRunCallback);
+                    runningCt = CancellationToken.None;
+                    mRunStopwatch.Reset();
+
+                    mWriteMethodCallResult.WriteOkMethodCallResult(mRpc.Writer);
+                    messages.Response.Serialize(mRpc.Writer);
                     mRpc.Writer.Flush();
 
+                    if (messages.Request is IDisposable disposableRequest)
+                        disposableRequest.Dispose();
+
+                    if (messages.Response is IDisposable disposableResponse)
+                        disposableResponse.Dispose();
+
                     ct.ThrowIfCancellationRequested();
+                }
+                catch (Exception ex)
+                {
+                    mRunStopwatch.Reset();
+                    mIdleStopwatch.Reset();
+
+                    if (mRpc is null)
+                        throw;
+
+                    if (!mRpcSocket.IsConnected())
+                        throw;
+
+                    if (!mRpc.Writer.BaseStream.CanWrite
+                        || !mRpc.Reader.BaseStream.CanRead)
+                    {
+                        throw;
+                    }
+
+                    if (CurrentStatus == Status.Reading
+                        || CurrentStatus == Status.Running)
+                    {
+                        mWriteMethodCallResult
+                            .WriteFailedMethodCallResult(mRpc.Writer, ex);
+                    }
                 }
                 finally
                 {
                     mServerMetrics.MethodCallEnd();
                 }
             }
-        }
-        catch (OperationCanceledException) when (
-            ct.IsCancellationRequested
-            || idlingCt.IsCancellationRequested
-            || runningCt.IsCancellationRequested)
-        {
-            // Nothing to do, a timeout expired or the server is being shut down
         }
         catch (SocketException ex)
         {
@@ -153,7 +188,10 @@ internal class ConnectionFromClient
     RpcProtocolNegotiationResult? mRpc;
 
     readonly uint mConnectionId;
+    readonly StubCollection mStubCollection;
     readonly INegotiateRpcProtocol mNegotiateProtocol;
+    readonly IReadMethodId mReadMethodId;
+    readonly IWriteMethodCallResult mWriteMethodCallResult;
     readonly RpcMetrics mServerMetrics;
     readonly RpcSocket mRpcSocket;
     readonly ConnectionTimeouts mConnectionTimeouts;

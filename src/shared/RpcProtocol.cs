@@ -20,7 +20,20 @@ public class RpcProtocolNegotiationResult
     }
 }
 
-public class BaseMethodId { }
+public interface INetworkMessage
+{
+    void Serialize(BinaryWriter writer);
+    void Deserialize(BinaryReader reader);
+}
+
+public record RpcNetworkMessages(INetworkMessage Request, INetworkMessage Response);
+
+public interface IMethodId
+{
+    string Name { get; }
+
+    void SetSolvedMethodName(string? name);
+}
 
 public interface INegotiateRpcProtocol
 {
@@ -32,7 +45,12 @@ public interface INegotiateRpcProtocol
 
 public interface IReadMethodId
 {
-    BaseMethodId ReadMethodId(BinaryReader reader);
+    IMethodId ReadMethodId(BinaryReader reader);
+}
+
+public interface IWriteMethodId
+{
+    void WriteMethodId(BinaryWriter writer, IMethodId methodId);
 }
 
 public interface IWriteMethodCallResult
@@ -40,11 +58,6 @@ public interface IWriteMethodCallResult
     void WriteOkMethodCallResult(BinaryWriter writer);
     void WriteFailedMethodCallResult(BinaryWriter writer, Exception ex);
     void WriteNotSupportedMethodCallResult(BinaryWriter writer);
-}
-
-public interface IWriteMethodId
-{
-    void WriteMethodId(BinaryWriter writer, BaseMethodId methodId);
 }
 
 public interface IReadMethodCallResult

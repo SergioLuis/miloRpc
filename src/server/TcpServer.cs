@@ -21,17 +21,36 @@ public class TcpServer : IServer
     public ActiveConnections ActiveConnections { get => mActiveConns; }
     public ConnectionTimeouts ConnectionTimeouts { get => mConnectionTimeouts; }
 
-    public TcpServer(IPEndPoint bindTo, INegotiateRpcProtocol negotiateProtocol)
-        : this(bindTo, negotiateProtocol, ConnectionTimeouts.AllInfinite) { }
+    public TcpServer(
+        IPEndPoint bindTo,
+        StubCollection stubCollection,
+        INegotiateRpcProtocol negotiateProtocol,
+        IReadMethodId readMethodId,
+        IWriteMethodCallResult writeMethodCallResult)
+        : this(
+            bindTo,
+            stubCollection,
+            negotiateProtocol,
+            readMethodId,
+            writeMethodCallResult,
+            ConnectionTimeouts.AllInfinite) { }
 
     public TcpServer(
         IPEndPoint bindTo,
+        StubCollection stubCollection,
         INegotiateRpcProtocol negotiateProtocol,
+        IReadMethodId readMethodId,
+        IWriteMethodCallResult writeMethodCallResult,
         ConnectionTimeouts connectionTimeouts)
     {
         mBindEndpoint = bindTo;
         mConnectionTimeouts = connectionTimeouts;
-        mActiveConns = new(negotiateProtocol, connectionTimeouts);
+        mActiveConns = new(
+            stubCollection,
+            negotiateProtocol,
+            readMethodId,
+            writeMethodCallResult,
+            connectionTimeouts);
         mLog = RpcLoggerFactory.CreateLogger("TcpServer");
     }
 

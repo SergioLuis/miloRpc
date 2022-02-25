@@ -44,10 +44,16 @@ public class ActiveConnections
     public RpcMetrics.RpcCounters Counters { get => mMetrics.Counters; }
 
     internal ActiveConnections(
+        StubCollection stubCollection,
         INegotiateRpcProtocol negotiateProtocol,
+        IReadMethodId readMethodId,
+        IWriteMethodCallResult writeMethodCallResult,
         ConnectionTimeouts connectionTimeouts)
     {
+        mStubCollection = stubCollection;
         mNegotiateProtocol = negotiateProtocol;
+        mReadMethodId = readMethodId;
+        mWriteMethodCallResult = writeMethodCallResult;
         mConnectionTimeouts = connectionTimeouts;
         mLog = RpcLoggerFactory.CreateLogger("RunningConnections");
     }
@@ -71,7 +77,13 @@ public class ActiveConnections
 
         RpcSocket rpcSocket = new(socket, cts.Token);
         ConnectionFromClient connFromClient = new(
-            mNegotiateProtocol, mMetrics, rpcSocket, mConnectionTimeouts);
+            mStubCollection,
+            mNegotiateProtocol,
+            mReadMethodId,
+            mWriteMethodCallResult,
+            mMetrics,
+            rpcSocket,
+            mConnectionTimeouts);
 
         mLog.LogTrace(
             "New connection stablished. Id: {0}. From {1}. IdlingTimeout: {2} ms. RunningTimeout: {3} ms.",
@@ -173,7 +185,10 @@ public class ActiveConnections
     }
 
     volatile bool mbIsMonitorLoopRunning = false;
+    readonly StubCollection mStubCollection;
     readonly INegotiateRpcProtocol mNegotiateProtocol;
+    readonly IReadMethodId mReadMethodId;
+    readonly IWriteMethodCallResult mWriteMethodCallResult;
     readonly ConnectionTimeouts mConnectionTimeouts;
     readonly RpcMetrics mMetrics = new();
     readonly HashSet<ActiveConnection> mActiveConnections = new();
