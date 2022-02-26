@@ -50,15 +50,31 @@ internal class Serializers
     {
         mSerializers = new Dictionary<Type, ISerializer>();
         AddSerializer(new StringSerializer());
+        
+        AddSerializer(new ByteSerializer());
+        AddSerializer(new BoolSerializer());
+        AddSerializer(new NullableBoolSerializer());
+
         AddSerializer(new Int16Serializer());
+        AddSerializer(new NullableInt16Serializer());
         AddSerializer(new Int32Serialier());
+        AddSerializer(new NullableInt32Serializer());
         AddSerializer(new Int64Serializer());
+        AddSerializer(new NullableInt64Serializer());
+        
+        AddSerializer(new UInt16Serializer());
+        AddSerializer(new NullableUInt16Serializer());
+        AddSerializer(new UInt32Serializer());
+        AddSerializer(new NullableUInt32Serializer());
+        AddSerializer(new UInt64Serializer());
+        AddSerializer(new NullableUInt64Serializer());
+
+        AddSerializer(new DateTimeSerializer());
+        AddSerializer(new GuidSerializer());
     }
 
     public void AddSerializer<T>(ISerializer<T> serializer)
-    {
-        mSerializers.Add(typeof(T), serializer);
-    }
+        => mSerializers.Add(typeof(T), serializer);
 
     public ISerializer<T> Get<T>()
     {
