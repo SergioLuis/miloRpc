@@ -5,11 +5,11 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
-using dotnetRpc.Client;
-using dotnetRpc.Extensions;
-using dotnetRpc.Server;
-using dotnetRpc.Shared;
-using dotnetRpc.Shared.Serialization;
+using dotnetRpc.Core.Client;
+using dotnetRpc.Core.Extensions;
+using dotnetRpc.Core.Server;
+using dotnetRpc.Core.Shared;
+using dotnetRpc.Core.Shared.Serialization;
 
 namespace dotnetRpc.Examples;
 

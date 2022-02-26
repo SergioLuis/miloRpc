@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\dotnetRpc\dotnetRpc.csproj" />
+    <ProjectReference Include="..\dotnetRpc.Core\dotnetRpc.Core.csproj" />
   </ItemGroup>
 
 </Project>
