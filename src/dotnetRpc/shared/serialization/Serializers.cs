@@ -13,6 +13,37 @@ public interface ISerializer<T> : ISerializer
     T? Deserialize(BinaryReader reader);
 }
 
+public static class Serializer<T>
+{
+    public static void Serialize(BinaryWriter writer, T? value)
+        => Instance.Serialize(writer, value);
+
+    public static T? Deserialize(BinaryReader reader)
+        => Instance.Deserialize(reader);
+
+    static ISerializer<T> Instance
+    {
+        get
+        {
+            if (_initialized)
+                return _instance!;
+
+            lock (mSyncLock)
+            {
+                if (_instance is null)
+                    _instance = Serializers.Instance.Get<T>();
+            }
+
+            _initialized = true;
+            return _instance;
+        }
+    }
+
+    static volatile bool _initialized;
+    static ISerializer<T>? _instance;
+    static readonly object mSyncLock = new();
+}
+
 internal class Serializers
 {
     internal Serializers()

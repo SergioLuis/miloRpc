@@ -75,7 +75,7 @@ class Program
             async Task<string> IPing.PingDirectAsync(string pingMessage, CancellationToken ct)
             {
                 NetworkMessage<string> req = new();
-                req.Val = pingMessage;
+                req.Val1 = pingMessage;
 
                 NetworkMessage<string> res = new();
 
@@ -86,13 +86,13 @@ class Program
                     messages,
                     ct);
 
-                return res.Val!;
+                return res.Val1!;
             }
 
             async Task<string> IPing.PingReverseAsync(string pingMessage, CancellationToken ct)
             {
                 NetworkMessage<string> req = new();
-                req.Val = pingMessage;
+                req.Val1 = pingMessage;
 
                 NetworkMessage<string> res = new();
 
@@ -103,7 +103,7 @@ class Program
                     messages,
                     ct);
 
-                return res.Val!;
+                return res.Val1!;
             }
 
             readonly ConnectionToServer mConnectionToServer;
@@ -205,10 +205,10 @@ class Program
                 req.Deserialize(reader);
 
                 string result = await mPing.PingDirectAsync(
-                    req.Val!, beginMethodRunCallback());
+                    req.Val1!, beginMethodRunCallback());
 
                 NetworkMessage<string> res = new();
-                res.Val = result;
+                res.Val1 = result;
 
                 return new RpcNetworkMessages(req, res);
             }
@@ -221,10 +221,10 @@ class Program
                 req.Deserialize(reader);
 
                 string result = await mPing.PingReverseAsync(
-                    req.Val!, beginMethodRunCallback());
+                    req.Val1!, beginMethodRunCallback());
 
                 NetworkMessage<string> res = new();
-                res.Val = result;
+                res.Val1 = result;
 
                 return new RpcNetworkMessages(req, res);
             }
