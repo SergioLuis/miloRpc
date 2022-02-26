@@ -4,10 +4,10 @@ public class RpcMetrics
 {
     public struct RpcCounters
     {
-        public uint TotalConnections = 0;
-        public uint ActiveConnections = 0;
-        public uint TotalMethodCalls = 0;
-        public uint ActiveMethodCalls = 0;
+        public uint TotalConnections;
+        public uint ActiveConnections;
+        public uint TotalMethodCalls;
+        public uint ActiveMethodCalls;
     }
 
     public RpcCounters Counters => mCounters;
