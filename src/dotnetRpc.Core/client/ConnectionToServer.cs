@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
@@ -6,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using dotnetRpc.Core.Shared;
+using Microsoft.Extensions.Logging;
 
 namespace dotnetRpc.Core.Client;
 
@@ -21,6 +23,23 @@ public class ConnectionToServer : IDisposable
         Exited
     }
 
+    public uint ConnectionId => mConnectionId;
+    public IPEndPoint RemoteEndPoint => IPEndPoint.Parse("127.0.0.1:9876");
+
+    public TimeSpan CurrentIdlingTime => TimeSpan.Zero; // FIXME: Implement
+    public TimeSpan CurrentWritingTime => TimeSpan.Zero; // FIXME: Implement
+    public TimeSpan CurrentWaitingTime => TimeSpan.Zero; // FIXME: Implement
+    public TimeSpan CurrentReadingTime => TimeSpan.Zero; // FIXME: Implement
+    public ulong CurrentBytesRead => 0; // FIXME: Implement
+    public ulong CurrentBytesWritten => 0; // FIXME: Implement
+
+    public TimeSpan TotalIdlingTime => TimeSpan.Zero; // FIXME: Implement
+    public TimeSpan TotalWritingTime => TimeSpan.Zero; // FIXME: Implement
+    public TimeSpan TotalWaitingTime => TimeSpan.Zero; // FIXME: Implement
+    public TimeSpan TotalReadingTime => TimeSpan.Zero; // FIXME: Implement
+    public ulong TotalBytesRead => 0; // FIXME: Implement
+    public ulong TotalBytesWritten => 0; // FIXME: Implement
+
     public Status CurrentStatus { get; private set; } = Status.Idling;
 
     internal ConnectionToServer(
@@ -35,6 +54,10 @@ public class ConnectionToServer : IDisposable
         mReadMethodCallResult = readMethodCallResult;
         mClientMetrics = clientMetrics;
         mTcpClient = tcpClient;
+        
+        mIdleStopwatch = new();
+        mWaitStopwatch = new();
+        mLog = RpcLoggerFactory.CreateLogger("ConnectionToServer");
 
         mConnectionId = mClientMetrics.ConnectionStart();
     }
@@ -72,7 +95,9 @@ public class ConnectionToServer : IDisposable
             messages.Request.Serialize(mRpc.Writer);
 
             CurrentStatus = Status.Waiting;
+            mWaitStopwatch.Start();
             await mTcpClient.GetStream().ReadAsync(Memory<byte>.Empty, ct);
+            mWaitStopwatch.Reset();
 
             CurrentStatus = Status.Reading;
             MethodCallResult result = mReadMethodCallResult.Read(
@@ -100,12 +125,16 @@ public class ConnectionToServer : IDisposable
 
     RpcProtocolNegotiationResult? mRpc;
     bool mDisposed;
+
     readonly uint mConnectionId;
     readonly INegotiateRpcProtocol mNegotiateProtocol;
     readonly IWriteMethodId mWriteMethodId;
     readonly IReadMethodCallResult mReadMethodCallResult;
     readonly RpcMetrics mClientMetrics;
     readonly TcpClient mTcpClient;
+    readonly Stopwatch mIdleStopwatch;
+    readonly Stopwatch mWaitStopwatch;
+    readonly ILogger mLog;
 
     protected virtual void Dispose(bool disposing)
     {

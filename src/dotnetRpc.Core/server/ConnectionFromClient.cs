@@ -26,12 +26,20 @@ internal class ConnectionFromClient
 
     public uint ConnectionId => mConnectionId;
     public IPEndPoint RemoteEndPoint => mRpcSocket.RemoteEndPoint;
+
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
     public TimeSpan CurrentRunningTime => mRunStopwatch.Elapsed;
+    public TimeSpan CurrentReadingTime => TimeSpan.Zero; // FIXME: Implement
+    public TimeSpan CurrentWritingTime => TimeSpan.Zero; // FIXME: Implement
+    public ulong CurrentBytesRead => 0; // FIXME: Implement
+    public ulong CurrentBytesWritten => 0; // FIXME: Implement
+
+    public TimeSpan TotalIdlingTime => TimeSpan.Zero; // FIXME: Implement
+    public TimeSpan TotalRunningTime => TimeSpan.Zero; // FIXME: Implement
+    public TimeSpan TotalReadingTime => mRpcSocket.Stream.ReadTime;
+    public TimeSpan TotalWrittingTime => mRpcSocket.Stream.WriteTime;
     public ulong TotalBytesRead => mRpcSocket.Stream.ReadBytes;
     public ulong TotalBytesWritten => mRpcSocket.Stream.WrittenBytes;
-    public TimeSpan TotalTimeReading => mRpcSocket.Stream.ReadTime;
-    public TimeSpan TotalTimeWritting => mRpcSocket.Stream.WriteTime;
 
     public Status CurrentStatus { get; private set; }
 
@@ -199,6 +207,8 @@ internal class ConnectionFromClient
     }
 
     RpcProtocolNegotiationResult? mRpc;
+    TimeSpan mTotalIdlingTime = TimeSpan.Zero;
+    TimeSpan mTotalRunningTime = TimeSpan.Zero;
 
     readonly uint mConnectionId;
     readonly StubCollection mStubCollection;
