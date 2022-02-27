@@ -10,7 +10,7 @@ public class RpcMetrics
         public uint ActiveMethodCalls;
     }
 
-    public RpcCounters Counters => mCounters;
+    public RpcCounters Counters { get { lock (mSyncLock) return mCounters; } }
 
     public uint ConnectionStart()
     {
