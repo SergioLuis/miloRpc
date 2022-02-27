@@ -8,6 +8,14 @@ namespace dotnetRpc.Core.Server;
 
 public class StubCollection
 {
+    public StubCollection() { }
+
+    public StubCollection(params IStub[] stubs)
+    {
+        foreach (IStub stub in stubs)
+            RegisterStub(stub);
+    }
+
     internal IStub? FindStub(IMethodId methodId)
     {
         return mStubList.FirstOrDefault(s => s.CanHandleMethod(methodId));
