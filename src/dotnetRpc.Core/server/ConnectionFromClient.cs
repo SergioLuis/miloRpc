@@ -162,6 +162,20 @@ internal class ConnectionFromClient
         {
             // Most probably the client closed the connection
         }
+        catch (EndOfStreamException ex)
+        {
+            if (mRpc is null)
+                return;
+
+            if (!mRpcSocket.IsConnected())
+                return;
+
+            if (!mRpc.Writer.BaseStream.CanWrite
+                || !mRpc.Reader.BaseStream.CanRead)
+            {
+                return;
+            }
+        }
         finally
         {
             CurrentStatus = Status.Exited;
