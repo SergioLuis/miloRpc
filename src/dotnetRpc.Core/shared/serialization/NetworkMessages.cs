@@ -2,6 +2,12 @@ using System.IO;
 
 namespace dotnetRpc.Core.Shared.Serialization;
 
+public class VoidNetworkMessage : INetworkMessage
+{
+    public void Deserialize(BinaryReader reader) => reader.ReadBoolean();
+    public void Serialize(BinaryWriter writer) => writer.Write((bool)true);
+}
+
 public class NetworkMessage<T> : INetworkMessage
 {
     public T? Val1 { get; set; }
