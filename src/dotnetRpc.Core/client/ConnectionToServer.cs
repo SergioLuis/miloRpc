@@ -50,6 +50,11 @@ public class ConnectionToServer : IDisposable
         RpcNetworkMessages messages,
         CancellationToken ct)
     {
+        // This Task.Yield allows the client to fire the task and await it
+        // at a later point without having to wait for all the synchronous
+        // write operations.
+        await Task.Yield();
+
         uint methodCallId = mClientMetrics.MethodCallStart();
         try
         {
@@ -67,9 +72,7 @@ public class ConnectionToServer : IDisposable
             messages.Request.Serialize(mRpc.Writer);
 
             CurrentStatus = Status.Waiting;
-            // TODO: Check if we can poll the socket for new content
-            // While there is no content that would mean that the method is running
-            // We could even time out
+            await mTcpClient.GetStream().ReadAsync(Memory<byte>.Empty, ct);
 
             CurrentStatus = Status.Reading;
             MethodCallResult result = mReadMethodCallResult.Read(
