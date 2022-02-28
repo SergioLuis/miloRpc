@@ -5,9 +5,9 @@ using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 using dotnetRpc.Core.Shared;
-using Microsoft.Extensions.Logging;
 
 namespace dotnetRpc.Core.Client;
 
@@ -47,13 +47,13 @@ public class ConnectionToServer : IDisposable
         IWriteMethodId writeMethodId,
         IReadMethodCallResult readMethodCallResult,
         RpcMetrics clientMetrics,
-        TcpClient tcpClient)
+        RpcSocket socket)
     {
         mNegotiateProtocol = negotiateProtocol;
         mWriteMethodId = writeMethodId;
         mReadMethodCallResult = readMethodCallResult;
         mClientMetrics = clientMetrics;
-        mTcpClient = tcpClient;
+        mRpcSocket = socket;
         
         mIdleStopwatch = new();
         mWaitStopwatch = new();
@@ -86,8 +86,8 @@ public class ConnectionToServer : IDisposable
                 CurrentStatus = Status.NegotiatingProtocol;
                 mRpc = await mNegotiateProtocol.NegotiateProtocolAsync(
                     mConnectionId,
-                    Unsafe.As<IPEndPoint>(mTcpClient.Client.RemoteEndPoint)!,
-                    mTcpClient.GetStream());
+                    Unsafe.As<IPEndPoint>(mRpcSocket.RemoteEndPoint)!,
+                    mRpcSocket.Stream);
             }
 
             CurrentStatus = Status.Writing;
@@ -96,7 +96,7 @@ public class ConnectionToServer : IDisposable
 
             CurrentStatus = Status.Waiting;
             mWaitStopwatch.Start();
-            await mTcpClient.GetStream().ReadAsync(Memory<byte>.Empty, ct);
+            await mRpcSocket.WaitForDataAsync(ct);
             mWaitStopwatch.Reset();
 
             CurrentStatus = Status.Reading;
@@ -131,7 +131,7 @@ public class ConnectionToServer : IDisposable
     readonly IWriteMethodId mWriteMethodId;
     readonly IReadMethodCallResult mReadMethodCallResult;
     readonly RpcMetrics mClientMetrics;
-    readonly TcpClient mTcpClient;
+    readonly RpcSocket mRpcSocket;
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mWaitStopwatch;
     readonly ILogger mLog;
@@ -144,7 +144,7 @@ public class ConnectionToServer : IDisposable
         if (disposing)
         {
             mClientMetrics.ConnectionEnd();
-            mTcpClient.Dispose();
+            mRpcSocket.Close();
         }
 
         mDisposed = true;

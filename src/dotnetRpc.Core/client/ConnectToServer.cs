@@ -40,12 +40,14 @@ public class ConnectToServer
     {
         TcpClient tcpClient = new();
         await tcpClient.ConnectAsync(mServerEndpoint, ct);
+
+        RpcSocket socket = new(tcpClient.Client, ct);
         return new(
             mNegotiateProtocol,
             mWriteMethodId,
             mReadMethodCallResult,
             mMetrics,
-            tcpClient);
+            socket);
     }
 
     readonly IPEndPoint mServerEndpoint;
