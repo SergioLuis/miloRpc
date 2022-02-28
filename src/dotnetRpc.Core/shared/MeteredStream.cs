@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Diagnostics;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace dotnetRpc.Core.Shared;
 
@@ -48,6 +50,19 @@ public class MeteredStream : Stream
         return read;
     }
 
+    public override async Task<int> ReadAsync(
+        byte[] buffer, int offset, int count, CancellationToken ct)
+    {
+        mReadStopWatch.Start();
+
+        int read = await mInnerStream.ReadAsync(buffer, offset, count, ct);
+        mReadBytes += (ulong)read;
+
+        mReadStopWatch.Stop();
+
+        return read;
+    }
+
     public override long Seek(long offset, SeekOrigin origin)
     {
         return mInnerStream.Seek(offset, origin);
@@ -63,6 +78,17 @@ public class MeteredStream : Stream
         mWriteStopWatch.Start();
 
         mInnerStream.Write(buffer, offset, count);
+        mWrittenBytes += (ulong)count;
+
+        mWriteStopWatch.Stop();
+    }
+
+    public override async Task WriteAsync(
+        byte[] buffer, int offset, int count, CancellationToken ct)
+    {
+        mWriteStopWatch.Start();
+
+        await mInnerStream.WriteAsync(buffer, offset, count, ct);
         mWrittenBytes += (ulong)count;
 
         mWriteStopWatch.Stop();
