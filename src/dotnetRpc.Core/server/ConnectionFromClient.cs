@@ -12,7 +12,7 @@ using dotnetRpc.Core.Shared;
 
 namespace dotnetRpc.Core.Server;
 
-internal class ConnectionFromClient
+public class ConnectionFromClient
 {
     public enum Status
     {

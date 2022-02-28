@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -11,10 +12,10 @@ namespace dotnetRpc.Core.Server;
 
 public class ActiveConnections
 {
-    class ActiveConnection
+    public class ActiveConnection
     {
-        internal ConnectionFromClient Conn { get; private set; }
-        internal CancellationTokenSource Cts { get; private set; }
+        public ConnectionFromClient Conn { get; private set; }
+        public CancellationTokenSource Cts { get; private set; }
 
         internal ActiveConnection(
             ConnectionFromClient conn, CancellationTokenSource cts)
@@ -33,15 +34,16 @@ public class ActiveConnections
             if (ReferenceEquals(this, obj))
                 return true;
 
-            ActiveConnection? other = obj as ActiveConnection;
-            if (other == null)
+            ActiveConnection? other = Unsafe.As<ActiveConnection>(obj);
+            if (other is null)
                 return false;
 
             return other.Conn.ConnectionId == this.Conn.ConnectionId;
         }
     }
 
-    public RpcMetrics.RpcCounters Counters { get => mMetrics.Counters; }
+    public RpcMetrics.RpcCounters Counters => mMetrics.Counters;
+    public IReadOnlyCollection<ActiveConnection> Connections => mActiveConnections;
 
     internal ActiveConnections(
         StubCollection stubCollection,
@@ -117,7 +119,6 @@ public class ActiveConnections
 
         TimeSpan loopWaitTime = loopParams.LoopWaitTime;
         CancellationToken ct = loopParams.CancellationToken;
-
         try
         {
             while (!ct.IsCancellationRequested)

@@ -10,9 +10,9 @@ public class RpcMetrics
         public uint ActiveMethodCalls;
     }
 
-    public RpcCounters Counters { get { lock (mSyncLock) return mCounters; } }
+    internal RpcCounters Counters { get { lock (mSyncLock) return mCounters; } }
 
-    public uint ConnectionStart()
+    internal uint ConnectionStart()
     {
         lock (mSyncLock)
         {
@@ -23,7 +23,7 @@ public class RpcMetrics
         }
     }
 
-    public void ConnectionEnd()
+    internal void ConnectionEnd()
     {
         lock (mSyncLock)
         {
@@ -31,7 +31,7 @@ public class RpcMetrics
         }
     }
 
-    public uint MethodCallStart()
+    internal uint MethodCallStart()
     {
         lock (mSyncLock)
         {
@@ -42,7 +42,7 @@ public class RpcMetrics
         }
     }
 
-    public void MethodCallEnd()
+    internal void MethodCallEnd()
     {
         lock (mSyncLock)
         {
