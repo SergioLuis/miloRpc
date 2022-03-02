@@ -10,6 +10,7 @@ public class RecurringTask
 {
     public bool IsRunning => mIsRunning;
     public uint TimesInvoked => mTimesInvoked;
+    public Exception? LastException { get { lock (mSyncLock) return mLastException; } }
 
     public RecurringTask(Func<CancellationToken, Task> action, string taskName)
     {
@@ -21,7 +22,7 @@ public class RecurringTask
 
     public void Start(TimeSpan interval, CancellationToken ct)
     {
-        Monitor.Enter(mSyncLock);
+        mSemaphore.Wait();
         try
         {
             if (ct.IsCancellationRequested)
@@ -37,13 +38,13 @@ public class RecurringTask
         }
         finally
         {
-            Monitor.Exit(mSyncLock);
+            mSemaphore.Release();
         }
     }
 
     public async Task Stop()
     {
-        Monitor.Enter(mSyncLock);
+        await mSemaphore.WaitAsync();
         try
         {
             if (mRecurringLoopTask == null || mRecurringLoopTask.IsCompleted)
@@ -65,7 +66,7 @@ public class RecurringTask
         }
         finally
         {
-            Monitor.Exit(mSyncLock);
+            mSemaphore.Release();
         }
     }
 
@@ -73,7 +74,7 @@ public class RecurringTask
 
     public async Task FireEarly(CancellationToken ct)
     {
-        Monitor.Enter(mSyncLock);
+        await mSemaphore.WaitAsync();
         try
         {
             if (mRecurringLoopCts != null)
@@ -98,7 +99,7 @@ public class RecurringTask
         }
         finally
         {
-            Monitor.Exit(mSyncLock);
+            mSemaphore.Release();
         }
     }
 
@@ -113,7 +114,15 @@ public class RecurringTask
         {
             while (!breakToken.IsCancellationRequested)
             {
-                await action(actionToken);
+                try
+                {
+                    await action(actionToken);
+                }
+                catch (Exception ex)
+                {
+                   lock (mSyncLock) mLastException = ex;
+                }
+
                 mTimesInvoked++;
 
                 await SafeDelay(interval, breakToken);
@@ -138,11 +147,14 @@ public class RecurringTask
     TimeSpan mOriginalRunInterval;
     CancellationToken mOriginalStartToken;
     CancellationTokenSource? mRecurringLoopCts;
+    Exception? mLastException;
     volatile bool mIsRunning;
     volatile uint mTimesInvoked;
 
     readonly Func<CancellationToken, Task> mAction;
     readonly string mTaskName;
-    readonly ILogger mLog;
     readonly object mSyncLock = new();
+    readonly SemaphoreSlim mSemaphore = new(1, 1);
+
+    readonly ILogger mLog;
 }
