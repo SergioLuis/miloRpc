@@ -11,7 +11,7 @@ using dotnetRpc.Core.Server;
 
 namespace dotnetRpc.Tests;
 
-[TestFixture, SingleThreaded]
+[TestFixture]
 public class ActiveConnectionsTests
 {
     [Test, Timeout(TestingConstants.Timeout)]
