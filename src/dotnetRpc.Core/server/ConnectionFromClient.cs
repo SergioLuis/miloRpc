@@ -1,8 +1,6 @@
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Net;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -29,13 +27,13 @@ public class ConnectionFromClient
 
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
     public TimeSpan CurrentRunningTime => mRunStopwatch.Elapsed;
-    public TimeSpan CurrentReadingTime => TimeSpan.Zero; // FIXME: Implement
-    public TimeSpan CurrentWritingTime => TimeSpan.Zero; // FIXME: Implement
-    public ulong CurrentBytesRead => 0; // FIXME: Implement
-    public ulong CurrentBytesWritten => 0; // FIXME: Implement
+    public TimeSpan CurrentReadingTime => mReadStopwatch.Elapsed;
+    public TimeSpan CurrentWritingTime => mWriteStopwatch.Elapsed;
+    public ulong CurrentBytesRead => mRpcSocket.Stream.ReadBytes - mLastReadBytes;
+    public ulong CurrentBytesWritten => mRpcSocket.Stream.WrittenBytes - mLastWrittenBytes;
 
-    public TimeSpan TotalIdlingTime => TimeSpan.Zero; // FIXME: Implement
-    public TimeSpan TotalRunningTime => TimeSpan.Zero; // FIXME: Implement
+    public TimeSpan TotalIdlingTime => mTotalIdlingTime + mIdleStopwatch.Elapsed;
+    public TimeSpan TotalRunningTime => mTotalRunningTime + mRunStopwatch.Elapsed;
     public TimeSpan TotalReadingTime => mRpcSocket.Stream.ReadTime;
     public TimeSpan TotalWrittingTime => mRpcSocket.Stream.WriteTime;
     public ulong TotalBytesRead => mRpcSocket.Stream.ReadBytes;
@@ -62,9 +60,11 @@ public class ConnectionFromClient
 
         mIdleStopwatch = new();
         mRunStopwatch = new();
-        mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
-
+        mReadStopwatch = new();
+        mWriteStopwatch = new();
         mConnectionId = mServerMetrics.ConnectionStart();
+
+        mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
     }
 
     public bool IsConnected() => mRpcSocket.IsConnected();
@@ -83,12 +83,11 @@ public class ConnectionFromClient
                 idlingCt = ct.CancelLinkedTokenAfter(mConnectionTimeouts.Idling);
                 await mRpcSocket.WaitForDataAsync(idlingCt);
                 idlingCt = CancellationToken.None;
-                mIdleStopwatch.Reset();
+                mIdleStopwatch.Stop();
 
+                uint methodCallId = mServerMetrics.MethodCallStart();
                 try
                 {
-                    uint methodCallId = mServerMetrics.MethodCallStart();
-
                     if (mRpc is null)
                     {
                         CurrentStatus = Status.NegotiatingProtocol;
@@ -96,9 +95,14 @@ public class ConnectionFromClient
                             mConnectionId,
                             mRpcSocket.RemoteEndPoint,
                             mRpcSocket.Stream);
+
+                        mLastReadBytes = mRpcSocket.Stream.ReadBytes;
+                        mLastWrittenBytes = mRpcSocket.Stream.WrittenBytes;
                     }
 
                     CurrentStatus = Status.Reading;
+                    mLastReadBytes = mRpcSocket.Stream.ReadBytes;
+                    mReadStopwatch.Start();
                     IMethodId methodId = mReadMethodId.ReadMethodId(mRpc.Reader);
                     methodId.SetSolvedMethodName(mStubCollection.SolveMethodName(methodId));
 
@@ -114,6 +118,7 @@ public class ConnectionFromClient
 
                     Func<CancellationToken> beginMethodRunCallback = () =>
                     {
+                        mReadStopwatch.Stop();
                         CurrentStatus = Status.Running;
                         mRunStopwatch.Start();
                         runningCt = ct.CancelLinkedTokenAfter(mConnectionTimeouts.Running);
@@ -123,11 +128,14 @@ public class ConnectionFromClient
                     RpcNetworkMessages messages =
                         await stub.RunMethodCallAsync(methodId, mRpc.Reader, beginMethodRunCallback);
                     runningCt = CancellationToken.None;
-                    mRunStopwatch.Reset();
+                    mRunStopwatch.Stop();
 
+                    CurrentStatus = Status.Writing;
+                    mWriteStopwatch.Start();
                     mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.OK);
                     messages.Response.Serialize(mRpc.Writer);
                     mRpc.Writer.Flush();
+                    mWriteStopwatch.Stop();
 
                     if (messages.Request is IDisposable disposableRequest)
                         disposableRequest.Dispose();
@@ -139,50 +147,85 @@ public class ConnectionFromClient
                 }
                 catch (Exception ex)
                 {
-                    mRunStopwatch.Reset();
-                    mIdleStopwatch.Reset();
-
                     if (mRpc is null)
+                    {
+                        mLog.LogError(
+                            "Caught an exception but the protocol is not " +
+                            "negotiated yet, rethrowing...");
                         throw;
+                    }
 
                     if (!mRpcSocket.IsConnected())
+                    {
+                        mLog.LogError(
+                            "Caught an exception but the RpcSocket is not " +
+                            "connected, rethrowing...");
                         throw;
+                    }
 
                     if (!mRpc.Writer.BaseStream.CanWrite
                         || !mRpc.Reader.BaseStream.CanRead)
                     {
+                        mLog.LogError(
+                            "Caught an exception but can't write to nor read from "
+                            + "the underlying stream, rethrowing...");
                         throw;
                     }
 
                     if (CurrentStatus == Status.Reading
                         || CurrentStatus == Status.Running)
                     {
+                        mLog.LogInformation(
+                            "Caught an exception while running a method and the " +
+                            "client is still connected, sending the exception as " +
+                            "a failed method call result");
                         mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.Failed, ex);
                     }
                 }
                 finally
                 {
+                    TimeSpan callIdlingTime = mIdleStopwatch.Elapsed;
+                    TimeSpan callReadingtime = mReadStopwatch.Elapsed;
+                    TimeSpan callRunningTime = mRunStopwatch.Elapsed;
+                    TimeSpan callWrittingTime = mWriteStopwatch.Elapsed;
+
+                    ulong callReadBytes = mRpcSocket.Stream.ReadBytes - mLastReadBytes;
+                    ulong callWrittenBytes = mRpcSocket.Stream.WrittenBytes - mLastWrittenBytes;
+
+                    mLog.LogTrace(
+                        "Finished method call {1}{0}" +
+                        "Times{0}" +
+                        "  Idling: {2}, Reading: {3}, Running: {4}, Writting: {5}{0}" +
+                        "Bytes:{0}" +
+                        "  Read: {6}, Written: {7}",
+                        Environment.NewLine,
+                        methodCallId,
+                        callIdlingTime, callReadingtime, callRunningTime, callWrittingTime,
+                        callReadBytes, callWrittenBytes);
+
+
+                    mTotalIdlingTime += callIdlingTime;
+                    mTotalRunningTime += callRunningTime;
+
+                    mLastReadBytes = mRpcSocket.Stream.ReadBytes;
+                    mLastWrittenBytes = mRpcSocket.Stream.WrittenBytes;
+
+                    mIdleStopwatch.Reset();
+                    mReadStopwatch.Reset();
+                    mRunStopwatch.Reset();
+                    mWriteStopwatch.Reset();
+
                     mServerMetrics.MethodCallEnd();
                 }
             }
         }
-        catch (SocketException ex)
+        catch (Exception ex)
         {
-            // Most probably the client closed the connection
-        }
-        catch (EndOfStreamException ex)
-        {
-            if (mRpc is null)
-                return;
-
-            if (!mRpcSocket.IsConnected())
-                return;
-
-            if (!mRpc.Writer.BaseStream.CanWrite
-                || !mRpc.Reader.BaseStream.CanRead)
-            {
-                return;
-            }
+            mLog.LogError(
+                "Caught an exception not handled by ProcessConnMessagesLoop, " +
+                "the connection is going to exit");
+            mLog.LogError("Type: {0}, Message: {1}", ex.GetType(), ex.Message);
+            mLog.LogDebug("StackTrace:{0}{1}", Environment.NewLine, ex.StackTrace);
         }
         finally
         {
@@ -194,21 +237,11 @@ public class ConnectionFromClient
         mLog.LogTrace("ProcessConnMessagesLoop completed");
     }
 
-    async Task<string> ProcessEchoRequestAsync(
-        BinaryReader reader, BinaryWriter writer, CancellationToken ct)
-    {
-        string echoRequest = reader.ReadString();
-
-        CurrentStatus = Status.Running;
-        await Task.Delay(300, ct);
-
-        string reply = $"Reply: {echoRequest}";
-        return reply;
-    }
-
     RpcProtocolNegotiationResult? mRpc;
     TimeSpan mTotalIdlingTime = TimeSpan.Zero;
     TimeSpan mTotalRunningTime = TimeSpan.Zero;
+    ulong mLastReadBytes;
+    ulong mLastWrittenBytes;
 
     readonly uint mConnectionId;
     readonly StubCollection mStubCollection;
@@ -218,7 +251,10 @@ public class ConnectionFromClient
     readonly RpcMetrics mServerMetrics;
     readonly RpcSocket mRpcSocket;
     readonly ConnectionTimeouts mConnectionTimeouts;
+
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mRunStopwatch;
+    readonly Stopwatch mReadStopwatch;
+    readonly Stopwatch mWriteStopwatch;
     readonly ILogger mLog;
 }
