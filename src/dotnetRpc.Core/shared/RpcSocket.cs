@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace dotnetRpc.Core.Shared;
 
-internal class RpcSocket
+internal class RpcSocket : IDisposable
 {
     internal MeteredStream Stream => mMeteredStream;
     internal IPEndPoint RemoteEndPoint => mRemoteEndPoint;
@@ -22,9 +22,15 @@ internal class RpcSocket
         ct.Register(() =>
         {
             mLog.LogTrace("Cancellation requested, closing RpcSocket");
-            Close();
+            Dispose();
             mLog.LogTrace("RpcSocket closed");
         });
+    }
+
+    public void Dispose()
+    {
+        Close();
+        GC.SuppressFinalize(this);
     }
 
     internal async ValueTask WaitForDataAsync(CancellationToken ct)
@@ -36,15 +42,19 @@ internal class RpcSocket
 
     internal bool IsConnected()
     {
-        // TODO: Missing implementation
-        return true;
+        if (mDisposed)
+            return false;
+
+        bool pollVal = mSocket.Poll(1000, SelectMode.SelectRead);
+        bool availableVal = mSocket.Available == 0;
+        return !(pollVal && availableVal);
     }
 
-    internal void Close()
+    void Close()
     {
         lock (this)
         {
-            if (mbIsClosed)
+            if (mDisposed)
                 return;
 
             try
@@ -59,12 +69,12 @@ internal class RpcSocket
             }
             finally
             {
-                mbIsClosed = true;
+                mDisposed = true;
             }
         }
     }
 
-    bool mbIsClosed = false;
+    volatile bool mDisposed = false;
     readonly Socket mSocket;
     readonly MeteredStream mMeteredStream;
     readonly IPEndPoint mRemoteEndPoint;
