@@ -34,11 +34,7 @@ internal class RpcSocket : IDisposable
     }
 
     internal async ValueTask WaitForDataAsync(CancellationToken ct)
-    {
-        // The call returns once there is new data to be read in the socket,
-        // without actually reading anything.
-        await mSocket.ReceiveAsync(Memory<byte>.Empty, SocketFlags.None, ct);
-    }
+        => await mSocket.ReceiveAsync(Memory<byte>.Empty, SocketFlags.None, ct);
 
     internal bool IsConnected()
     {
