@@ -11,7 +11,7 @@ namespace dotnetRpc.Tests;
 [TestFixture]
 public class RecurringTaskTests
 {
-    [Test, Timeout(TestsConstants.Timeout)]
+    [Test, Timeout(TestingConstants.Timeout)]
     public async Task Task_Starts_And_Stops()
     {
         RecurringTaskCountInvocations testRecurringTask = new();
@@ -32,7 +32,7 @@ public class RecurringTaskTests
             Is.GreaterThanOrEqualTo(minimumInvokations)
                 .After(timerIntervalMs * (minimumInvokations + 1)));
 
-        await recurringTask.Stop();
+        await recurringTask.StopAsync();
         
         Assert.That(() => recurringTask.IsRunning, Is.False.After(100, 10));
 
@@ -41,7 +41,7 @@ public class RecurringTaskTests
             Is.EqualTo(testRecurringTask.TimesInvoked));
     }
 
-    [Test, Timeout(TestsConstants.Timeout)]
+    [Test, Timeout(TestingConstants.Timeout)]
     public async Task Task_Starts_And_Can_Be_Cancelled()
     {
         CancellationTokenSource cts = new();
@@ -73,7 +73,7 @@ public class RecurringTaskTests
         Assert.That(testRecurringTask.TimesInvoked, Is.EqualTo(actualTimesInvoked));
     }
 
-    [Test, Timeout(TestsConstants.Timeout)]
+    [Test, Timeout(TestingConstants.Timeout)]
     public async Task FireEarly_Works_And_Does_Not_Increment_TimesInvoked()
     {
         RecurringTaskCountInvocations testRecurringTask = new();
@@ -94,9 +94,9 @@ public class RecurringTaskTests
             Is.GreaterThanOrEqualTo(minimumInvokations)
                 .After(timerIntervalMs * (minimumInvokations + 1)));
 
-        await recurringTask.FireEarly();
+        await recurringTask.FireEarlyAsync();
 
-        await recurringTask.Stop();
+        await recurringTask.StopAsync();
         
         Assert.That(() => recurringTask.IsRunning, Is.False.After(100, 10));
 
@@ -105,7 +105,7 @@ public class RecurringTaskTests
             Is.EqualTo(testRecurringTask.TimesInvoked - 1));
     }
 
-    [Test, Timeout(TestsConstants.Timeout)]
+    [Test, Timeout(TestingConstants.Timeout)]
     public async Task FireEarly_Throws_Exception_From_Recurring_Action()
     {
         CancellationTokenSource cts = new();
@@ -134,10 +134,10 @@ public class RecurringTaskTests
             Is.Not.Null.And.TypeOf<InvalidOperationException>());
 
         Assert.That(
-            () => recurringTask.FireEarly().GetAwaiter().GetResult(),
+            () => recurringTask.FireEarlyAsync().GetAwaiter().GetResult(),
             Throws.InvalidOperationException);
 
-        await recurringTask.Stop();
+        await recurringTask.StopAsync();
 
         Assert.That(() => recurringTask.IsRunning, Is.False.After(100, 10));
 
@@ -148,7 +148,7 @@ public class RecurringTaskTests
         Assert.That(recurringTask.TimesInvoked, Is.EqualTo(actualTimesInvoked));
     }
 
-    [Test, Timeout(TestsConstants.Timeout)]
+    [Test, Timeout(TestingConstants.Timeout)]
     public async Task Stopping_An_Errored_Loop_Does_Not_Throw_Exception()
     {
         CancellationTokenSource cts = new();
@@ -176,7 +176,7 @@ public class RecurringTaskTests
             recurringTask.LastException,
             Is.Not.Null.And.TypeOf<InvalidOperationException>());
 
-        await recurringTask.Stop();
+        await recurringTask.StopAsync();
 
         Assert.That(() => recurringTask.IsRunning, Is.False.After(100, 10));
 
@@ -187,7 +187,7 @@ public class RecurringTaskTests
         Assert.That(recurringTask.TimesInvoked, Is.EqualTo(actualTimesInvoked));
     }
 
-    [Test, Timeout(TestsConstants.Timeout)]
+    [Test, Timeout(TestingConstants.Timeout)]
     public async Task Task_Keeps_Running_Even_If_Errored()
     {
         CancellationTokenSource cts = new();
