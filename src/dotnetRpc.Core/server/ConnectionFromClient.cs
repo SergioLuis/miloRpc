@@ -67,7 +67,7 @@ public class ConnectionFromClient
         mConnectionId = mServerMetrics.ConnectionStart();
     }
 
-    internal bool IsRpcSocketConnected() => mRpcSocket.IsConnected();
+    public bool IsConnected() => mRpcSocket.IsConnected();
 
     internal async ValueTask ProcessConnMessagesLoop(CancellationToken ct)
     {
@@ -188,7 +188,7 @@ public class ConnectionFromClient
         {
             CurrentStatus = Status.Exited;
             mServerMetrics.ConnectionEnd();
-            mRpcSocket.Close();
+            mRpcSocket.Dispose();
         }
 
         mLog.LogTrace("ProcessConnMessagesLoop completed");
