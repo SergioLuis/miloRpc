@@ -42,21 +42,29 @@ public class RecurringTask
         }
     }
 
-    public async Task Stop()
+    public async Task StopAsync()
+        => await TryStopAsync(Timeout.InfiniteTimeSpan, CancellationToken.None);
+
+    public async Task<bool> TryStopAsync(
+        TimeSpan timeout, CancellationToken ct)
     {
-        await mSemaphore.WaitAsync();
+        bool semaphoreEntered = await mSemaphore.WaitAsync(timeout, ct);
+        if (!semaphoreEntered)
+            return false;
+
         try
         {
             if (mRecurringLoopTask == null || mRecurringLoopTask.IsCompleted)
-                return;
+                return true;
 
             if (mRecurringLoopCts == null)
-                return;
+                return true;
 
             mRecurringLoopCts.Cancel();
             try
             {
                 await mRecurringLoopTask;
+                return true;
             }
             finally
             {
@@ -70,11 +78,16 @@ public class RecurringTask
         }
     }
 
-    public async Task FireEarly() => await FireEarly(CancellationToken.None);
+    public async Task FireEarlyAsync()
+        => await TryFireEarlyAsync(Timeout.InfiniteTimeSpan, CancellationToken.None);
 
-    public async Task FireEarly(CancellationToken ct)
+    public async Task<bool> TryFireEarlyAsync(
+        TimeSpan timeout, CancellationToken ct)
     {
-        await mSemaphore.WaitAsync();
+        bool semaphoreEntered = await mSemaphore.WaitAsync(timeout, ct);
+        if (!semaphoreEntered)
+            return false;
+
         try
         {
             if (mRecurringLoopCts != null)
@@ -96,6 +109,7 @@ public class RecurringTask
 
             mRecurringLoopCts = CancellationTokenSource.CreateLinkedTokenSource(mOriginalStartToken);
             mRecurringLoopTask = RunRecurringAsync(mAction, mOriginalRunInterval, ct, mRecurringLoopCts.Token);
+            return true;
         }
         finally
         {
@@ -103,35 +117,38 @@ public class RecurringTask
         }
     }
 
-    async Task RunRecurringAsync(
+    Task RunRecurringAsync(
         Func<CancellationToken, Task> action,
         TimeSpan interval,
         CancellationToken actionToken,
         CancellationToken breakToken)
     {
-        mIsRunning = true;
-        try
+        return Task.Factory.StartNew(async () =>
         {
-            while (!breakToken.IsCancellationRequested)
+            mIsRunning = true;
+            try
             {
-                try
+                while (!breakToken.IsCancellationRequested)
                 {
-                    await action(actionToken);
-                }
-                catch (Exception ex)
-                {
-                   lock (mSyncLock) mLastException = ex;
-                }
+                    try
+                    {
+                        await action(actionToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        lock (mSyncLock) mLastException = ex;
+                    }
 
-                mTimesInvoked++;
+                    mTimesInvoked++;
 
-                await SafeDelay(interval, breakToken);
+                    await SafeDelay(interval, breakToken);
+                }
             }
-        }
-        finally
-        {
-            mIsRunning = false;
-        }
+            finally
+            {
+                mIsRunning = false;
+            }
+        }, TaskCreationOptions.LongRunning).Unwrap();
     }
 
     static async Task SafeDelay(TimeSpan interval, CancellationToken ct)
