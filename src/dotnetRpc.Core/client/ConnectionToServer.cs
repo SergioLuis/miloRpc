@@ -40,7 +40,7 @@ public class ConnectionToServer : IDisposable
     public ulong TotalBytesRead => 0; // FIXME: Implement
     public ulong TotalBytesWritten => 0; // FIXME: Implement
 
-    public Status CurrentStatus { get; private set; } = Status.Idling;
+    public Status CurrentStatus => mRpcSocket.IsConnected() ? mCurrentStatus : Status.Exited;
 
     internal ConnectionToServer(
         INegotiateRpcProtocol negotiateProtocol,
@@ -68,6 +68,8 @@ public class ConnectionToServer : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    public bool IsConnected() => mRpcSocket.IsConnected();
+
     public async Task ProcessMethodCallAsync(
         IMethodId methodId,
         RpcNetworkMessages messages,
@@ -83,23 +85,23 @@ public class ConnectionToServer : IDisposable
         {
             if (mRpc is null)
             {
-                CurrentStatus = Status.NegotiatingProtocol;
+                mCurrentStatus = Status.NegotiatingProtocol;
                 mRpc = await mNegotiateProtocol.NegotiateProtocolAsync(
                     mConnectionId,
                     Unsafe.As<IPEndPoint>(mRpcSocket.RemoteEndPoint)!,
                     mRpcSocket.Stream);
             }
 
-            CurrentStatus = Status.Writing;
+            mCurrentStatus = Status.Writing;
             mWriteMethodId.WriteMethodId(mRpc.Writer, methodId);
             messages.Request.Serialize(mRpc.Writer);
 
-            CurrentStatus = Status.Waiting;
+            mCurrentStatus = Status.Waiting;
             mWaitStopwatch.Start();
             await mRpcSocket.WaitForDataAsync(ct);
             mWaitStopwatch.Reset();
 
-            CurrentStatus = Status.Reading;
+            mCurrentStatus = Status.Reading;
             MethodCallResult result = mReadMethodCallResult.Read(
                 mRpc.Reader,
                 out bool isResultAvailable,
@@ -123,6 +125,7 @@ public class ConnectionToServer : IDisposable
         }
     }
 
+    Status mCurrentStatus;
     RpcProtocolNegotiationResult? mRpc;
     bool mDisposed;
 
@@ -144,7 +147,7 @@ public class ConnectionToServer : IDisposable
         if (disposing)
         {
             mClientMetrics.ConnectionEnd();
-            mRpcSocket.Close();
+            mRpcSocket.Dispose();
         }
 
         mDisposed = true;
