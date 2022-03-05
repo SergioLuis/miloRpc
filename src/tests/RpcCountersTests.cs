@@ -13,19 +13,21 @@ namespace dotnetRpc.Tests;
 [TestFixture]
 public class RpcCountersTests
 {
-    [Test, Timeout(TestsConstants.Timeout)]
+    [Test, Timeout(TestingConstants.Timeout)]
     public async Task TcpServer_Connections_Increases_And_Decreases()
     {
         CancellationTokenSource cts = new();
-        cts.CancelAfter(TestsConstants.Timeout);
+        cts.CancelAfter(TestingConstants.Timeout);
 
-        IPEndPoint endpoint = new(IPAddress.Loopback, port: TestsConstants.Port);
+        IPEndPoint endpoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new(new VoidCallStub());
         IServer tcpServer = new TcpServer(endpoint, stubCollection);
-
-        ConnectToServer connectToServer = new(endpoint);
         Task serverTask = tcpServer.ListenAsync(cts.Token);
+
+        Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+        ConnectToServer connectToServer = new(tcpServer.BindAddress!);
 
         Assert.That(
             () => tcpServer.ActiveConnections.Counters.TotalConnections,
@@ -71,20 +73,22 @@ public class RpcCountersTests
         await serverTask;
     }
 
-    [Test, Timeout(TestsConstants.Timeout)]
+    [Test, Timeout(TestingConstants.Timeout)]
     public async Task TcpServer_MethodCalls_Increases_And_Decreases()
     {
         CancellationTokenSource cts = new();
-        cts.CancelAfter(TestsConstants.Timeout);
+        cts.CancelAfter(TestingConstants.Timeout);
 
-        IPEndPoint endpoint = new(IPAddress.Loopback, port: TestsConstants.Port);
+        IPEndPoint endpoint = new(IPAddress.Loopback, port: 0);
 
         LongRunningVoidCallStub voidCallStub = new();
         StubCollection stubCollection = new(voidCallStub);
         IServer tcpServer = new TcpServer(endpoint, stubCollection);
-
-        ConnectToServer connectToServer = new(endpoint);
         Task serverTask = tcpServer.ListenAsync(cts.Token);
+
+        Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+        ConnectToServer connectToServer = new(tcpServer.BindAddress!);
 
         Assert.That(
             () => tcpServer.ActiveConnections.Counters.TotalMethodCalls,
