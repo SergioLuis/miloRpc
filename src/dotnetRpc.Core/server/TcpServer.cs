@@ -11,6 +11,7 @@ namespace dotnetRpc.Core.Server;
 
 public interface IServer
 {
+    IPEndPoint? BindAddress { get; }
     ActiveConnections ActiveConnections { get; }
     ConnectionTimeouts ConnectionTimeouts { get; }
     Task ListenAsync(CancellationToken ct);
@@ -18,8 +19,9 @@ public interface IServer
 
 public class TcpServer : IServer
 {
-    public ActiveConnections ActiveConnections { get => mActiveConns; }
-    public ConnectionTimeouts ConnectionTimeouts { get => mConnectionTimeouts; }
+    public IPEndPoint? BindAddress => mBindAddress;
+    public ActiveConnections ActiveConnections => mActiveConns;
+    public ConnectionTimeouts ConnectionTimeouts => mConnectionTimeouts;
 
     public TcpServer(
         IPEndPoint bindTo,
@@ -82,6 +84,8 @@ public class TcpServer : IServer
         TcpListener tcpListener = new(mBindEndpoint);
         tcpListener.Start();
 
+        mBindAddress = (IPEndPoint)tcpListener.LocalEndpoint;
+
         ct.Register(() =>
         {
             mLog.LogTrace("Cancellation requested, stopping TcpListener");
@@ -89,9 +93,7 @@ public class TcpServer : IServer
             mLog.LogTrace("TCP listener stopped");
         });
 
-        Task activeConnsMonitorLoop =
-            mActiveConns.MonitorConnectionsAsync(TimeSpan.FromSeconds(30), ct);
-
+        mActiveConns.StartConnectionMonitor(TimeSpan.FromSeconds(30), ct);
         try
         {
             while (!ct.IsCancellationRequested)
@@ -113,11 +115,12 @@ public class TcpServer : IServer
             throw;
         }
 
-        await activeConnsMonitorLoop;
+        await mActiveConns.StopConnectionMonitorAsync();
 
         mLog.LogTrace("AcceptLoop completed");
     }
 
+    IPEndPoint? mBindAddress;
     readonly ActiveConnections mActiveConns;
     readonly ConnectionTimeouts mConnectionTimeouts;
     readonly IPEndPoint mBindEndpoint;
