@@ -127,7 +127,7 @@ public class ConnectionFromClient
                     runningCt = CancellationToken.None;
                     mRunStopwatch.Stop();
 
-                    CurrentStatus = Status.Writing;                   
+                    CurrentStatus = Status.Writing;
                     mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.OK);
                     messages.Response.Serialize(mRpc.Writer);
                     mRpc.Writer.Flush();
