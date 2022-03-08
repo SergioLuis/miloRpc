@@ -27,8 +27,8 @@ public class ConnectionFromClient
 
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
     public TimeSpan CurrentRunningTime => mRunStopwatch.Elapsed;
-    public TimeSpan CurrentReadingTime => mReadStopwatch.Elapsed;
-    public TimeSpan CurrentWritingTime => mWriteStopwatch.Elapsed;
+    public TimeSpan CurrentReadingTime => mRpcSocket.Stream.ReadTime - mLastReadTime;
+    public TimeSpan CurrentWritingTime => mRpcSocket.Stream.WriteTime - mLastWriteTime;
     public ulong CurrentBytesRead => mRpcSocket.Stream.ReadBytes - mLastReadBytes;
     public ulong CurrentBytesWritten => mRpcSocket.Stream.WrittenBytes - mLastWrittenBytes;
 
@@ -60,8 +60,6 @@ public class ConnectionFromClient
 
         mIdleStopwatch = new();
         mRunStopwatch = new();
-        mReadStopwatch = new();
-        mWriteStopwatch = new();
         mConnectionId = mServerMetrics.ConnectionStart();
 
         mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
@@ -98,11 +96,12 @@ public class ConnectionFromClient
 
                         mLastReadBytes = mRpcSocket.Stream.ReadBytes;
                         mLastWrittenBytes = mRpcSocket.Stream.WrittenBytes;
+                        mLastReadTime = mRpcSocket.Stream.ReadTime;
+                        mLastWriteTime = mRpcSocket.Stream.WriteTime;
                     }
 
                     CurrentStatus = Status.Reading;
-                    mLastReadBytes = mRpcSocket.Stream.ReadBytes;
-                    mReadStopwatch.Start();
+                    mLastReadBytes = mRpcSocket.Stream.ReadBytes;                  
                     IMethodId methodId = mReadMethodId.ReadMethodId(mRpc.Reader);
                     methodId.SetSolvedMethodName(mStubCollection.SolveMethodName(methodId));
 
@@ -118,7 +117,6 @@ public class ConnectionFromClient
 
                     Func<CancellationToken> beginMethodRunCallback = () =>
                     {
-                        mReadStopwatch.Stop();
                         CurrentStatus = Status.Running;
                         mRunStopwatch.Start();
                         runningCt = ct.CancelLinkedTokenAfter(mConnectionTimeouts.Running);
@@ -130,12 +128,10 @@ public class ConnectionFromClient
                     runningCt = CancellationToken.None;
                     mRunStopwatch.Stop();
 
-                    CurrentStatus = Status.Writing;
-                    mWriteStopwatch.Start();
+                    CurrentStatus = Status.Writing;                   
                     mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.OK);
                     messages.Response.Serialize(mRpc.Writer);
                     mRpc.Writer.Flush();
-                    mWriteStopwatch.Stop();
 
                     if (messages.Request is IDisposable disposableRequest)
                         disposableRequest.Dispose();
@@ -185,9 +181,9 @@ public class ConnectionFromClient
                 finally
                 {
                     TimeSpan callIdlingTime = mIdleStopwatch.Elapsed;
-                    TimeSpan callReadingtime = mReadStopwatch.Elapsed;
+                    TimeSpan callReadingTime = mRpcSocket.Stream.ReadTime - mLastReadTime;
                     TimeSpan callRunningTime = mRunStopwatch.Elapsed;
-                    TimeSpan callWrittingTime = mWriteStopwatch.Elapsed;
+                    TimeSpan callWrittingTime = mRpcSocket.Stream.WriteTime - mLastWriteTime;
 
                     ulong callReadBytes = mRpcSocket.Stream.ReadBytes - mLastReadBytes;
                     ulong callWrittenBytes = mRpcSocket.Stream.WrittenBytes - mLastWrittenBytes;
@@ -200,7 +196,7 @@ public class ConnectionFromClient
                         "  Read: {6}, Written: {7}",
                         Environment.NewLine,
                         methodCallId,
-                        callIdlingTime, callReadingtime, callRunningTime, callWrittingTime,
+                        callIdlingTime, callReadingTime, callRunningTime, callWrittingTime,
                         callReadBytes, callWrittenBytes);
 
 
@@ -209,11 +205,11 @@ public class ConnectionFromClient
 
                     mLastReadBytes = mRpcSocket.Stream.ReadBytes;
                     mLastWrittenBytes = mRpcSocket.Stream.WrittenBytes;
+                    mLastReadTime = mRpcSocket.Stream.ReadTime;
+                    mLastWriteTime = mRpcSocket.Stream.WriteTime;
 
                     mIdleStopwatch.Reset();
-                    mReadStopwatch.Reset();
                     mRunStopwatch.Reset();
-                    mWriteStopwatch.Reset();
 
                     mServerMetrics.MethodCallEnd();
                 }
@@ -241,7 +237,9 @@ public class ConnectionFromClient
     TimeSpan mTotalIdlingTime = TimeSpan.Zero;
     TimeSpan mTotalRunningTime = TimeSpan.Zero;
     ulong mLastReadBytes;
+    TimeSpan mLastReadTime;
     ulong mLastWrittenBytes;
+    TimeSpan mLastWriteTime;
 
     readonly uint mConnectionId;
     readonly StubCollection mStubCollection;
@@ -254,7 +252,5 @@ public class ConnectionFromClient
 
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mRunStopwatch;
-    readonly Stopwatch mReadStopwatch;
-    readonly Stopwatch mWriteStopwatch;
     readonly ILogger mLog;
 }
