@@ -101,7 +101,6 @@ public class ConnectionFromClient
                     }
 
                     CurrentStatus = Status.Reading;
-                    mLastReadBytes = mRpcSocket.Stream.ReadBytes;                  
                     IMethodId methodId = mReadMethodId.ReadMethodId(mRpc.Reader);
                     methodId.SetSolvedMethodName(mStubCollection.SolveMethodName(methodId));
 
@@ -112,7 +111,7 @@ public class ConnectionFromClient
                             "Client tried to run an unsupport method (connId {0}): {1}",
                             mConnectionId, methodId);
                         mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.NotSupported);
-                        continue;
+                        return;
                     }
 
                     Func<CancellationToken> beginMethodRunCallback = () =>
