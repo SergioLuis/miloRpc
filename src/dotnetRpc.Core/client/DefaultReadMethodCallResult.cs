@@ -22,16 +22,10 @@ public class DefaultReadMethodCallResult : IReadMethodCallResult
     {
         MethodCallResult methodResult = (MethodCallResult)(reader.ReadByte());
         bool isExceptionAvailable = reader.ReadBoolean();
+        
+        isResultAvailable = methodResult == MethodCallResult.OK;
+        ex = isExceptionAvailable ? ReadException(reader) : null;
 
-        if (isExceptionAvailable)
-        {
-            isResultAvailable = false;
-            ex = ReadException(reader);
-            return methodResult;
-        }
-
-        isResultAvailable = true;
-        ex = null;
         return methodResult;
     }
 
