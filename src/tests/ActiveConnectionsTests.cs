@@ -270,4 +270,43 @@ public class ActiveConnectionsTests
             connFromClient.Conn.CurrentStatus,
             Is.EqualTo(ConnectionFromClient.Status.Exited));
     }
+
+    [Test, Timeout(TestingConstants.Timeout)]
+    public async Task Connection_Gets_Closed_When_Server_Exits()
+    {
+        CancellationTokenSource serverToken = new();
+        serverToken.CancelAfter(TestingConstants.Timeout);
+
+        IPEndPoint endpoint = new(IPAddress.Loopback, port: 0);
+
+        StubCollection stubCollection = new();
+        IServer tcpServer = new TcpServer(endpoint, stubCollection);
+        Task serverTask = tcpServer.ListenAsync(serverToken.Token);
+
+        Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+        ConnectToServer connectToServer = new(tcpServer.BindAddress!);
+
+        Assert.That(tcpServer.ActiveConnections.Connections, Is.Empty);
+
+        ConnectionToServer connToServer = await connectToServer.ConnectAsync(CancellationToken.None);
+
+        Assert.That(
+            () => tcpServer.ActiveConnections.Connections,
+            Has.Count.EqualTo(1).After(3000, 10));
+
+        ActiveConnections.ActiveConnection? connFromClient =
+            tcpServer.ActiveConnections.Connections.FirstOrDefault(
+                activeConn => activeConn.Conn.ConnectionId == 1);
+
+        Assert.That(connFromClient, Is.Not.Null);
+
+        Assert.That(connToServer.IsConnected(), Is.True);
+        Assert.That(connFromClient!.Conn.IsConnected(), Is.True);
+
+        serverToken.Cancel();
+
+        Assert.That(() => connToServer.IsConnected(), Is.False.After(1000, 10));
+        Assert.That(connFromClient.Conn.IsConnected(), Is.False.After(1000, 10));
+    }
 }
