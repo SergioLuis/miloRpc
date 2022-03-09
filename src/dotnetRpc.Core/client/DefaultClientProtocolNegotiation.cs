@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 
 using dotnetRpc.Core.Shared;
@@ -13,11 +15,21 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
     public DefaultClientProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
         RpcCapabilities optionalCapabilities,
-        Compression compressionFlags)
+        Compression compressionFlags) : this(
+            mandatoryCapabilities,
+            optionalCapabilities,
+            compressionFlags, null) { }
+
+    public DefaultClientProtocolNegotiation(
+        RpcCapabilities mandatoryCapabilities,
+        RpcCapabilities optionalCapabilities,
+        Compression compressionFlags,
+        Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? validateServerCertificate)
     {
         mMandatoryCapabilities = mandatoryCapabilities;
         mOptionalCapabilities = optionalCapabilities;
         mCompressionFlags = compressionFlags;
+        mValidateServerCertificate = validateServerCertificate;
 
         mLog = RpcLoggerFactory.CreateLogger("DefaultClientProtocolNegotiation");
     }
@@ -49,13 +61,15 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
             $"Not prepared to negotiate protocol version {versionToUse}");
     }
 
-    Task<RpcProtocolNegotiationResult> NegotiateProtocolV1Async(
+    async Task<RpcProtocolNegotiationResult> NegotiateProtocolV1Async(
         uint connId,
         IPEndPoint remoteEndPoint,
         Stream baseStream,
         BinaryReader tempReader,
         BinaryWriter tempWriter)
     {
+        Stream resultStream = baseStream;
+
         tempWriter.Write((byte)mMandatoryCapabilities);
         tempWriter.Write((byte)mOptionalCapabilities);
         tempWriter.Flush();
@@ -80,9 +94,15 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
             throw new NotSupportedException(exMessage);
         }
 
-        if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Ssl))
+        RemoteCertificateValidationCallback? validationCallback = null;
+        if (mValidateServerCertificate != null)
+            validationCallback = new(mValidateServerCertificate);
+
+        if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
         {
-            throw new NotSupportedException("Ssl is not supported yet");
+            SslStream sslStream = new(resultStream, leaveInnerStreamOpen: false, validationCallback);
+            await sslStream.AuthenticateAsClientAsync(remoteEndPoint.ToString());
+            resultStream = sslStream;
         }
 
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
@@ -96,13 +116,14 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
             connId,
             negotiationResult.OptionalMissingCapabilities);
 
-        return Task.FromResult(new RpcProtocolNegotiationResult(
-            baseStream, tempReader, tempWriter));
+        return new RpcProtocolNegotiationResult(
+            resultStream, tempReader, tempWriter);
     }
 
     readonly RpcCapabilities mMandatoryCapabilities;
     readonly RpcCapabilities mOptionalCapabilities;
     readonly Compression mCompressionFlags;
+    readonly Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? mValidateServerCertificate;
     readonly ILogger mLog;
 
     const byte CURRENT_VERSION = 1;

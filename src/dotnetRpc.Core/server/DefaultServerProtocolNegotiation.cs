@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Net.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -33,13 +34,13 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         mMandatoryCapabilities = mandatoryCapabilities;
         mOptionalCapabilities = optionalCapabilities;
         mCompressionFlags = compressionFlags;
+        mLog = RpcLoggerFactory.CreateLogger("DefaultServerProtocolNegotiation");
+
         mServerCertificate = ProcessCertificateSettings(
             mMandatoryCapabilities,
             mOptionalCapabilities,
             certificatePath,
             certificatePassword);
-
-        mLog = RpcLoggerFactory.CreateLogger("DefaultServerProtocolNegotiation");
     }
 
     Task<RpcProtocolNegotiationResult> INegotiateRpcProtocol.NegotiateProtocolAsync(
@@ -70,13 +71,15 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
             $"Not prepared to negotiate protocol version {versionToUse}");
     }
 
-    Task<RpcProtocolNegotiationResult> NegotiateProtocolV1Async(
+    async Task<RpcProtocolNegotiationResult> NegotiateProtocolV1Async(
         uint connId,
         IPEndPoint remoteEndPoint,
         Stream baseStream,
         BinaryReader tempReader,
         BinaryWriter tempWriter)
     {
+        Stream resultStream = baseStream;
+
         RpcCapabilities clientMandatory = (RpcCapabilities)tempReader.ReadByte();
         RpcCapabilities clientOptional = (RpcCapabilities)tempReader.ReadByte();
 
@@ -93,17 +96,16 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 
         if (!negotiationResult.NegotiatedOk)
         {
-            string exMessage = string.Format(
-                "Protocol was not correctly negotiated for conn {0}. "
-                + "Required missing capabilities: {1}",
-                connId,
-                negotiationResult.RequiredMissingCapabilities);
-            throw new NotSupportedException(exMessage);
+            throw new NotSupportedException(
+                $"Protocol was not correctly negotiated for conn {connId}. "
+                + $"Required missing capabilities: {negotiationResult.RequiredMissingCapabilities}.");
         }
 
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Ssl))
         {
-            throw new NotSupportedException("Ssl is not supported yet");
+            SslStream sslStream = new(resultStream, leaveInnerStreamOpen: false);
+            await sslStream.AuthenticateAsServerAsync(mServerCertificate!);
+            resultStream = sslStream;
         }
 
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
@@ -117,8 +119,8 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
             connId,
             negotiationResult.OptionalMissingCapabilities);
 
-        return Task.FromResult(new RpcProtocolNegotiationResult(
-            baseStream, tempReader, tempWriter));
+        return new RpcProtocolNegotiationResult(
+            resultStream, tempReader, tempWriter);
     }
 
     X509Certificate? ProcessCertificateSettings(
@@ -138,7 +140,7 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 
         if (string.IsNullOrEmpty(certificatePath))
         {
-            certificatePath = Path.GetTempFileName();
+            Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()[0..8] + ".pfx");
             mLog.LogWarning(
                 "SSL is necessary but no cert. is specified. Going to generate a self-signed one at '{0}'",
                 certificatePath);
