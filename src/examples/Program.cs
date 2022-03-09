@@ -41,7 +41,14 @@ class Program
             {
                 CancellationToken connectCt = ct.CancelLinkedTokenAfter(TimeSpan.FromSeconds(3000));
 
-                ConnectToServer connectToServer = new(endpoint);
+                ConnectToServer connectToServer = new(
+                    endpoint,
+                    new DefaultClientProtocolNegotiation(
+                        RpcCapabilities.Ssl,
+                        RpcCapabilities.None,
+                        Compression.None,
+                        (_, _, _, _) => true));
+
                 ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(connectCt);
 
                 IPing pingProxy = new PingProxy(connectionToServer);
@@ -121,7 +128,16 @@ class Program
             stubCollection.RegisterStub(pingStub);
             try
             {
-                IServer tcpServer = new TcpServer(endpoint, stubCollection);
+                IServer tcpServer = new TcpServer(
+                    endpoint,
+                    stubCollection,
+                    new DefaultServerProtocolNegotiation(
+                        RpcCapabilities.Ssl,
+                        RpcCapabilities.None,
+                        Compression.None,
+                        certificatePath: string.Empty,
+                        certificatePassword: "c3rt1f1c4t3_p4ssword"
+                    ));
 
                 await tcpServer.ListenAsync(ct);
                 Console.WriteLine("RunServer ListenAsync task completed without errors");
