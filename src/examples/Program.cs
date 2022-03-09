@@ -47,7 +47,7 @@ class Program
                         RpcCapabilities.Ssl,
                         RpcCapabilities.None,
                         Compression.None,
-                        (_, _, _, _) => true));
+                        DefaultClientProtocolNegotiation.AcceptAllCertificates));
 
                 ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(connectCt);
 
