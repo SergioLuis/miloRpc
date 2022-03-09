@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -19,7 +20,8 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
             optionalCapabilities,
             compressionFlags,
             string.Empty,
-            string.Empty) { }
+            string.Empty)
+    { }
 
     public DefaultServerProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
@@ -36,7 +38,7 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
             mOptionalCapabilities,
             certificatePath,
             certificatePassword);
-        
+
         mLog = RpcLoggerFactory.CreateLogger("DefaultServerProtocolNegotiation");
     }
 
@@ -140,11 +142,99 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
             mLog.LogWarning(
                 "SSL is necessary but no cert. is specified. Going to generate a self-signed one at '{0}'",
                 certificatePath);
-            // TODO: Generate the certificate
         }
 
-        // TODO: Load the certificate
-        return null;
+        if (!File.Exists(certificatePath))
+        {
+            mLog.LogDebug(
+                "Creating self-signed certificate on path '{0}'",
+                certificatePath);
+
+            if (!TryGenerateCertificate(
+                certificatePath,
+                certificatePassword,
+                out X509Certificate2? certificate))
+            {
+                throw new InvalidOperationException(
+                    "Could not generate a self-signed certificate");
+            }
+
+            return certificate;
+        }
+
+        if (!TryReadCertificate(
+            certificatePath,
+            certificatePassword,
+            out X509Certificate2? result))
+        {
+            throw new InvalidOperationException(
+                "Could not load the specified certificate");
+        }
+
+        return result;
+    }
+
+    bool TryGenerateCertificate(
+        string certificatePath,
+        string certificatePassword,
+        out X509Certificate2? certificate)
+    {
+        try
+        {
+            string subject = "CN=" + Dns.GetHostName();
+            DateTime notBefore = DateTime.UtcNow;
+            DateTime notAfter = notBefore.AddYears(200);
+
+            using RSA key = RSA.Create();
+            CertificateRequest request = new(
+                subject,
+                key,
+                HashAlgorithmName.SHA512,
+                RSASignaturePadding.Pkcs1);
+
+            certificate = request.CreateSelfSigned(notBefore, notAfter);
+
+            File.WriteAllBytes(
+                certificatePath,
+                certificate.Export(
+                    X509ContentType.Pfx,
+                    certificatePassword));
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            mLog.LogError(
+                "There was an error generating self-signed certificate '{0}': {1}",
+                certificatePath, ex.Message);
+            mLog.LogDebug(
+                "StackTrace:{0}{1}",
+                Environment.NewLine, ex.StackTrace);
+        }
+
+        certificate = null;
+        return false;
+    }
+
+    bool TryReadCertificate(
+        string certificatePath,
+        string certificatePassword,
+        out X509Certificate2? result)
+    {
+        try
+        {
+            result = new X509Certificate2(certificatePath, certificatePassword);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            mLog.LogError(
+                "Could not read certificate '{0}': {1}",
+                certificatePath, ex.Message);
+        }
+
+        result = null;
+        return false;
     }
 
     readonly RpcCapabilities mMandatoryCapabilities;
