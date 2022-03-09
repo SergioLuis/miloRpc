@@ -133,4 +133,6 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
             mandatoryCapabilities: RpcCapabilities.None,
             optionalCapabilities: RpcCapabilities.None,
             compressionFlags: Compression.None);
+
+    public static readonly Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool> AcceptAllCertificates = (_, _, _, _) => true;
 }
