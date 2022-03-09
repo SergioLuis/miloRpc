@@ -28,7 +28,6 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         string certificatePath,
         string certificatePassword)
     {
-        mLog = RpcLoggerFactory.CreateLogger("DefaultServerProtocolNegotiation");
         mMandatoryCapabilities = mandatoryCapabilities;
         mOptionalCapabilities = optionalCapabilities;
         mCompressionFlags = compressionFlags;
@@ -37,6 +36,8 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
             mOptionalCapabilities,
             certificatePath,
             certificatePassword);
+        
+        mLog = RpcLoggerFactory.CreateLogger("DefaultServerProtocolNegotiation");
     }
 
     Task<RpcProtocolNegotiationResult> INegotiateRpcProtocol.NegotiateProtocolAsync(
@@ -98,8 +99,15 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
             throw new NotSupportedException(exMessage);
         }
 
-        // TODO: Check SSL capabilities
-        // TODO: Check compression capabilities
+        if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Ssl))
+        {
+            throw new NotSupportedException("Ssl is not supported yet");
+        }
+
+        if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
+        {
+            throw new NotSupportedException("Compression is not supported yet");
+        }
 
         mLog.LogInformation(
             "Protocol was correctly negotiated for conn {0}. " +
@@ -139,11 +147,12 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         return null;
     }
 
-    readonly ILogger mLog;
     readonly RpcCapabilities mMandatoryCapabilities;
     readonly RpcCapabilities mOptionalCapabilities;
     readonly Compression mCompressionFlags;
     readonly X509Certificate? mServerCertificate;
+    readonly ILogger mLog;
+
     const byte CURRENT_VERSION = 1;
 
     public static readonly INegotiateRpcProtocol Instance =
