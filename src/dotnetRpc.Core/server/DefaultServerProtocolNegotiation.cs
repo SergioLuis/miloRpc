@@ -140,7 +140,10 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 
         if (string.IsNullOrEmpty(certificatePath))
         {
-            Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()[0..8] + ".pfx");
+            certificatePath = Path.Combine(
+                Path.GetTempPath(),
+                Guid.NewGuid().ToString()[0..8] + ".pfx");
+
             mLog.LogWarning(
                 "SSL is necessary but no cert. is specified. Going to generate a self-signed one at '{0}'",
                 certificatePath);
