@@ -10,14 +10,6 @@ public enum RpcCapabilities : byte
     Compression = 1 << 1
 }
 
-public enum Compression : byte
-{
-    None = 0,
-    Brotli = 1,
-    GZip = 2,
-    ZLib = 3
-}
-
 internal class RpcCapabilitiesNegotiationResult
 {
     internal bool NegotiatedOk => RequiredMissingCapabilities == RpcCapabilities.None;

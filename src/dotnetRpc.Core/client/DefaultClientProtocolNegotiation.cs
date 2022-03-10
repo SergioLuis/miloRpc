@@ -16,35 +16,29 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
 {
     public DefaultClientProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities,
-        Compression compressionFlags) : this(
+        RpcCapabilities optionalCapabilities) : this(
             mandatoryCapabilities,
             optionalCapabilities,
-            compressionFlags,
             ArrayPool<byte>.Shared,
             null) { }
 
     public DefaultClientProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
         RpcCapabilities optionalCapabilities,
-        Compression compressionFlags,
         ArrayPool<byte> arrayPool) : this(
             mandatoryCapabilities,
             optionalCapabilities,
-            compressionFlags,
             arrayPool,
             null) { }
 
     public DefaultClientProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
         RpcCapabilities optionalCapabilities,
-        Compression compressionFlags,
         ArrayPool<byte> arrayPool,
         Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? validateServerCertificate)
     {
         mMandatoryCapabilities = mandatoryCapabilities;
         mOptionalCapabilities = optionalCapabilities;
-        mCompressionFlags = compressionFlags;
         mArrayPool = arrayPool;
         mValidateServerCertificate = validateServerCertificate;
 
@@ -140,7 +134,6 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
 
     readonly RpcCapabilities mMandatoryCapabilities;
     readonly RpcCapabilities mOptionalCapabilities;
-    readonly Compression mCompressionFlags;
     readonly ArrayPool<byte> mArrayPool;
     readonly Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? mValidateServerCertificate;
     readonly ILogger mLog;
@@ -150,8 +143,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
     public static readonly INegotiateRpcProtocol Instance =
         new DefaultClientProtocolNegotiation(
             mandatoryCapabilities: RpcCapabilities.None,
-            optionalCapabilities: RpcCapabilities.None,
-            compressionFlags: Compression.None);
+            optionalCapabilities: RpcCapabilities.None);
 
     public static readonly Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool> AcceptAllCertificates = (_, _, _, _) => true;
 }

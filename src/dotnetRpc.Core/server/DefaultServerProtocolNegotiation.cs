@@ -16,11 +16,9 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 {
     public DefaultServerProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities,
-        Compression compressionFlags) : this(
+        RpcCapabilities optionalCapabilities) : this(
             mandatoryCapabilities,
             optionalCapabilities,
-            compressionFlags,
             ArrayPool<byte>.Shared,
             string.Empty,
             string.Empty)
@@ -29,11 +27,9 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
     public DefaultServerProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
         RpcCapabilities optionalCapabilites,
-        Compression compressionFlags,
         ArrayPool<byte> arrayPool) : this(
             mandatoryCapabilities,
             optionalCapabilites,
-            compressionFlags,
             arrayPool,
             string.Empty,
             string.Empty) { }
@@ -41,14 +37,12 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
     public DefaultServerProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
         RpcCapabilities optionalCapabilities,
-        Compression compressionFlags,
         ArrayPool<byte> arrayPool,
         string certificatePath,
         string certificatePassword)
     {
         mMandatoryCapabilities = mandatoryCapabilities;
         mOptionalCapabilities = optionalCapabilities;
-        mCompressionFlags = compressionFlags;
         mArrayPool = arrayPool;
         mLog = RpcLoggerFactory.CreateLogger("DefaultServerProtocolNegotiation");
 
@@ -261,7 +255,6 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 
     readonly RpcCapabilities mMandatoryCapabilities;
     readonly RpcCapabilities mOptionalCapabilities;
-    readonly Compression mCompressionFlags;
     readonly ArrayPool<byte> mArrayPool;
     readonly X509Certificate? mServerCertificate;
     readonly ILogger mLog;
@@ -271,6 +264,5 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
     public static readonly INegotiateRpcProtocol Instance =
         new DefaultServerProtocolNegotiation(
             mandatoryCapabilities: RpcCapabilities.None,
-            optionalCapabilities: RpcCapabilities.None,
-            compressionFlags: Compression.None);
+            optionalCapabilities: RpcCapabilities.None);
 }
