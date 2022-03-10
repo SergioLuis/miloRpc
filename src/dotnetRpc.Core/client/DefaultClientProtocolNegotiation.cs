@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Threading.Tasks;
 using System.Net.Security;
@@ -7,6 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 
 using dotnetRpc.Core.Shared;
+using System.Buffers;
 
 namespace dotnetRpc.Core.Client;
 
@@ -18,17 +20,32 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         Compression compressionFlags) : this(
             mandatoryCapabilities,
             optionalCapabilities,
-            compressionFlags, null) { }
+            compressionFlags,
+            ArrayPool<byte>.Shared,
+            null) { }
 
     public DefaultClientProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
         RpcCapabilities optionalCapabilities,
         Compression compressionFlags,
+        ArrayPool<byte> arrayPool) : this(
+            mandatoryCapabilities,
+            optionalCapabilities,
+            compressionFlags,
+            arrayPool,
+            null) { }
+
+    public DefaultClientProtocolNegotiation(
+        RpcCapabilities mandatoryCapabilities,
+        RpcCapabilities optionalCapabilities,
+        Compression compressionFlags,
+        ArrayPool<byte> arrayPool,
         Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? validateServerCertificate)
     {
         mMandatoryCapabilities = mandatoryCapabilities;
         mOptionalCapabilities = optionalCapabilities;
         mCompressionFlags = compressionFlags;
+        mArrayPool = arrayPool;
         mValidateServerCertificate = validateServerCertificate;
 
         mLog = RpcLoggerFactory.CreateLogger("DefaultClientProtocolNegotiation");
@@ -98,7 +115,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         if (mValidateServerCertificate != null)
             validationCallback = new(mValidateServerCertificate);
 
-        if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
+        if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Ssl))
         {
             SslStream sslStream = new(resultStream, leaveInnerStreamOpen: false, validationCallback);
             await sslStream.AuthenticateAsClientAsync(remoteEndPoint.ToString());
@@ -107,7 +124,8 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
 
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
         {
-            throw new NotSupportedException("Compression is not supported yet");
+            RpcBrotliStream brotliStream = new(resultStream, mArrayPool);
+            resultStream = brotliStream;
         }
 
         mLog.LogInformation(
@@ -123,6 +141,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
     readonly RpcCapabilities mMandatoryCapabilities;
     readonly RpcCapabilities mOptionalCapabilities;
     readonly Compression mCompressionFlags;
+    readonly ArrayPool<byte> mArrayPool;
     readonly Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? mValidateServerCertificate;
     readonly ILogger mLog;
 

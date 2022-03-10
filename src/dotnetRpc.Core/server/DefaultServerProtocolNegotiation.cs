@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -20,20 +21,35 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
             mandatoryCapabilities,
             optionalCapabilities,
             compressionFlags,
+            ArrayPool<byte>.Shared,
             string.Empty,
             string.Empty)
     { }
 
     public DefaultServerProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
+        RpcCapabilities optionalCapabilites,
+        Compression compressionFlags,
+        ArrayPool<byte> arrayPool) : this(
+            mandatoryCapabilities,
+            optionalCapabilites,
+            compressionFlags,
+            arrayPool,
+            string.Empty,
+            string.Empty) { }
+
+    public DefaultServerProtocolNegotiation(
+        RpcCapabilities mandatoryCapabilities,
         RpcCapabilities optionalCapabilities,
         Compression compressionFlags,
+        ArrayPool<byte> arrayPool,
         string certificatePath,
         string certificatePassword)
     {
         mMandatoryCapabilities = mandatoryCapabilities;
         mOptionalCapabilities = optionalCapabilities;
         mCompressionFlags = compressionFlags;
+        mArrayPool = arrayPool;
         mLog = RpcLoggerFactory.CreateLogger("DefaultServerProtocolNegotiation");
 
         mServerCertificate = ProcessCertificateSettings(
@@ -110,7 +126,8 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
         {
-            throw new NotSupportedException("Compression is not supported yet");
+            RpcBrotliStream brotliStream = new(resultStream, mArrayPool);
+            resultStream = brotliStream;
         }
 
         mLog.LogInformation(
@@ -245,6 +262,7 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
     readonly RpcCapabilities mMandatoryCapabilities;
     readonly RpcCapabilities mOptionalCapabilities;
     readonly Compression mCompressionFlags;
+    readonly ArrayPool<byte> mArrayPool;
     readonly X509Certificate? mServerCertificate;
     readonly ILogger mLog;
 
