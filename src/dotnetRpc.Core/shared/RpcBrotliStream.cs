@@ -25,7 +25,7 @@ public class RpcBrotliStream : Stream
     public RpcBrotliStream(
         Stream baseStream,
         ArrayPool<byte> arrayPool,
-        int maxChunkSize = 5 * 1024 * 1024)
+        int maxChunkSize = 1 * 1024 * 1024)
     {
         mBaseStream = baseStream;
         mArrayPool = arrayPool;
