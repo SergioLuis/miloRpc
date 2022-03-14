@@ -5,7 +5,7 @@ using System.IO.Compression;
 
 namespace dotnetRpc.Core.Shared;
 
-internal class RpcBrotliStream : Stream
+public class RpcBrotliStream : Stream
 {
     public override bool CanRead => true;
     public override bool CanWrite => true;
@@ -19,7 +19,10 @@ internal class RpcBrotliStream : Stream
         set => throw new NotImplementedException();
     }
 
-    internal RpcBrotliStream(
+    public static int GetMaxCompressedLength(int inputSize)
+        => BrotliEncoder.GetMaxCompressedLength(inputSize);
+
+    public RpcBrotliStream(
         Stream baseStream,
         ArrayPool<byte> arrayPool,
         int maxChunkSize = 5 * 1024 * 1024)
@@ -46,15 +49,15 @@ internal class RpcBrotliStream : Stream
         }
 
         byte[] header = new byte[5];
-        mBaseStream.Read(header, 0, 1);
+        mBaseStream.ReadUntilCountFulfilled(header, 0, 1);
 
         CompressionHeader.Decode(header, out bool compressed, out byte sizeFlag);
 
         if (sizeFlag == CompressionHeader.SmallSizeFlag)
-            mBaseStream.Read(header, 1, 1);
+            mBaseStream.ReadUntilCountFulfilled(header, 1, 1);
 
         if (sizeFlag == CompressionHeader.RegularSizeFlag)
-            mBaseStream.Read(header, 1, 4);
+            mBaseStream.ReadUntilCountFulfilled(header, 1, 4);
 
         mCurrentReadChunk.FillFromStream(
             CompressionHeader.GetSize(header, sizeFlag),
@@ -202,7 +205,7 @@ internal class RpcBrotliStream : Stream
             byte[]? uncompressedBuffer = null;
             try
             {
-                source.Read(readBuffer, 0, size);
+                source.ReadUntilCountFulfilled(readBuffer, 0, size);
                 if (!compressed)
                 {
                     mBuffer = readBuffer;
