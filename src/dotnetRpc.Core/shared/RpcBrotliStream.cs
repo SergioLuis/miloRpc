@@ -7,8 +7,8 @@ namespace dotnetRpc.Core.Shared;
 
 public class RpcBrotliStream : Stream
 {
-    public override bool CanRead => true;
-    public override bool CanWrite => true;
+    public override bool CanRead => mBaseStream.CanRead;
+    public override bool CanWrite => mBaseStream.CanWrite;
 
     public override bool CanSeek => false;
 
@@ -131,20 +131,13 @@ public class RpcBrotliStream : Stream
         }
     }
 
-    public override void Flush()
-    {
-        mBaseStream.Flush();
-    }
+    public override void Flush() => mBaseStream.Flush();
 
     public override long Seek(long offset, SeekOrigin origin)
-    {
-        throw new NotImplementedException();
-    }
+        => throw new NotImplementedException();
 
     public override void SetLength(long value)
-    {
-        throw new NotImplementedException();
-    }
+        => throw new NotImplementedException();
 
     protected override void Dispose(bool disposing)
     {
@@ -158,7 +151,7 @@ public class RpcBrotliStream : Stream
         }
     }
 
-    CurrentReadChunk mCurrentReadChunk;
+    readonly CurrentReadChunk mCurrentReadChunk;
     readonly Stream mBaseStream;
     readonly int mMaxChunkSize;
     readonly ArrayPool<byte> mArrayPool;
@@ -196,26 +189,26 @@ public class RpcBrotliStream : Stream
             mDisposed = true;
         }
 
-        internal void FillFromStream(int size, bool compressed, Stream source)
+        internal void FillFromStream(int compressedLen, bool compressed, Stream source)
         {
             if (mDisposed)
                 throw new ObjectDisposedException(GetType().FullName);
 
-            byte[]? readBuffer = mArrayPool.Rent(size);
+            byte[]? readBuffer = mArrayPool.Rent(compressedLen);
             byte[]? uncompressedBuffer = null;
             try
             {
-                source.ReadUntilCountFulfilled(readBuffer, 0, size);
+                source.ReadUntilCountFulfilled(readBuffer, 0, compressedLen);
                 if (!compressed)
                 {
                     mBuffer = readBuffer;
                     readBuffer = null;
-                    mLength = size;
+                    mLength = compressedLen;
                     mRead = 0;
                     return;
                 }
 
-                ReadOnlySpan<byte> sourceSpan = new(readBuffer, 0, size);
+                ReadOnlySpan<byte> sourceSpan = new(readBuffer, 0, compressedLen);
                 uncompressedBuffer = mArrayPool.Rent(mMaxChunkSize);
 
                 if (!BrotliDecoder.TryDecompress(
@@ -267,73 +260,5 @@ public class RpcBrotliStream : Stream
         private bool mDisposed;
         readonly ArrayPool<byte> mArrayPool;
         readonly int mMaxChunkSize;
-    }
-
-    static class CompressionHeader
-    {
-        public const int TinyMaxSize = 32;
-        public const int SmallMaxSize = 8192;
-
-        public const byte CompressedFlag = 0x80;
-        public const byte UncompressedFlag = 0x00;
-
-        public const byte TinySizeFlag = 0x00;
-        public const byte SmallSizeFlag = 0x20;
-        public const byte RegularSizeFlag = 0x40;
-
-        public static void Decode(
-            ReadOnlySpan<byte> header, out bool compressed, out byte sizeFlag)
-        {
-            byte zero = header[0];
-            compressed = (zero & CompressedFlag) == CompressedFlag;
-            sizeFlag = (byte)(zero & 0x60);
-        }
-
-        public static int GetSize(ReadOnlySpan<byte> header, byte sizeFlag) => 
-            sizeFlag switch {
-                TinySizeFlag => header[0] & 0x1F,
-                SmallSizeFlag => ((header[0] & 0x1F) << 8) + header[1],
-                RegularSizeFlag => (header[1] << 24) + (header[2] << 16) + (header[3] << 8) + header[4],
-                _ => throw new ArgumentOutOfRangeException(nameof(sizeFlag))
-            };
-
-        public static ReadOnlySpan<byte> Create(bool compressed, int count)
-        {
-            byte[] result;
-
-            if (count < TinyMaxSize)
-            {
-                result = new byte[1];
-
-                result[0] = (byte)(compressed ? CompressedFlag : UncompressedFlag);
-                result[0] += TinySizeFlag;
-                result[0] += (byte)count;
-
-                return result;
-            }
-
-            if (count < SmallMaxSize)
-            {
-                result = new byte[2];
-
-                result[0] = (byte)(compressed ? CompressedFlag : UncompressedFlag);
-                result[0] += SmallSizeFlag;
-                result[0] += (byte)(count >> 8);
-                result[1] = (byte)(count & 0x000000FF);
-
-                return result;
-            }
-
-            result = new byte[5];
-
-            result[0] = (byte)(compressed ? CompressedFlag : UncompressedFlag);
-            result[0] += RegularSizeFlag;
-            result[1] = (byte)((count & 0xFF000000) >> 24);
-            result[2] = (byte)((count & 0x00FF0000) >> 16);
-            result[3] = (byte)((count & 0x0000FF00) >> 8);
-            result[4] = (byte)(count & 0x000000FF);
-
-            return result;
-        }
     }
 }
