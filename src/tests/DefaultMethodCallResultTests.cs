@@ -24,8 +24,7 @@ public class DefaultMethodCallResultTests
 
         writeMethodCallResult.Write(
             writer,
-            MethodCallResult.OK,
-            null);
+            MethodCallResult.OK);
 
         ms.Position = 0;
 
@@ -49,8 +48,7 @@ public class DefaultMethodCallResultTests
 
         writeMethodCallResult.Write(
             writer,
-            MethodCallResult.NotSupported,
-            null);
+            MethodCallResult.NotSupported);
 
         ms.Position = 0;
 

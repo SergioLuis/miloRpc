@@ -103,6 +103,9 @@ public class ActiveConnectionsTests
 
         Assert.That(thirdConn.IsConnected(), Is.False);
         Assert.That(thirdConnFromClient.Conn.IsConnected(), Is.False);
+
+        cts.Cancel();
+        await serverTask;
     }
 
     [Test, Timeout(TestingConstants.Timeout)]
@@ -158,9 +161,9 @@ public class ActiveConnectionsTests
         Assert.That(thirdConn.IsConnected(), Is.True);
         Assert.That(thirdConnFromClient!.Conn.IsConnected(), Is.True);
 
-        firstConnFromClient!.Cts.Cancel();
-        secondConnFromClient!.Cts.Cancel();
-        thirdConnFromClient!.Cts.Cancel();
+        firstConnFromClient.Cts.Cancel();
+        secondConnFromClient.Cts.Cancel();
+        thirdConnFromClient.Cts.Cancel();
 
         Assert.That(
             () => firstConnFromClient.Conn.CurrentStatus,
@@ -194,12 +197,15 @@ public class ActiveConnectionsTests
 
         Assert.That(thirdConn.IsConnected(), Is.False);
         Assert.That(thirdConnFromClient.Conn.IsConnected(), Is.False);
+
+        cts.Cancel();
+        await serverTask;
     }
 
     [Test, Timeout(TestingConstants.Timeout)]
     public async Task Connection_Gets_Closed_After_Idling_Timeout()
     {
-        const int IdlingTimeoutMs = 2000;
+        const int idlingTimeoutMs = 2000;
 
         CancellationTokenSource cts = new();
         cts.CancelAfter(TestingConstants.Timeout);
@@ -208,7 +214,7 @@ public class ActiveConnectionsTests
 
         StubCollection stubCollection = new();
         IServer tcpServer = new TcpServer(endpoint, stubCollection);
-        tcpServer.ConnectionTimeouts.Idling = TimeSpan.FromMilliseconds(IdlingTimeoutMs);
+        tcpServer.ConnectionTimeouts.Idling = TimeSpan.FromMilliseconds(idlingTimeoutMs);
         Task serverTask = tcpServer.ListenAsync(cts.Token);
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
@@ -243,10 +249,10 @@ public class ActiveConnectionsTests
 
         Assert.That(
             () => conn.CurrentStatus,
-            Is.EqualTo(ConnectionToServer.Status.Exited).After(IdlingTimeoutMs + 1000, 10));
+            Is.EqualTo(ConnectionToServer.Status.Exited).After(idlingTimeoutMs + 1000, 10));
         Assert.That(
             () => connFromClient.Conn.CurrentStatus,
-            Is.EqualTo(ConnectionFromClient.Status.Exited).After(IdlingTimeoutMs + 1000, 10));
+            Is.EqualTo(ConnectionFromClient.Status.Exited).After(idlingTimeoutMs + 1000, 10));
 
         // The ActiveConnections monitor loop gets triggered after 30 seconds
         // unless a recollection is forced
@@ -269,6 +275,9 @@ public class ActiveConnectionsTests
         Assert.That(
             connFromClient.Conn.CurrentStatus,
             Is.EqualTo(ConnectionFromClient.Status.Exited));
+
+        cts.Cancel();
+        await serverTask;
     }
 
     [Test, Timeout(TestingConstants.Timeout)]
@@ -308,5 +317,8 @@ public class ActiveConnectionsTests
 
         Assert.That(() => connToServer.IsConnected(), Is.False.After(1000, 10));
         Assert.That(connFromClient.Conn.IsConnected(), Is.False.After(1000, 10));
+
+        serverToken.Cancel();
+        await serverTask;
     }
 }
