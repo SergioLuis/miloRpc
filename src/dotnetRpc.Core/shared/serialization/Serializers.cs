@@ -46,22 +46,32 @@ public static class Serializer<T>
 
 internal class Serializers
 {
-    internal Serializers()
+    Serializers()
     {
         mSerializers = new Dictionary<Type, ISerializer>();
         AddSerializer(new StringSerializer());
-        
+
         AddSerializer(new ByteSerializer());
+        AddSerializer(new NullableByteSerializer());
         AddSerializer(new BoolSerializer());
         AddSerializer(new NullableBoolSerializer());
+        AddSerializer(new CharSerializer());
+        AddSerializer(new NullableCharSerializer());
 
+        AddSerializer(new DecimalSerializer());
+        AddSerializer(new NullableDecimalSerializers());
         AddSerializer(new Int16Serializer());
         AddSerializer(new NullableInt16Serializer());
         AddSerializer(new Int32Serialier());
         AddSerializer(new NullableInt32Serializer());
         AddSerializer(new Int64Serializer());
         AddSerializer(new NullableInt64Serializer());
-        
+
+        AddSerializer(new DoubleSerializer());
+        AddSerializer(new NullableDoubleSerializer());
+        AddSerializer(new SByteSerializer());
+        AddSerializer(new NullableSByteSerializer());
+
         AddSerializer(new UInt16Serializer());
         AddSerializer(new NullableUInt16Serializer());
         AddSerializer(new UInt32Serializer());
