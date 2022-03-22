@@ -30,8 +30,7 @@ public static class Serializer<T>
 
             lock (mSyncLock)
             {
-                if (_instance is null)
-                    _instance = Serializers.Instance.Get<T>();
+                _instance ??= Serializers.Instance.Get<T>();
             }
 
             _initialized = true;
@@ -67,6 +66,8 @@ internal class Serializers
         AddSerializer(new Int64Serializer());
         AddSerializer(new NullableInt64Serializer());
 
+        AddSerializer(new SingleSerializer());
+        AddSerializer(new NullableSingleSerializer());
         AddSerializer(new DoubleSerializer());
         AddSerializer(new NullableDoubleSerializer());
         AddSerializer(new SByteSerializer());
