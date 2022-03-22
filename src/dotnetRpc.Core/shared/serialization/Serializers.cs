@@ -28,7 +28,7 @@ public static class Serializer<T>
             if (_initialized)
                 return _instance!;
 
-            lock (mSyncLock)
+            lock (_syncLock)
             {
                 _instance ??= Serializers.Instance.Get<T>();
             }
@@ -40,7 +40,7 @@ public static class Serializer<T>
 
     static volatile bool _initialized;
     static ISerializer<T>? _instance;
-    static readonly object mSyncLock = new();
+    static readonly object _syncLock = new();
 }
 
 internal class Serializers
@@ -48,50 +48,51 @@ internal class Serializers
     Serializers()
     {
         mSerializers = new Dictionary<Type, ISerializer>();
-        AddSerializer(new StringSerializer());
+        Add(new StringSerializer());
 
-        AddSerializer(new ByteSerializer());
-        AddSerializer(new NullableByteSerializer());
-        AddSerializer(new BoolSerializer());
-        AddSerializer(new NullableBoolSerializer());
-        AddSerializer(new CharSerializer());
-        AddSerializer(new NullableCharSerializer());
+        Add(new ByteSerializer());
+        Add(new NullableByteSerializer());
+        Add(new BoolSerializer());
+        Add(new NullableBoolSerializer());
+        Add(new CharSerializer());
+        Add(new NullableCharSerializer());
 
-        AddSerializer(new DecimalSerializer());
-        AddSerializer(new NullableDecimalSerializers());
-        AddSerializer(new Int16Serializer());
-        AddSerializer(new NullableInt16Serializer());
-        AddSerializer(new Int32Serialier());
-        AddSerializer(new NullableInt32Serializer());
-        AddSerializer(new Int64Serializer());
-        AddSerializer(new NullableInt64Serializer());
+        Add(new DecimalSerializer());
+        Add(new NullableDecimalSerializers());
+        Add(new Int16Serializer());
+        Add(new NullableInt16Serializer());
+        Add(new Int32Serialier());
+        Add(new NullableInt32Serializer());
+        Add(new Int64Serializer());
+        Add(new NullableInt64Serializer());
 
-        AddSerializer(new SingleSerializer());
-        AddSerializer(new NullableSingleSerializer());
-        AddSerializer(new DoubleSerializer());
-        AddSerializer(new NullableDoubleSerializer());
-        AddSerializer(new SByteSerializer());
-        AddSerializer(new NullableSByteSerializer());
+        Add(new SingleSerializer());
+        Add(new NullableSingleSerializer());
+        Add(new DoubleSerializer());
+        Add(new NullableDoubleSerializer());
+        Add(new SByteSerializer());
+        Add(new NullableSByteSerializer());
 
-        AddSerializer(new UInt16Serializer());
-        AddSerializer(new NullableUInt16Serializer());
-        AddSerializer(new UInt32Serializer());
-        AddSerializer(new NullableUInt32Serializer());
-        AddSerializer(new UInt64Serializer());
-        AddSerializer(new NullableUInt64Serializer());
+        Add(new UInt16Serializer());
+        Add(new NullableUInt16Serializer());
+        Add(new UInt32Serializer());
+        Add(new NullableUInt32Serializer());
+        Add(new UInt64Serializer());
+        Add(new NullableUInt64Serializer());
 
-        AddSerializer(new DateTimeSerializer());
-        AddSerializer(new GuidSerializer());
+        Add(new DateTimeSerializer());
+        Add(new GuidSerializer());
     }
 
-    public void AddSerializer<T>(ISerializer<T> serializer)
+    // ReSharper disable once MemberCanBePrivate.Global
+    public void Add<T>(ISerializer<T> serializer)
         => mSerializers.Add(typeof(T), serializer);
 
     public ISerializer<T> Get<T>()
     {
         Type t = typeof(T);
         if (mSerializers.TryGetValue(t, out ISerializer? serializer))
-            return Unsafe.As<ISerializer<T>>(serializer)!;
+            return Unsafe.As<ISerializer<T>>(serializer);
 
         throw new InvalidOperationException($"Can't find a serializer for type {t}");
     }

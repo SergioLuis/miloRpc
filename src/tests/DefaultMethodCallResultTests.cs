@@ -29,7 +29,7 @@ public class DefaultMethodCallResultTests
         ms.Position = 0;
 
         MethodCallResult result = readMethodCallResult.Read(
-            reader, out bool isResultAvailable, out Exception? ex);
+            reader, out bool isResultAvailable, out RpcException? ex);
 
         Assert.That(result, Is.EqualTo(MethodCallResult.OK));
         Assert.That(isResultAvailable, Is.True);
@@ -53,7 +53,7 @@ public class DefaultMethodCallResultTests
         ms.Position = 0;
 
         MethodCallResult result = readMethodCallResult.Read(
-            reader, out bool isResultAvailable, out Exception? ex);
+            reader, out bool isResultAvailable, out RpcException? ex);
 
         Assert.That(result, Is.EqualTo(MethodCallResult.NotSupported));
         Assert.That(isResultAvailable, Is.False);
@@ -75,18 +75,17 @@ public class DefaultMethodCallResultTests
         writeMethodCallResult.Write(
             writer,
             MethodCallResult.Failed,
-            ex);
+            RpcException.FromException(ex));
 
         ms.Position = 0;
 
         MethodCallResult result = readMethodCallResult.Read(
-            reader, out bool isResultAvailable, out Exception? propagatedEx);
+            reader, out bool isResultAvailable, out RpcException? propagatedEx);
 
         Assert.That(result, Is.EqualTo(MethodCallResult.Failed));
         Assert.That(isResultAvailable, Is.False);
-        Assert.That(propagatedEx, Is.Not.Null.And.TypeOf<InvalidOperationException>());
-
-        InvalidOperationException? deserEx = propagatedEx as InvalidOperationException;
-        Assert.That(deserEx!.Message, Is.EqualTo("This exception is custom"));
+        Assert.That(propagatedEx, Is.Not.Null);
+        Assert.That(propagatedEx, Has.Message.EqualTo("This exception is custom"));
+        Assert.That(propagatedEx!.ExceptionType, Contains.Substring("InvalidOperationException"));
     }
 }

@@ -1,7 +1,4 @@
-using System;
-using System.Buffers;
 using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
 
 using dotnetRpc.Core.Shared;
 
@@ -12,41 +9,21 @@ public interface IReadMethodCallResult
     MethodCallResult Read(
         BinaryReader reader,
         out bool isResultAvailable,
-        out Exception? ex);
+        out RpcException? ex);
 }
 
 public class DefaultReadMethodCallResult : IReadMethodCallResult
 {
     MethodCallResult IReadMethodCallResult.Read(
-        BinaryReader reader, out bool isResultAvailable, out Exception? ex)
+        BinaryReader reader, out bool isResultAvailable, out RpcException? ex)
     {
         MethodCallResult methodResult = (MethodCallResult)(reader.ReadByte());
         bool isExceptionAvailable = reader.ReadBoolean();
-        
+
         isResultAvailable = methodResult == MethodCallResult.OK;
-        ex = isExceptionAvailable ? ReadException(reader) : null;
+        ex = isExceptionAvailable ? RpcException.FromReader(reader) : null;
 
         return methodResult;
-    }
-
-    static Exception ReadException(BinaryReader reader)
-    {
-        int length = reader.ReadInt32();
-        byte[] buffer = ArrayPool<byte>.Shared.Rent((int)length);
-        try
-        {
-            reader.Read(buffer, 0, length);
-            using MemoryStream ms = new(buffer);
-            BinaryFormatter formatter = new();
-
-#pragma warning disable
-            return (Exception)formatter.Deserialize(ms);
-#pragma warning restore
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
     }
 
     public static readonly IReadMethodCallResult Instance =

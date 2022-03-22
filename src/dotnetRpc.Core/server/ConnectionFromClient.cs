@@ -35,7 +35,7 @@ public class ConnectionFromClient
     public TimeSpan TotalIdlingTime => mTotalIdlingTime + mIdleStopwatch.Elapsed;
     public TimeSpan TotalRunningTime => mTotalRunningTime + mRunStopwatch.Elapsed;
     public TimeSpan TotalReadingTime => mRpcSocket.Stream.ReadTime;
-    public TimeSpan TotalWrittingTime => mRpcSocket.Stream.WriteTime;
+    public TimeSpan TotalWritingTime => mRpcSocket.Stream.WriteTime;
     public ulong TotalBytesRead => mRpcSocket.Stream.ReadBytes;
     public ulong TotalBytesWritten => mRpcSocket.Stream.WrittenBytes;
 
@@ -58,8 +58,8 @@ public class ConnectionFromClient
         mRpcSocket = socket;
         mConnectionTimeouts = connectionTimeouts;
 
-        mIdleStopwatch = new();
-        mRunStopwatch = new();
+        mIdleStopwatch = new Stopwatch();
+        mRunStopwatch = new Stopwatch();
         mConnectionId = mServerMetrics.ConnectionStart();
 
         mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
@@ -132,9 +132,11 @@ public class ConnectionFromClient
                     messages.Response.Serialize(mRpc.Writer);
                     mRpc.Writer.Flush();
 
+                    // ReSharper disable once SuspiciousTypeConversion.Global
                     if (messages.Request is IDisposable disposableRequest)
                         disposableRequest.Dispose();
 
+                    // ReSharper disable once SuspiciousTypeConversion.Global
                     if (messages.Response is IDisposable disposableResponse)
                         disposableResponse.Dispose();
 
@@ -167,14 +169,14 @@ public class ConnectionFromClient
                         throw;
                     }
 
-                    if (CurrentStatus == Status.Reading
-                        || CurrentStatus == Status.Running)
+                    if (CurrentStatus is Status.Reading or Status.Running)
                     {
                         mLog.LogInformation(
                             "Caught an exception while running a method and the " +
                             "client is still connected, sending the exception as " +
                             "a failed method call result");
-                        mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.Failed, ex);
+                        mWriteMethodCallResult.Write(
+                            mRpc.Writer, MethodCallResult.Failed, RpcException.FromException(ex));
                     }
                 }
                 finally

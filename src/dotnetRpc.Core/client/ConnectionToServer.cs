@@ -53,9 +53,9 @@ public class ConnectionToServer : IDisposable
         mReadMethodCallResult = readMethodCallResult;
         mClientMetrics = clientMetrics;
         mRpcSocket = socket;
-        
-        mIdleStopwatch = new();
-        mWaitStopwatch = new();
+
+        mIdleStopwatch = new Stopwatch();
+        mWaitStopwatch = new Stopwatch();
         mConnectionId = mClientMetrics.ConnectionStart();
 
         mIdleStopwatch.Start();
@@ -110,7 +110,7 @@ public class ConnectionToServer : IDisposable
             MethodCallResult result = mReadMethodCallResult.Read(
                 mRpc.Reader,
                 out bool isResultAvailable,
-                out Exception? ex);
+                out RpcException? ex);
 
             if (isResultAvailable)
                 messages.Response.Deserialize(mRpc.Reader);
@@ -190,7 +190,7 @@ public class ConnectionToServer : IDisposable
     readonly IReadMethodCallResult mReadMethodCallResult;
     readonly RpcMetrics mClientMetrics;
     readonly RpcSocket mRpcSocket;
-    
+
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mWaitStopwatch;
     readonly ILogger mLog;
