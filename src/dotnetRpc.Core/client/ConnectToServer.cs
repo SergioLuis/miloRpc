@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
+using dotnetRpc.Core.Channels;
 using dotnetRpc.Core.Shared;
 
 namespace dotnetRpc.Core.Client;

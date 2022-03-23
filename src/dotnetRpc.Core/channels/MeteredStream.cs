@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Threading;
 
-namespace dotnetRpc.Core.Shared;
+namespace dotnetRpc.Core.Channels;
 
 public class MeteredStream : Stream
 {

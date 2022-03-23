@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
+using dotnetRpc.Core.Channels;
 using dotnetRpc.Core.Extensions;
 using dotnetRpc.Core.Shared;
 

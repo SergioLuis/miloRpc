@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 using NUnit.Framework;
 
-using dotnetRpc.Core.Shared;
+using dotnetRpc.Core.Channels;
 
 namespace dotnetRpc.Tests;
 
@@ -35,7 +35,7 @@ public class MeteredStreamTests
             int nextChunkLen = rand.Next(20, 50) * 1024;
 
             meteredStream.Write(outBuffer, 0, nextChunkLen);
-            
+
             written += nextChunkLen;
 
             Assert.That(written, Is.EqualTo(meteredStream.WrittenBytes));

@@ -5,16 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace dotnetRpc.Core.Shared;
+using dotnetRpc.Core.Shared;
 
-internal interface IRpcChannel : IDisposable
-{
-    MeteredStream Stream { get; }
-    IPEndPoint RemoteEndPoint { get; }
-
-    ValueTask WaitForDataAsync(CancellationToken ct);
-    bool IsConnected();
-}
+namespace dotnetRpc.Core.Channels;
 
 internal class RpcTcpChannel : IRpcChannel
 {
