@@ -23,21 +23,21 @@ public class ConnectionFromClient
     }
 
     public uint ConnectionId => mConnectionId;
-    public IPEndPoint RemoteEndPoint => mRpcSocket.RemoteEndPoint;
+    public IPEndPoint RemoteEndPoint => mRpcChannel.RemoteEndPoint;
 
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
     public TimeSpan CurrentRunningTime => mRunStopwatch.Elapsed;
-    public TimeSpan CurrentReadingTime => mRpcSocket.Stream.ReadTime - mLastReadTime;
-    public TimeSpan CurrentWritingTime => mRpcSocket.Stream.WriteTime - mLastWriteTime;
-    public ulong CurrentBytesRead => mRpcSocket.Stream.ReadBytes - mLastReadBytes;
-    public ulong CurrentBytesWritten => mRpcSocket.Stream.WrittenBytes - mLastWrittenBytes;
+    public TimeSpan CurrentReadingTime => mRpcChannel.Stream.ReadTime - mLastReadTime;
+    public TimeSpan CurrentWritingTime => mRpcChannel.Stream.WriteTime - mLastWriteTime;
+    public ulong CurrentBytesRead => mRpcChannel.Stream.ReadBytes - mLastReadBytes;
+    public ulong CurrentBytesWritten => mRpcChannel.Stream.WrittenBytes - mLastWrittenBytes;
 
     public TimeSpan TotalIdlingTime => mTotalIdlingTime + mIdleStopwatch.Elapsed;
     public TimeSpan TotalRunningTime => mTotalRunningTime + mRunStopwatch.Elapsed;
-    public TimeSpan TotalReadingTime => mRpcSocket.Stream.ReadTime;
-    public TimeSpan TotalWritingTime => mRpcSocket.Stream.WriteTime;
-    public ulong TotalBytesRead => mRpcSocket.Stream.ReadBytes;
-    public ulong TotalBytesWritten => mRpcSocket.Stream.WrittenBytes;
+    public TimeSpan TotalReadingTime => mRpcChannel.Stream.ReadTime;
+    public TimeSpan TotalWritingTime => mRpcChannel.Stream.WriteTime;
+    public ulong TotalBytesRead => mRpcChannel.Stream.ReadBytes;
+    public ulong TotalBytesWritten => mRpcChannel.Stream.WrittenBytes;
 
     public Status CurrentStatus { get; private set; }
 
@@ -47,7 +47,7 @@ public class ConnectionFromClient
         IReadMethodId readMethodId,
         IWriteMethodCallResult writeMethodCallResult,
         RpcMetrics serverMetrics,
-        RpcSocket socket,
+        IRpcChannel rpcChannel,
         ConnectionTimeouts connectionTimeouts)
     {
         mStubCollection = stubCollection;
@@ -55,7 +55,7 @@ public class ConnectionFromClient
         mReadMethodId = readMethodId;
         mWriteMethodCallResult = writeMethodCallResult;
         mServerMetrics = serverMetrics;
-        mRpcSocket = socket;
+        mRpcChannel = rpcChannel;
         mConnectionTimeouts = connectionTimeouts;
 
         mIdleStopwatch = new Stopwatch();
@@ -65,7 +65,7 @@ public class ConnectionFromClient
         mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
     }
 
-    public bool IsConnected() => mRpcSocket.IsConnected();
+    public bool IsConnected() => mRpcChannel.IsConnected();
 
     internal async ValueTask ProcessConnMessagesLoop(CancellationToken ct)
     {
@@ -79,7 +79,7 @@ public class ConnectionFromClient
 
                 mIdleStopwatch.Start();
                 idlingCt = ct.CancelLinkedTokenAfter(mConnectionTimeouts.Idling);
-                await mRpcSocket.WaitForDataAsync(idlingCt);
+                await mRpcChannel.WaitForDataAsync(idlingCt);
                 idlingCt = CancellationToken.None;
                 mIdleStopwatch.Stop();
 
@@ -91,13 +91,13 @@ public class ConnectionFromClient
                         CurrentStatus = Status.NegotiatingProtocol;
                         mRpc = await mNegotiateProtocol.NegotiateProtocolAsync(
                             mConnectionId,
-                            mRpcSocket.RemoteEndPoint,
-                            mRpcSocket.Stream);
+                            mRpcChannel.RemoteEndPoint,
+                            mRpcChannel.Stream);
 
-                        mLastReadBytes = mRpcSocket.Stream.ReadBytes;
-                        mLastWrittenBytes = mRpcSocket.Stream.WrittenBytes;
-                        mLastReadTime = mRpcSocket.Stream.ReadTime;
-                        mLastWriteTime = mRpcSocket.Stream.WriteTime;
+                        mLastReadBytes = mRpcChannel.Stream.ReadBytes;
+                        mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
+                        mLastReadTime = mRpcChannel.Stream.ReadTime;
+                        mLastWriteTime = mRpcChannel.Stream.WriteTime;
                     }
 
                     CurrentStatus = Status.Reading;
@@ -152,7 +152,7 @@ public class ConnectionFromClient
                         throw;
                     }
 
-                    if (!mRpcSocket.IsConnected())
+                    if (!mRpcChannel.IsConnected())
                     {
                         mLog.LogError(
                             "Caught an exception but the RpcSocket is not " +
@@ -182,19 +182,21 @@ public class ConnectionFromClient
                 finally
                 {
                     TimeSpan callIdlingTime = mIdleStopwatch.Elapsed;
-                    TimeSpan callReadingTime = mRpcSocket.Stream.ReadTime - mLastReadTime;
+                    TimeSpan callReadingTime = mRpcChannel.Stream.ReadTime - mLastReadTime;
                     TimeSpan callRunningTime = mRunStopwatch.Elapsed;
-                    TimeSpan callWrittingTime = mRpcSocket.Stream.WriteTime - mLastWriteTime;
+                    TimeSpan callWrittingTime = mRpcChannel.Stream.WriteTime - mLastWriteTime;
 
-                    ulong callReadBytes = mRpcSocket.Stream.ReadBytes - mLastReadBytes;
-                    ulong callWrittenBytes = mRpcSocket.Stream.WrittenBytes - mLastWrittenBytes;
+                    ulong callReadBytes = mRpcChannel.Stream.ReadBytes - mLastReadBytes;
+                    ulong callWrittenBytes = mRpcChannel.Stream.WrittenBytes - mLastWrittenBytes;
 
                     mLog.LogTrace(
+#pragma warning disable CA2017
                         "Finished method call {1}{0}" +
                         "Times{0}" +
-                        "  Idling: {2}, Reading: {3}, Running: {4}, Writting: {5}{0}" +
+                        "  Idling: {2}, Reading: {3}, Running: {4}, Writing: {5}{0}" +
                         "Bytes:{0}" +
                         "  Read: {6}, Written: {7}",
+#pragma warning restore CA2017
                         Environment.NewLine,
                         methodCallId,
                         callIdlingTime, callReadingTime, callRunningTime, callWrittingTime,
@@ -204,10 +206,10 @@ public class ConnectionFromClient
                     mTotalIdlingTime += callIdlingTime;
                     mTotalRunningTime += callRunningTime;
 
-                    mLastReadBytes = mRpcSocket.Stream.ReadBytes;
-                    mLastWrittenBytes = mRpcSocket.Stream.WrittenBytes;
-                    mLastReadTime = mRpcSocket.Stream.ReadTime;
-                    mLastWriteTime = mRpcSocket.Stream.WriteTime;
+                    mLastReadBytes = mRpcChannel.Stream.ReadBytes;
+                    mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
+                    mLastReadTime = mRpcChannel.Stream.ReadTime;
+                    mLastWriteTime = mRpcChannel.Stream.WriteTime;
 
                     mIdleStopwatch.Reset();
                     mRunStopwatch.Reset();
@@ -228,7 +230,7 @@ public class ConnectionFromClient
         {
             CurrentStatus = Status.Exited;
             mServerMetrics.ConnectionEnd();
-            mRpcSocket.Dispose();
+            mRpcChannel.Dispose();
         }
 
         mLog.LogTrace("ProcessConnMessagesLoop completed");
@@ -248,7 +250,7 @@ public class ConnectionFromClient
     readonly IReadMethodId mReadMethodId;
     readonly IWriteMethodCallResult mWriteMethodCallResult;
     readonly RpcMetrics mServerMetrics;
-    readonly RpcSocket mRpcSocket;
+    readonly IRpcChannel mRpcChannel;
     readonly ConnectionTimeouts mConnectionTimeouts;
 
     readonly Stopwatch mIdleStopwatch;

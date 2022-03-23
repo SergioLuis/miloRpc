@@ -7,12 +7,21 @@ using Microsoft.Extensions.Logging;
 
 namespace dotnetRpc.Core.Shared;
 
-internal class RpcSocket : IDisposable
+internal interface IRpcChannel : IDisposable
 {
-    internal MeteredStream Stream => mMeteredStream;
-    internal IPEndPoint RemoteEndPoint => mRemoteEndPoint;
+    MeteredStream Stream { get; }
+    IPEndPoint RemoteEndPoint { get; }
 
-    internal RpcSocket(Socket socket, CancellationToken ct)
+    ValueTask WaitForDataAsync(CancellationToken ct);
+    bool IsConnected();
+}
+
+internal class RpcTcpChannel : IRpcChannel
+{
+    MeteredStream IRpcChannel.Stream => mMeteredStream;
+    IPEndPoint IRpcChannel.RemoteEndPoint => mRemoteEndPoint;
+
+    internal RpcTcpChannel(Socket socket, CancellationToken ct)
     {
         mSocket = socket;
         mMeteredStream = new(new NetworkStream(mSocket));
@@ -33,10 +42,10 @@ internal class RpcSocket : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    internal async ValueTask WaitForDataAsync(CancellationToken ct)
+    async ValueTask IRpcChannel.WaitForDataAsync(CancellationToken ct)
         => await mSocket.ReceiveAsync(Memory<byte>.Empty, SocketFlags.None, ct);
 
-    internal bool IsConnected()
+    bool IRpcChannel.IsConnected()
     {
         if (mDisposed)
             return false;

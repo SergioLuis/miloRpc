@@ -76,14 +76,14 @@ public class ActiveConnections
         CancellationTokenSource cts =
             CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-        RpcSocket rpcSocket = new(socket, cts.Token);
+        RpcTcpChannel rpcTcpChannel = new(socket, cts.Token);
         ConnectionFromClient connFromClient = new(
             mStubCollection,
             mNegotiateProtocol,
             mReadMethodId,
             mWriteMethodCallResult,
             mMetrics,
-            rpcSocket,
+            rpcTcpChannel,
             mConnectionTimeouts);
 
         mLog.LogTrace(

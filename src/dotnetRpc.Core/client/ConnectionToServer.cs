@@ -23,36 +23,36 @@ public class ConnectionToServer : IDisposable
     }
 
     public uint ConnectionId => mConnectionId;
-    public IPEndPoint RemoteEndPoint => mRpcSocket.RemoteEndPoint;
+    public IPEndPoint RemoteEndPoint => mRpcChannel.RemoteEndPoint;
 
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
-    public TimeSpan CurrentWritingTime => mRpcSocket.Stream.WriteTime - mLastWriteTime;
+    public TimeSpan CurrentWritingTime => mRpcChannel.Stream.WriteTime - mLastWriteTime;
     public TimeSpan CurrentWaitingTime => mWaitStopwatch.Elapsed;
-    public TimeSpan CurrentReadingTime => mRpcSocket.Stream.ReadTime - mLastReadTime;
-    public ulong CurrentBytesRead => mRpcSocket.Stream.ReadBytes - mLastReadBytes;
-    public ulong CurrentBytesWritten => mRpcSocket.Stream.WrittenBytes - mLastWrittenBytes;
+    public TimeSpan CurrentReadingTime => mRpcChannel.Stream.ReadTime - mLastReadTime;
+    public ulong CurrentBytesRead => mRpcChannel.Stream.ReadBytes - mLastReadBytes;
+    public ulong CurrentBytesWritten => mRpcChannel.Stream.WrittenBytes - mLastWrittenBytes;
 
     public TimeSpan TotalIdlingTime => mTotalIdlingTime + mIdleStopwatch.Elapsed;
-    public TimeSpan TotalWritingTime => mRpcSocket.Stream.WriteTime;
+    public TimeSpan TotalWritingTime => mRpcChannel.Stream.WriteTime;
     public TimeSpan TotalWaitingTime => mTotalWaitingTime + mWaitStopwatch.Elapsed;
-    public TimeSpan TotalReadingTime => mRpcSocket.Stream.ReadTime;
-    public ulong TotalBytesRead => mRpcSocket.Stream.ReadBytes;
-    public ulong TotalBytesWritten => mRpcSocket.Stream.WrittenBytes;
+    public TimeSpan TotalReadingTime => mRpcChannel.Stream.ReadTime;
+    public ulong TotalBytesRead => mRpcChannel.Stream.ReadBytes;
+    public ulong TotalBytesWritten => mRpcChannel.Stream.WrittenBytes;
 
-    public Status CurrentStatus => mRpcSocket.IsConnected() ? mCurrentStatus : Status.Exited;
+    public Status CurrentStatus => mRpcChannel.IsConnected() ? mCurrentStatus : Status.Exited;
 
     internal ConnectionToServer(
         INegotiateRpcProtocol negotiateProtocol,
         IWriteMethodId writeMethodId,
         IReadMethodCallResult readMethodCallResult,
         RpcMetrics clientMetrics,
-        RpcSocket socket)
+        IRpcChannel rpcChannel)
     {
         mNegotiateProtocol = negotiateProtocol;
         mWriteMethodId = writeMethodId;
         mReadMethodCallResult = readMethodCallResult;
         mClientMetrics = clientMetrics;
-        mRpcSocket = socket;
+        mRpcChannel = rpcChannel;
 
         mIdleStopwatch = new Stopwatch();
         mWaitStopwatch = new Stopwatch();
@@ -68,7 +68,7 @@ public class ConnectionToServer : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    public bool IsConnected() => mRpcSocket.IsConnected();
+    public bool IsConnected() => mRpcChannel.IsConnected();
 
     public async Task ProcessMethodCallAsync(
         IMethodId methodId,
@@ -89,11 +89,11 @@ public class ConnectionToServer : IDisposable
                 mCurrentStatus = Status.NegotiatingProtocol;
                 mRpc = await mNegotiateProtocol.NegotiateProtocolAsync(
                     mConnectionId,
-                    Unsafe.As<IPEndPoint>(mRpcSocket.RemoteEndPoint)!,
-                    mRpcSocket.Stream);
+                    Unsafe.As<IPEndPoint>(mRpcChannel.RemoteEndPoint),
+                    mRpcChannel.Stream);
 
-                mLastReadBytes = mRpcSocket.Stream.ReadBytes;
-                mLastWrittenBytes = mRpcSocket.Stream.WrittenBytes;
+                mLastReadBytes = mRpcChannel.Stream.ReadBytes;
+                mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
             }
 
             mCurrentStatus = Status.Writing;
@@ -103,7 +103,7 @@ public class ConnectionToServer : IDisposable
 
             mCurrentStatus = Status.Waiting;
             mWaitStopwatch.Start();
-            await mRpcSocket.WaitForDataAsync(ct);
+            await mRpcChannel.WaitForDataAsync(ct);
             mWaitStopwatch.Stop();
 
             mCurrentStatus = Status.Reading;
@@ -127,19 +127,20 @@ public class ConnectionToServer : IDisposable
         finally
         {
             TimeSpan callIdlingTime = mIdleStopwatch.Elapsed;
-            TimeSpan callWritingtime = mRpcSocket.Stream.WriteTime - mLastWriteTime;
+            TimeSpan callWritingtime = mRpcChannel.Stream.WriteTime - mLastWriteTime;
             TimeSpan callWaitingTime = mWaitStopwatch.Elapsed;
-            TimeSpan callReadingTime = mRpcSocket.Stream.ReadTime - mLastReadTime;
+            TimeSpan callReadingTime = mRpcChannel.Stream.ReadTime - mLastReadTime;
 
-            ulong callWrittenBytes = mRpcSocket.Stream.WrittenBytes - mLastWrittenBytes;
-            ulong callReadBytes = mRpcSocket.Stream.ReadBytes - mLastReadBytes;
+            ulong callWrittenBytes = mRpcChannel.Stream.WrittenBytes - mLastWrittenBytes;
+            ulong callReadBytes = mRpcChannel.Stream.ReadBytes - mLastReadBytes;
 
             mLog.LogTrace(
+#pragma warning disable CA2017
                 "Finished method call {1}{0}" +
                 "Times{0}" +
                 "  Idling: {2}, Writing: {3}, Waiting: {4}, Reading: {5}{0}" +
-                "Bytes:{0}" +
-                "  Written: {6}, Read: {7}",
+                "Bytes:{0}  Written: {6}, Read: {7}",
+#pragma warning restore CA2017
                 Environment.NewLine,
                 methodCallId,
                 callIdlingTime, callWritingtime, callWaitingTime, callReadingTime,
@@ -148,10 +149,10 @@ public class ConnectionToServer : IDisposable
             mTotalIdlingTime += callIdlingTime;
             mTotalWaitingTime += callWaitingTime;
 
-            mLastWrittenBytes = mRpcSocket.Stream.WrittenBytes;
-            mLastReadBytes = mRpcSocket.Stream.ReadBytes;
-            mLastWriteTime = mRpcSocket.Stream.WriteTime;
-            mLastReadTime = mRpcSocket.Stream.ReadTime;
+            mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
+            mLastReadBytes = mRpcChannel.Stream.ReadBytes;
+            mLastWriteTime = mRpcChannel.Stream.WriteTime;
+            mLastReadTime = mRpcChannel.Stream.ReadTime;
 
             mWaitStopwatch.Reset();
 
@@ -160,7 +161,7 @@ public class ConnectionToServer : IDisposable
         }
     }
 
-    protected virtual void Dispose(bool disposing)
+    void Dispose(bool disposing)
     {
         if (mDisposed)
             return;
@@ -168,7 +169,7 @@ public class ConnectionToServer : IDisposable
         if (disposing)
         {
             mClientMetrics.ConnectionEnd();
-            mRpcSocket.Dispose();
+            mRpcChannel.Dispose();
         }
 
         mDisposed = true;
@@ -189,7 +190,7 @@ public class ConnectionToServer : IDisposable
     readonly IWriteMethodId mWriteMethodId;
     readonly IReadMethodCallResult mReadMethodCallResult;
     readonly RpcMetrics mClientMetrics;
-    readonly RpcSocket mRpcSocket;
+    readonly IRpcChannel mRpcChannel;
 
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mWaitStopwatch;
