@@ -28,6 +28,12 @@ public class DefaultMethodId : IMethodId
         return mId == otherMethodId.Id;
     }
 
+    public static bool operator ==(DefaultMethodId a, DefaultMethodId b)
+        => a.Id == b.Id;
+
+    public static bool operator !=(DefaultMethodId a, DefaultMethodId b)
+        => a.Id != b.Id;
+
     public override int GetHashCode() => mId.GetHashCode();
 
     public override string ToString() => string.IsNullOrEmpty(mName)
