@@ -20,8 +20,6 @@ namespace dotnetRpc.Tests;
 [TestFixture]
 public class TcpEndToEndTests
 {
-    string mCertificatePath = string.Empty;
-
     [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
     public async Task Remote_Procedure_Call_Works_Ok_End_To_End(RpcCapabilities capabilities)
     {
@@ -76,6 +74,71 @@ public class TcpEndToEndTests
         await serverTask;
     }
 
+    [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
+    public async Task Failed_Remote_Procedure_Call_Propagates_Exception(RpcCapabilities capabilities)
+    {
+        const string exceptionMsg = "This method will be implemented on v3.1";
+
+        Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
+        serverFuncMock.Setup(
+                mock => mock.CallAsync(It.IsAny<CancellationToken>()))
+            .Throws(new NotImplementedException(exceptionMsg));
+
+        CancellationTokenSource cts = new();
+        cts.CancelAfter(TestingConstants.Timeout);
+
+        INegotiateRpcProtocol negotiateServerProtocol =
+            new DefaultServerProtocolNegotiation(
+                capabilities,
+                capabilities,
+                ArrayPool<byte>.Shared,
+                mCertificatePath,
+                "c3rt1f1c4t3p4ssw0rd");
+
+        INegotiateRpcProtocol negotiateClientProtocol =
+            new DefaultClientProtocolNegotiation(
+                capabilities,
+                RpcCapabilities.None,
+                ArrayPool<byte>.Shared,
+                DefaultClientProtocolNegotiation.AcceptAllCertificates);
+
+        IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+        StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
+        IServer tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        Task serverTask = tcpServer.ListenAsync(cts.Token);
+
+        Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+        ConnectToServer connectToServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
+        ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(cts.Token);
+        IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
+
+        Assert.That(
+            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            Is.EqualTo(1).After(1000, 10));
+
+        Assert.That(
+            async () => await serverFuncProxy.CallAsync(cts.Token),
+            Throws.TypeOf<RpcException>()
+                .And.Property("Message").Contains(exceptionMsg)
+                .And.Property("ExceptionType").Contains(nameof(NotImplementedException))
+                .And.Property("StackTrace").Contains(nameof(ServerFunctionalityStub)));
+
+        Assert.That(
+            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            Is.EqualTo(1).After(1000, 10));
+
+        serverFuncMock.Verify(
+            mock => mock.CallAsync(It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        connectionToServer.Dispose();
+        cts.Cancel();
+
+        await serverTask;
+    }
+
     [SetUp]
     public void Setup()
     {
@@ -90,10 +153,9 @@ public class TcpEndToEndTests
             File.Delete(mCertificatePath);
     }
 
+    string mCertificatePath = string.Empty;
+
     #region Proxy and stub implementations
-
-
-
 
     static IEnumerable<RpcCapabilities> RpcCapabilitiesCombinations() =>
         new[]
