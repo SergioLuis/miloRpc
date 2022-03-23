@@ -3,8 +3,6 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
-using dotnetRpc.Core.Shared;
-
 namespace dotnetRpc.Core.Channels;
 
 internal interface IRpcChannel : IDisposable
