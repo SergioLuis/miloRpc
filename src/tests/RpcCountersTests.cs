@@ -42,7 +42,7 @@ public class RpcCountersTests
             Is.EqualTo(1).After(100, 10));
         Assert.That(
             () => tcpServer.ActiveConnections.Counters.ActiveConnections,
-            Is.EqualTo(1).After(100000, 10));
+            Is.EqualTo(1).After(1000, 10));
 
         ConnectionToServer secondConnection = await connectToServer.ConnectAsync(cts.Token);
         Assert.That(
