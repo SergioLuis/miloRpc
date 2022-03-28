@@ -30,7 +30,7 @@ public class RpcBrotliStream : Stream
         mBaseStream = baseStream;
         mArrayPool = arrayPool;
         mMaxChunkSize = maxChunkSize;
-        mCurrentReadChunk = new(arrayPool, maxChunkSize);
+        mCurrentReadChunk = new CurrentReadChunk(arrayPool, maxChunkSize);
     }
 
     public override int Read(byte[] buffer, int offset, int count)
@@ -88,11 +88,11 @@ public class RpcBrotliStream : Stream
             return;
         }
 
-        ReadOnlySpan<byte> header;
         byte[] compressionBuffer = mArrayPool.Rent(
             BrotliEncoder.GetMaxCompressedLength(buffer.Length));
         try
         {
+            ReadOnlySpan<byte> header;
             if (!BrotliEncoder.TryCompress(buffer, compressionBuffer, out int compressedLen)
                 || compressedLen > buffer.Length)
             {
@@ -174,7 +174,7 @@ public class RpcBrotliStream : Stream
             GC.SuppressFinalize(this);
         }
 
-        protected virtual void Dispose(bool disposing)
+        void Dispose(bool disposing)
         {
             if (mDisposed)
                 return;
@@ -195,7 +195,6 @@ public class RpcBrotliStream : Stream
                 throw new ObjectDisposedException(GetType().FullName);
 
             byte[]? readBuffer = mArrayPool.Rent(compressedLen);
-            byte[]? uncompressedBuffer = null;
             try
             {
                 source.ReadUntilCountFulfilled(readBuffer, 0, compressedLen);
@@ -209,7 +208,7 @@ public class RpcBrotliStream : Stream
                 }
 
                 ReadOnlySpan<byte> sourceSpan = new(readBuffer, 0, compressedLen);
-                uncompressedBuffer = mArrayPool.Rent(mMaxChunkSize);
+                byte[] uncompressedBuffer = mArrayPool.Rent(mMaxChunkSize);
 
                 if (!BrotliDecoder.TryDecompress(
                     sourceSpan, uncompressedBuffer, out int uncompressedLen))
@@ -245,13 +244,13 @@ public class RpcBrotliStream : Stream
             if (mDisposed)
                 throw new ObjectDisposedException(GetType().FullName);
 
-            if (mRead == mLength && mBuffer.Length > 0)
-            {
-                mArrayPool.Return(mBuffer);
-                mBuffer = Array.Empty<byte>();
-                mLength = 0;
-                mRead = 0;
-            }
+            if (mRead != mLength || mBuffer.Length <= 0)
+                return;
+
+            mArrayPool.Return(mBuffer);
+            mBuffer = Array.Empty<byte>();
+            mLength = 0;
+            mRead = 0;
         }
 
         int mRead;
