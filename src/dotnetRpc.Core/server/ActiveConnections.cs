@@ -88,7 +88,7 @@ public class ActiveConnections
             mConnectionTimeouts);
 
         mLog.LogTrace(
-            "New connection stablished. Id: {0}. From {1}. IdlingTimeout: {2} ms. RunningTimeout: {3} ms.",
+            "New connection established. Id: {0}. From {1}. IdlingTimeout: {2} ms. RunningTimeout: {3} ms.",
             connFromClient.ConnectionId,
             connFromClient.RemoteEndPoint,
             mConnectionTimeouts.Idling,
