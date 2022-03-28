@@ -55,9 +55,10 @@ public class ConnectionToServer : IDisposable
         mClientMetrics = clientMetrics;
         mRpcChannel = rpcChannel;
 
+        mConnectionId = mClientMetrics.ConnectionStart();
         mIdleStopwatch = new Stopwatch();
         mWaitStopwatch = new Stopwatch();
-        mConnectionId = mClientMetrics.ConnectionStart();
+        mCallSemaphore = new SemaphoreSlim(1, 1);
 
         mIdleStopwatch.Start();
         mLog = RpcLoggerFactory.CreateLogger("ConnectionToServer");
@@ -78,13 +79,16 @@ public class ConnectionToServer : IDisposable
     {
         // This Task.Yield allows the client to fire the task and await it
         // at a later point without having to wait for all the synchronous
-        // write operations.
+        // write operations, in case the call semaphore returns a completed
+        // task and no thread switch occurs.
         await Task.Yield();
-        mIdleStopwatch.Stop();
 
+        await mCallSemaphore.WaitAsync(ct);
         uint methodCallId = mClientMetrics.MethodCallStart();
         try
         {
+            mIdleStopwatch.Stop();
+
             if (mRpc is null)
             {
                 mCurrentStatus = Status.NegotiatingProtocol;
@@ -159,6 +163,8 @@ public class ConnectionToServer : IDisposable
 
             mClientMetrics.MethodCallEnd();
             mIdleStopwatch.Restart();
+
+            mCallSemaphore.Release();
         }
     }
 
@@ -171,6 +177,7 @@ public class ConnectionToServer : IDisposable
         {
             mClientMetrics.ConnectionEnd();
             mRpcChannel.Dispose();
+            mCallSemaphore.Dispose();
         }
 
         mDisposed = true;
@@ -196,4 +203,6 @@ public class ConnectionToServer : IDisposable
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mWaitStopwatch;
     readonly ILogger mLog;
+
+    readonly SemaphoreSlim mCallSemaphore;
 }
