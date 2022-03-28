@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -80,19 +79,15 @@ public class ActiveConnections
     public async Task ForceConnectionRecollectAsync()
         => await mMonitorLoop.FireEarlyAsync();
 
-    internal void LaunchNewConnection(Socket socket, CancellationToken ct)
+    internal void LaunchNewConnection(IRpcChannel rpcChannel, CancellationTokenSource cts)
     {
-        CancellationTokenSource cts =
-            CancellationTokenSource.CreateLinkedTokenSource(ct);
-
-        RpcTcpChannel rpcTcpChannel = new(socket, cts.Token);
         ConnectionFromClient connFromClient = new(
             mStubCollection,
             mNegotiateProtocol,
             mReadMethodId,
             mWriteMethodCallResult,
             mMetrics,
-            rpcTcpChannel,
+            rpcChannel,
             mConnectionTimeouts);
 
         mLog.LogTrace(
@@ -104,7 +99,7 @@ public class ActiveConnections
 
         AddConnection(new ActiveConnection(connFromClient, cts));
 
-        connFromClient.ProcessConnMessagesLoop(ct).ConfigureAwait(false);
+        connFromClient.ProcessConnMessagesLoop(cts.Token).ConfigureAwait(false);
     }
 
     void AddConnection(ActiveConnection activeConn)

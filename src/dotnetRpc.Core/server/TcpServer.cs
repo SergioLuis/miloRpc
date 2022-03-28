@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
+using dotnetRpc.Core.Channels;
 using dotnetRpc.Core.Shared;
 
 namespace dotnetRpc.Core.Server;
@@ -99,8 +100,12 @@ public class TcpServer : IServer
             while (!ct.IsCancellationRequested)
             {
                 Socket socket = await tcpListener.AcceptSocketAsync(ct);
-                // TODO: Maybe this socket needs some settings, define and apply them
-                mActiveConns.LaunchNewConnection(socket, ct);
+
+                CancellationTokenSource connCts =
+                    CancellationTokenSource.CreateLinkedTokenSource(ct);
+                IRpcChannel rpcChannel = new RpcTcpChannel(socket, connCts.Token);
+
+                mActiveConns.LaunchNewConnection(rpcChannel, connCts);
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
