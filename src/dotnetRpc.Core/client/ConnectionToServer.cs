@@ -132,7 +132,7 @@ public class ConnectionToServer : IDisposable
         finally
         {
             TimeSpan callIdlingTime = mIdleStopwatch.Elapsed;
-            TimeSpan callWritingtime = mRpcChannel.Stream.WriteTime - mLastWriteTime;
+            TimeSpan callWritingTime = mRpcChannel.Stream.WriteTime - mLastWriteTime;
             TimeSpan callWaitingTime = mWaitStopwatch.Elapsed;
             TimeSpan callReadingTime = mRpcChannel.Stream.ReadTime - mLastReadTime;
 
@@ -148,7 +148,7 @@ public class ConnectionToServer : IDisposable
 #pragma warning restore CA2017
                 Environment.NewLine,
                 methodCallId,
-                callIdlingTime, callWritingtime, callWaitingTime, callReadingTime,
+                callIdlingTime, callWritingTime, callWaitingTime, callReadingTime,
                 callWrittenBytes, callReadBytes);
 
             mTotalIdlingTime += callIdlingTime;
