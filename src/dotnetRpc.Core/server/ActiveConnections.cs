@@ -15,8 +15,8 @@ public class ActiveConnections
 {
     public class ActiveConnection
     {
-        public ConnectionFromClient Conn { get; private set; }
-        public CancellationTokenSource Cts { get; private set; }
+        public ConnectionFromClient Conn { get; }
+        public CancellationTokenSource Cts { get; }
 
         internal ActiveConnection(
             ConnectionFromClient conn, CancellationTokenSource cts)
@@ -44,7 +44,15 @@ public class ActiveConnections
     }
 
     public RpcMetrics.RpcCounters Counters => mMetrics.Counters;
-    public IReadOnlyCollection<ActiveConnection> Connections => mActiveConnections;
+
+    public IReadOnlyCollection<ActiveConnection> Connections
+    {
+        get
+        {
+            lock (mActiveConnections)
+                return new List<ActiveConnection>(mActiveConnections);
+        }
+    }
 
     internal ActiveConnections(
         StubCollection stubCollection,
@@ -94,7 +102,7 @@ public class ActiveConnections
             mConnectionTimeouts.Idling,
             mConnectionTimeouts.Running);
 
-        AddConnection(new(connFromClient, cts));
+        AddConnection(new ActiveConnection(connFromClient, cts));
 
         connFromClient.ProcessConnMessagesLoop(ct).ConfigureAwait(false);
     }
@@ -123,7 +131,7 @@ public class ActiveConnections
             if (mActiveConnections.Count == 0)
                 return;
 
-            connections = new(mActiveConnections);
+            connections = new HashSet<ActiveConnection>(mActiveConnections);
         }
 
         List<ActiveConnection> connsToRemove = new();
@@ -177,16 +185,4 @@ public class ActiveConnections
     readonly RpcMetrics mMetrics = new();
     readonly HashSet<ActiveConnection> mActiveConnections = new();
     readonly ILogger mLog;
-
-    class LoopParams
-    {
-        internal TimeSpan LoopWaitTime { get; private set; }
-        internal CancellationToken CancellationToken { get; private set; }
-
-        internal LoopParams(TimeSpan loopWaitTime, CancellationToken ct)
-        {
-            LoopWaitTime = loopWaitTime;
-            CancellationToken = ct;
-        }
-    }
 }
