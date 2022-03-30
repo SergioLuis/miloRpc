@@ -32,8 +32,6 @@ public class RpcBrotliStreamTests
         byte[] destination = ArrayPool<byte>.Shared.Rent(bufferSize);
         try
         {
-            int textCorpusSourceLen = textCorpusSource.Length;
-
             for (int i = 0; i < bufferSize; i++)
                 source[i] = (byte)textCorpusSource[rand.Next(0, textCorpusSource.Length)];
 
@@ -89,21 +87,21 @@ public class RpcBrotliStreamTests
         }
     }
 
-    [TestCase(true, 30)]
-    [TestCase(false, 30)]
-    [TestCase(true, 33)]
-    [TestCase(false, 33)]
-    [TestCase(true, 8190)]
-    [TestCase(false, 8190)]
-    [TestCase(true, 8194)]
-    [TestCase(false, 8194)]
+    [TestCase(CompressionHeader.CompressionFlag.Compressed, 30)]
+    [TestCase(CompressionHeader.CompressionFlag.Uncompressed, 30)]
+    [TestCase(CompressionHeader.CompressionFlag.Compressed, 33)]
+    [TestCase(CompressionHeader.CompressionFlag.Uncompressed, 33)]
+    [TestCase(CompressionHeader.CompressionFlag.Compressed, 8190)]
+    [TestCase(CompressionHeader.CompressionFlag.Uncompressed, 8190)]
+    [TestCase(CompressionHeader.CompressionFlag.Compressed, 8194)]
+    [TestCase(CompressionHeader.CompressionFlag.Uncompressed, 8194)]
     public void Encoded_Compression_Header_Should_Match_Decoded_Information(
-        bool compressed, int size)
+        CompressionHeader.CompressionFlag compressionFlag, int size)
     {
         byte[] buffer = new byte[5];
         MemoryStream ms = new(buffer);
 
-        ms.Write(CompressionHeader.Create(compressed, size));
+        ms.Write(CompressionHeader.Create(compressionFlag, size));
 
         ms.Position = 0;
 
@@ -112,21 +110,21 @@ public class RpcBrotliStreamTests
 
         CompressionHeader.Decode(
             readHeader,
-            out bool decodedCompressed,
-            out byte decodedSizeFlag);
+            out CompressionHeader.CompressionFlag decodedCompressionFlag,
+            out CompressionHeader.SizeFlag decodedSizeFlag);
 
-        Assert.That(decodedCompressed, Is.EqualTo(compressed));
+        Assert.That(decodedCompressionFlag, Is.EqualTo(compressionFlag));
 
-        if (decodedSizeFlag == CompressionHeader.SmallSizeFlag)
+        if (decodedSizeFlag == CompressionHeader.SizeFlag.Small)
             ms.Read(readHeader, 1, 1);
 
-        if (decodedSizeFlag == CompressionHeader.RegularSizeFlag)
+        if (decodedSizeFlag == CompressionHeader.SizeFlag.Regular)
             ms.Read(readHeader, 1, 4);
 
         int decodedSize = CompressionHeader.GetSize(readHeader, decodedSizeFlag);
 
         Assert.That(decodedSize, Is.EqualTo(size));
-    } 
+    }
 
     const int KiB = 1024;
     const int MiB = 1024 * 1024;

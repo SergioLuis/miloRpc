@@ -49,19 +49,40 @@ public class RpcBrotliStream : Stream
         }
 
         byte[] header = new byte[5];
-        mBaseStream.ReadUntilCountFulfilled(header, 0, 1);
+        mBaseStream.ReadUntilCountFulfilled(
+            header,
+            0,
+            CompressionHeader.TinyHeaderSize);
 
-        CompressionHeader.Decode(header, out bool compressed, out byte sizeFlag);
+        CompressionHeader.Decode(
+            header,
+            out CompressionHeader.CompressionFlag compressedFlag,
+            out CompressionHeader.SizeFlag sizeFlag);
 
-        if (sizeFlag == CompressionHeader.SmallSizeFlag)
-            mBaseStream.ReadUntilCountFulfilled(header, 1, 1);
+        switch (sizeFlag)
+        {
+            case CompressionHeader.SizeFlag.Small:
+                mBaseStream.ReadUntilCountFulfilled(
+                    header,
+                    CompressionHeader.TinyHeaderSize,
+                    CompressionHeader.SmallHeaderSize - CompressionHeader.TinyHeaderSize);
+                break;
 
-        if (sizeFlag == CompressionHeader.RegularSizeFlag)
-            mBaseStream.ReadUntilCountFulfilled(header, 1, 4);
+            case CompressionHeader.SizeFlag.Regular:
+                mBaseStream.ReadUntilCountFulfilled(
+                    header,
+                    CompressionHeader.TinyHeaderSize,
+                    CompressionHeader.RegularHeaderSize - CompressionHeader.TinyHeaderSize);
+                break;
+
+            case CompressionHeader.SizeFlag.Tiny:
+            default:
+                break;
+        }
 
         mCurrentReadChunk.FillFromStream(
             CompressionHeader.GetSize(header, sizeFlag),
-            compressed,
+            compressedFlag == CompressionHeader.CompressionFlag.Compressed,
             mBaseStream);
 
         return Read(buffer);
@@ -96,12 +117,16 @@ public class RpcBrotliStream : Stream
             if (!BrotliEncoder.TryCompress(buffer, compressionBuffer, out int compressedLen)
                 || compressedLen > buffer.Length)
             {
-                header = CompressionHeader.Create(false, buffer.Length);
+                header = CompressionHeader.Create(
+                    CompressionHeader.CompressionFlag.Uncompressed,
+                    buffer.Length);
                 WriteToBaseStream(header, buffer);
                 return;
             }
 
-            header = CompressionHeader.Create(true, compressedLen);
+            header = CompressionHeader.Create(
+                CompressionHeader.CompressionFlag.Compressed,
+                compressedLen);
             WriteToBaseStream(header, new ReadOnlySpan<byte>(compressionBuffer, 0, compressedLen));
         }
         finally
