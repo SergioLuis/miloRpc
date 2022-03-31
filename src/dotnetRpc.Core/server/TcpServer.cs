@@ -6,23 +6,20 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 using dotnetRpc.Core.Channels;
+using dotnetRpc.Core.Extensions;
 using dotnetRpc.Core.Shared;
 
 namespace dotnetRpc.Core.Server;
 
-public interface IServer
-{
-    IPEndPoint? BindAddress { get; }
-    ActiveConnections ActiveConnections { get; }
-    ConnectionTimeouts ConnectionTimeouts { get; }
-    Task ListenAsync(CancellationToken ct);
-}
-
 public class TcpServer : IServer
 {
-    public IPEndPoint? BindAddress => mBindAddress;
-    public ActiveConnections ActiveConnections => mActiveConns;
-    public ConnectionTimeouts ConnectionTimeouts => mConnectionTimeouts;
+    public event EventHandler<AcceptLoopStartEventArgs>? AcceptLoopStart;
+    public event EventHandler<AcceptLoopStopEventArgs>? AcceptLoopStop;
+    public event EventHandler<ConnectionAcceptEventArgs>? ConnectionAccept;
+
+    IPEndPoint? IServer.BindAddress => mBindAddress;
+    ActiveConnections IServer.ActiveConnections => mActiveConns;
+    ConnectionTimeouts IServer.ConnectionTimeouts => mConnectionTimeouts;
 
     public TcpServer(
         IPEndPoint bindTo,
@@ -94,31 +91,57 @@ public class TcpServer : IServer
             mLog.LogTrace("TCP listener stopped");
         });
 
+        int launchCount = 0;
         mActiveConns.StartConnectionMonitor(TimeSpan.FromSeconds(30), ct);
-        try
+        while (true)
         {
-            while (!ct.IsCancellationRequested)
+            AcceptLoopStartEventArgs startArgs = new(launchCount++);
+            AcceptLoopStart?.Invoke(this, startArgs);
+            if (startArgs.CancelRequested)
+                break;
+
+            try
             {
-                Socket socket = await tcpListener.AcceptSocketAsync(ct);
+                while (!ct.IsCancellationRequested)
+                {
+                    Socket socket = await tcpListener.AcceptSocketAsync(ct);
 
-                CancellationTokenSource connCts =
-                    CancellationTokenSource.CreateLinkedTokenSource(ct);
-                IRpcChannel rpcChannel = new RpcTcpChannel(socket, connCts.Token);
+                    ConnectionAcceptEventArgs connAcceptArgs = new(socket.RemoteEndPoint);
+                    ConnectionAccept?.Invoke(this, connAcceptArgs);
+                    if (connAcceptArgs.CancelRequested)
+                    {
+                        socket.ShutdownAndCloseSafely();
+                        continue;
+                    }
 
-                mActiveConns.LaunchNewConnection(rpcChannel, connCts);
+                    CancellationTokenSource connCts =
+                        CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    IRpcChannel rpcChannel = new RpcTcpChannel(socket, connCts.Token);
+
+                    mActiveConns.LaunchNewConnection(rpcChannel, connCts);
+                }
+
+                break;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+            catch (SocketException ex)
+            {
+                if (ct.IsCancellationRequested)
+                    break;
+
+                // TODO: Log the exception
+            }
+            catch (Exception ex)
+            {
+                if (ct.IsCancellationRequested)
+                    break;
+
+                // TODO: Log the exception
             }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
-        catch (SocketException ex)
-        {
-            // TODO: Handle the exception
-            throw;
-        }
-        catch (Exception ex)
-        {
-            // TODO: Handle the exception
-            throw;
-        }
+
+        AcceptLoopStopEventArgs endArgs = new(launchCount);
+        AcceptLoopStop?.Invoke(this, endArgs);
 
         await mActiveConns.StopConnectionMonitorAsync();
 
