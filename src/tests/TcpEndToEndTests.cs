@@ -23,6 +23,31 @@ public class TcpEndToEndTests
     [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
     public async Task Remote_Procedure_Call_Works_Ok_End_To_End(RpcCapabilities capabilities)
     {
+        int acceptLoopStartEvents = 0;
+        EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStartEvents));
+            Assert.That(args.CancelRequested, Is.False);
+            acceptLoopStartEvents++;
+        };
+
+        int acceptLoopStopEvents = 0;
+        EventHandler<AcceptLoopStopEventArgs> acceptLoopStopEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            acceptLoopStopEvents++;
+            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStopEvents));
+        };
+
+        int connAcceptEvents = 0;
+        EventHandler<ConnectionAcceptEventArgs> connAcceptEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            connAcceptEvents++;
+            Assert.That(args.CancelRequested, Is.False);
+        };
+
         Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
         serverFuncMock.Setup(
                 mock => mock.CallAsync(It.IsAny<CancellationToken>()))
@@ -50,6 +75,10 @@ public class TcpEndToEndTests
 
         StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
         IServer tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
+        tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
+        tcpServer.ConnectionAccept += connAcceptEventHandler;
+
         Task serverTask = tcpServer.ListenAsync(cts.Token);
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
@@ -72,11 +101,40 @@ public class TcpEndToEndTests
         cts.Cancel();
 
         await serverTask;
+
+        Assert.That(acceptLoopStartEvents, Is.EqualTo(1));
+        Assert.That(acceptLoopStopEvents, Is.EqualTo(1));
+        Assert.That(connAcceptEvents, Is.EqualTo(1));
     }
 
     [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
     public async Task Failed_Remote_Procedure_Call_Propagates_Exception(RpcCapabilities capabilities)
     {
+        int acceptLoopStartEvents = 0;
+        EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStartEvents));
+            Assert.That(args.CancelRequested, Is.False);
+            acceptLoopStartEvents++;
+        };
+
+        int acceptLoopStopEvents = 0;
+        EventHandler<AcceptLoopStopEventArgs> acceptLoopStopEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            acceptLoopStopEvents++;
+            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStopEvents));
+        };
+
+        int connAcceptEvents = 0;
+        EventHandler<ConnectionAcceptEventArgs> connAcceptEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            connAcceptEvents++;
+            Assert.That(args.CancelRequested, Is.False);
+        };
+
         const string exceptionMsg = "This method will be implemented on v3.1";
 
         Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
@@ -106,6 +164,10 @@ public class TcpEndToEndTests
 
         StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
         IServer tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
+        tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
+        tcpServer.ConnectionAccept += connAcceptEventHandler;
+
         Task serverTask = tcpServer.ListenAsync(cts.Token);
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
@@ -137,6 +199,96 @@ public class TcpEndToEndTests
         cts.Cancel();
 
         await serverTask;
+
+        Assert.That(acceptLoopStartEvents, Is.EqualTo(1));
+        Assert.That(acceptLoopStopEvents, Is.EqualTo(1));
+        Assert.That(connAcceptEvents, Is.EqualTo(1));
+    }
+
+    [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
+    public async Task Not_Supported_Remote_Procedure_Call_Closes_Connection(RpcCapabilities capabilities)
+    {
+        int acceptLoopStartEvents = 0;
+        EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStartEvents));
+            Assert.That(args.CancelRequested, Is.False);
+            acceptLoopStartEvents++;
+        };
+
+        int acceptLoopStopEvents = 0;
+        EventHandler<AcceptLoopStopEventArgs> acceptLoopStopEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            acceptLoopStopEvents++;
+            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStopEvents));
+        };
+
+        int connAcceptEvents = 0;
+        EventHandler<ConnectionAcceptEventArgs> connAcceptEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            connAcceptEvents++;
+            Assert.That(args.CancelRequested, Is.False);
+        };
+
+        Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
+
+        CancellationTokenSource cts = new();
+        cts.CancelAfter(TestingConstants.Timeout);
+
+        INegotiateRpcProtocol negotiateServerProtocol =
+            new DefaultServerProtocolNegotiation(
+                capabilities,
+                capabilities,
+                ArrayPool<byte>.Shared,
+                mCertificatePath,
+                "c3rt1f1c4t3p4ssw0rd");
+
+        INegotiateRpcProtocol negotiateClientProtocol =
+            new DefaultClientProtocolNegotiation(
+                capabilities,
+                RpcCapabilities.None,
+                ArrayPool<byte>.Shared,
+                DefaultClientProtocolNegotiation.AcceptAllCertificates);
+
+        IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+        StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
+        IServer tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
+        tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
+        tcpServer.ConnectionAccept += connAcceptEventHandler;
+
+        Task serverTask = tcpServer.ListenAsync(cts.Token);
+
+        Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+        ConnectToServer connectToServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
+        ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(cts.Token);
+        IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
+
+        Assert.That(
+            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            Is.EqualTo(1).After(1000, 10));
+
+        Assert.That(
+            async () => await serverFuncProxy.CallUnsupportedAsync(cts.Token),
+            Throws.TypeOf<NotSupportedException>().And.Message.Contains("is not supported by the server"));
+
+        Assert.That(
+            () => connectionToServer.IsConnected(),
+            Is.False.After(1000, 10));
+
+        connectionToServer.Dispose();
+        cts.Cancel();
+
+        await serverTask;
+
+        Assert.That(acceptLoopStartEvents, Is.EqualTo(1));
+        Assert.That(acceptLoopStopEvents, Is.EqualTo(1));
+        Assert.That(connAcceptEvents, Is.EqualTo(1));
     }
 
     [SetUp]
@@ -230,6 +382,16 @@ public class TcpEndToEndTests
                 CallAsync_MethodId, msg, ct);
         }
 
+        public async Task CallUnsupportedAsync(CancellationToken ct)
+        {
+            VoidNetworkMessage req = new();
+            VoidNetworkMessage res = new();
+            RpcNetworkMessages msg = new(req, res);
+
+            await mConnToServer.ProcessMethodCallAsync(
+                CallUnsupportedAsync_MethodId, msg, ct);
+        }
+
         readonly ConnectionToServer mConnToServer;
     }
 
@@ -237,9 +399,17 @@ public class TcpEndToEndTests
     public interface IServerFunctionality
     {
         Task CallAsync(CancellationToken ct);
+        Task CallUnsupportedAsync(CancellationToken ct);
     }
 
     const byte CallAsync_Id = 1;
-    static readonly DefaultMethodId CallAsync_MethodId = new(CallAsync_Id, "CallAsync");
+    const byte CallUnsupportedAsync_Id = 2;
+
+    static readonly DefaultMethodId CallAsync_MethodId =
+        new(CallAsync_Id, "CallAsync");
+
+    static readonly DefaultMethodId CallUnsupportedAsync_MethodId =
+        new(CallUnsupportedAsync_Id, "CallUnsupportedAsync");
+
     #endregion
 }
