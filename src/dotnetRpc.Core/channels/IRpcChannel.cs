@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace dotnetRpc.Core.Channels;
 
-internal interface IRpcChannel : IDisposable
+public interface IRpcChannel : IDisposable
 {
     MeteredStream Stream { get; }
     IPEndPoint RemoteEndPoint { get; }

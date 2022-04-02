@@ -17,7 +17,7 @@ internal class RpcTcpChannel : IRpcChannel
     internal RpcTcpChannel(Socket socket, CancellationToken ct)
     {
         mSocket = socket;
-        mMeteredStream = new(new NetworkStream(mSocket));
+        mMeteredStream = new MeteredStream(new NetworkStream(mSocket));
         mRemoteEndPoint = (IPEndPoint)mSocket.RemoteEndPoint!;
         mLog = RpcLoggerFactory.CreateLogger("RpcSocket");
 
