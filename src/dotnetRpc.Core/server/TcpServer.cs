@@ -117,7 +117,7 @@ public class TcpServer : IServer
 
                     CancellationTokenSource connCts =
                         CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    IRpcChannel rpcChannel = new RpcTcpChannel(socket, connCts.Token);
+                    IRpcChannel rpcChannel = new TcpRpcChannel(socket, connCts.Token);
 
                     mActiveConns.LaunchNewConnection(rpcChannel, connCts);
                 }

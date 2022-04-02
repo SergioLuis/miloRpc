@@ -42,13 +42,13 @@ public class ConnectToServer
         TcpClient tcpClient = new();
         await tcpClient.ConnectAsync(mServerEndpoint, ct);
 
-        RpcTcpChannel tcpChannel = new(tcpClient.Client, ct);
+        TcpRpcChannel channel = new(tcpClient.Client, ct);
         return new(
             mNegotiateProtocol,
             mWriteMethodId,
             mReadMethodCallResult,
             mMetrics,
-            tcpChannel);
+            channel);
     }
 
     readonly IPEndPoint mServerEndpoint;

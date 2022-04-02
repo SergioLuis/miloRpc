@@ -9,12 +9,12 @@ using dotnetRpc.Core.Shared;
 
 namespace dotnetRpc.Core.Channels;
 
-internal class RpcTcpChannel : IRpcChannel
+internal class TcpRpcChannel : IRpcChannel
 {
     MeteredStream IRpcChannel.Stream => mMeteredStream;
     IPEndPoint IRpcChannel.RemoteEndPoint => mRemoteEndPoint;
 
-    internal RpcTcpChannel(Socket socket, CancellationToken ct)
+    internal TcpRpcChannel(Socket socket, CancellationToken ct)
     {
         mSocket = socket;
         mMeteredStream = new MeteredStream(new NetworkStream(mSocket));
