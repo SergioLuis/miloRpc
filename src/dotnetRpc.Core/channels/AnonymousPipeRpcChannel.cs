@@ -1,3 +1,4 @@
+using System.IO.Pipes;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,9 +10,14 @@ public class AnonymousPipeRpcChannel : IRpcChannel
     public MeteredStream Stream { get; }
     public IPEndPoint RemoteEndPoint { get; }
 
-    public AnonymousPipeRpcChannel()
+    public AnonymousPipeRpcChannel(
+        AnonymousPipeServerStream output,
+        AnonymousPipeClientStream input)
     {
-        
+        mOutput = output;
+        mInput = input;
+
+        RemoteEndPoint = new IPEndPoint(IPAddress.None, -1);
     }
 
     public void Dispose()
@@ -24,8 +30,8 @@ public class AnonymousPipeRpcChannel : IRpcChannel
         throw new System.NotImplementedException();
     }
 
-    public bool IsConnected()
-    {
-        throw new System.NotImplementedException();
-    }
+    public bool IsConnected() => mOutput.IsConnected && mInput.IsConnected;
+
+    readonly AnonymousPipeServerStream mOutput;
+    readonly AnonymousPipeClientStream mInput;
 }
