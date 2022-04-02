@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -64,7 +65,7 @@ public class TcpServer : IServer
     {
         mBindEndpoint = bindTo;
         mConnectionTimeouts = connectionTimeouts;
-        mActiveConns = new(
+        mActiveConns = new ActiveConnections(
             stubCollection,
             negotiateProtocol,
             readMethodId,
@@ -82,7 +83,7 @@ public class TcpServer : IServer
         TcpListener tcpListener = new(mBindEndpoint);
         tcpListener.Start();
 
-        mBindAddress = (IPEndPoint)tcpListener.LocalEndpoint;
+        mBindAddress = Unsafe.As<IPEndPoint>(tcpListener.LocalEndpoint);
 
         ct.Register(() =>
         {
@@ -122,14 +123,6 @@ public class TcpServer : IServer
                 }
 
                 break;
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
-            catch (SocketException ex)
-            {
-                if (ct.IsCancellationRequested)
-                    break;
-
-                // TODO: Log the exception
             }
             catch (Exception ex)
             {
