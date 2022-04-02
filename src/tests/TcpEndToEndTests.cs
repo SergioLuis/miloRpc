@@ -291,6 +291,164 @@ public class TcpEndToEndTests
         Assert.That(connAcceptEvents, Is.EqualTo(1));
     }
 
+    [Test, Timeout(TestingConstants.Timeout)]
+    public async Task Cancelling_Accept_Loop_Launch_Causes_Server_To_Exit()
+    {
+        int acceptLoopStartEvents = 0;
+        EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStartEvents));
+            Assert.That(args.CancelRequested, Is.False);
+            args.CancelRequested = true;
+            acceptLoopStartEvents++;
+        };
+
+        int acceptLoopStopEvents = 0;
+        EventHandler<AcceptLoopStopEventArgs> acceptLoopStopEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            acceptLoopStopEvents++;
+            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStopEvents));
+        };
+
+        Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
+
+        CancellationTokenSource cts = new();
+        cts.CancelAfter(TestingConstants.Timeout);
+
+        INegotiateRpcProtocol negotiateServerProtocol =
+            new DefaultServerProtocolNegotiation(
+                RpcCapabilities.None,
+                RpcCapabilities.None,
+                ArrayPool<byte>.Shared,
+                string.Empty,
+                string.Empty);
+
+        IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+        StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
+        IServer tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
+        tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
+
+        Task serverTask = tcpServer.ListenAsync(cts.Token);
+
+        Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+        await serverTask;
+
+        // Server exits without having to cancel the token
+        Assert.That(cts.IsCancellationRequested, Is.False);
+
+        Assert.That(acceptLoopStartEvents, Is.EqualTo(1));
+        Assert.That(acceptLoopStopEvents, Is.EqualTo(1));
+    }
+
+    [Test, Timeout(TestingConstants.Timeout)]
+    public async Task Cancelling_Connection_Accept_Causes_Connection_To_Drop()
+    {
+        int acceptLoopStartEvents = 0;
+        EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStartEvents));
+            Assert.That(args.CancelRequested, Is.False);
+            acceptLoopStartEvents++;
+        };
+
+        int acceptLoopStopEvents = 0;
+        EventHandler<AcceptLoopStopEventArgs> acceptLoopStopEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            acceptLoopStopEvents++;
+            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStopEvents));
+        };
+
+        int connAcceptEvents = 0;
+        bool cancelNextConnection = false;
+        EventHandler<ConnectionAcceptEventArgs> connAcceptEventHandler = (sender, args) =>
+        {
+            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+            connAcceptEvents++;
+            Assert.That(args.CancelRequested, Is.False);
+            args.CancelRequested = cancelNextConnection;
+        };
+
+        Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
+
+        CancellationTokenSource cts = new();
+        cts.CancelAfter(TestingConstants.Timeout);
+
+        INegotiateRpcProtocol negotiateServerProtocol =
+            new DefaultServerProtocolNegotiation(
+                RpcCapabilities.None,
+                RpcCapabilities.None,
+                ArrayPool<byte>.Shared,
+                mCertificatePath,
+                "c3rt1f1c4t3p4ssw0rd");
+
+        INegotiateRpcProtocol negotiateClientProtocol =
+            new DefaultClientProtocolNegotiation(
+                RpcCapabilities.None,
+                RpcCapabilities.None,
+                ArrayPool<byte>.Shared,
+                DefaultClientProtocolNegotiation.AcceptAllCertificates);
+
+        IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+        StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
+        IServer tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
+        tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
+        tcpServer.ConnectionAccept += connAcceptEventHandler;
+
+        Task serverTask = tcpServer.ListenAsync(cts.Token);
+
+        Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+        ConnectToServer connectToServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
+        ConnectionToServer firstConnection = await connectToServer.ConnectAsync(cts.Token);
+
+        Assert.That(
+            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            Is.EqualTo(1).After(1000, 10));
+
+        Assert.That(
+            () => firstConnection.IsConnected(),
+            Is.True.After(1000, 10));
+
+        cancelNextConnection = true;
+        ConnectionToServer secondConnection = await connectToServer.ConnectAsync(cts.Token);
+
+        Assert.That(
+            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            Is.EqualTo(1).After(1000, 10));
+
+        Assert.That(
+            () => secondConnection.IsConnected(),
+            Is.False.After(1000, 10));
+
+        firstConnection.Dispose();
+
+        Assert.That(
+            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            Is.EqualTo(0).After(1000, 10));
+
+        Assert.That(
+            () => firstConnection.IsConnected(),
+            Is.False.After(1000, 10));
+
+        secondConnection.Dispose();
+        cts.Cancel();
+
+        await serverTask;
+
+        Assert.That(acceptLoopStartEvents, Is.EqualTo(1));
+        Assert.That(acceptLoopStopEvents, Is.EqualTo(1));
+        Assert.That(connAcceptEvents, Is.EqualTo(2));
+    }
+
     [SetUp]
     public void Setup()
     {
