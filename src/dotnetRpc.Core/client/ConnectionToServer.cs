@@ -140,16 +140,11 @@ public class ConnectionToServer : IDisposable
             ulong callReadBytes = mRpcChannel.Stream.ReadBytes - mLastReadBytes;
 
             mLog.LogTrace(
-#pragma warning disable CA2017
-                "Finished method call {1}{0}" +
-                "Times{0}" +
-                "  Idling: {2}, Writing: {3}, Waiting: {4}, Reading: {5}{0}" +
-                "Bytes:{0}  Written: {6}, Read: {7}",
-#pragma warning restore CA2017
-                Environment.NewLine,
-                methodCallId,
-                callIdlingTime, callWritingTime, callWaitingTime, callReadingTime,
-                callWrittenBytes, callReadBytes);
+                $@"Finished method call {methodCallId}
+Times
+  Idling: {callIdlingTime}, Writing: {callWritingTime}, Waiting: {callWaitingTime}, Reading: {callReadingTime}
+Bytes
+  Written: {callWrittenBytes}, Read: {callReadBytes}");
 
             mTotalIdlingTime += callIdlingTime;
             mTotalWaitingTime += callWaitingTime;
