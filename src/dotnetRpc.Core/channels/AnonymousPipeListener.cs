@@ -64,6 +64,7 @@ public class AnonymousPipeListener
             ClientToServer = clientToServer;
         }
     }
+
     class OfferedConnectionsPool
     {
         public OfferedConnectionsPool(AnonymousPipeFileCommPaths paths, int poolSize)
@@ -103,7 +104,7 @@ public class AnonymousPipeListener
         {
             lock (mOfferedConnections)
             {
-                return !mOfferedConnections.TryGetValue(
+                return !mOfferedConnections.Remove(
                     connectionId, out AnonymousPipeServerStream? result)
                         ? null
                         : result;
@@ -115,10 +116,10 @@ public class AnonymousPipeListener
             AnonymousPipeServerStream serverToClient = new(
                 PipeDirection.Out, HandleInheritability.Inheritable);
 
-            string connBeginFilePath = mPaths.GetConnBeginningFilePath(connectionId);
+            string connBeginningFilePath = mPaths.GetConnBeginningFilePath(connectionId);
             string clientHandle = serverToClient.GetClientHandleAsString();
 
-            await File.WriteAllTextAsync(connBeginFilePath, clientHandle);
+            await File.WriteAllTextAsync(connBeginningFilePath, clientHandle);
 
             return serverToClient;
         }
@@ -135,13 +136,12 @@ public class AnonymousPipeListener
     class RequestedConnectionsQueue : IDisposable
     {
         public RequestedConnectionsQueue(
-            AnonymousPipeFileCommPaths paths,
-            OfferedConnectionsPool pool)
+            AnonymousPipeFileCommPaths paths, int offeredConnectionsPoolSize)
         {
             mLog = RpcLoggerFactory.CreateLogger("RequestedConnectionsQueue");
 
             mPaths = paths;
-            mPool = pool;
+            mPool = new OfferedConnectionsPool(mPaths, offeredConnectionsPoolSize);
 
             mRequestedConnections = new Queue<RequestedConnection>();
             mSemaphoreSlim = new SemaphoreSlim(0);
@@ -162,6 +162,8 @@ public class AnonymousPipeListener
 
         public async Task<RequestedConnection> EstablishNextConnection(CancellationToken ct)
         {
+            await mPool.RefillPool();
+
             await mSemaphoreSlim.WaitAsync(ct);
 
             RequestedConnection result;
@@ -174,7 +176,7 @@ public class AnonymousPipeListener
             return result;
         }
 
-        void OnFileRenamed(object sender, RenamedEventArgs e)
+        void OnFileRenamed(object _, RenamedEventArgs e)
         {
             if (string.IsNullOrEmpty(e.Name))
                 return;
@@ -184,7 +186,7 @@ public class AnonymousPipeListener
                 return;
 
             CompleteAndEnqueueConnection(
-                mPaths.ParseConnRequestedId(name),
+                mPaths.ParseConnectionId(name),
                 File.ReadAllText(e.FullPath));
         }
 
@@ -221,13 +223,13 @@ public class AnonymousPipeListener
     public AnonymousPipeListener(
         string directory,
         string prefix = "",
-        int connectionPoolSize = 5)
+        int offeredConnectionsPoolSize = 5)
     {
         mLog = RpcLoggerFactory.CreateLogger("AnonymousPipeListener");
 
-        AnonymousPipeFileCommPaths paths = new(directory, prefix);
-        mOfferedConnectionsPool = new OfferedConnectionsPool(paths, connectionPoolSize);
-        mRequestedConnectionsQueue = new RequestedConnectionsQueue(paths, mOfferedConnectionsPool);
+        mPaths = new AnonymousPipeFileCommPaths(directory, prefix);
+        mRequestedConnectionsQueue = new RequestedConnectionsQueue(
+            mPaths, offeredConnectionsPoolSize);
     }
 
     public async Task<IRpcChannel> AcceptPipeAsync()
@@ -235,19 +237,18 @@ public class AnonymousPipeListener
 
     public async Task<IRpcChannel> AcceptPipeAsync(CancellationToken ct)
     {
-        await mOfferedConnectionsPool.RefillPool();
-
         RequestedConnection requestedConnection =
             await mRequestedConnectionsQueue.EstablishNextConnection(ct);
 
         IRpcChannel result = new AnonymousPipeRpcChannel(
+            mPaths.GetConnEstablishedFilePath(requestedConnection.ConnectionId),
             requestedConnection.ServerToClient,
             requestedConnection.ClientToServer);
 
         return result;
     }
 
-    readonly OfferedConnectionsPool mOfferedConnectionsPool;
+    readonly AnonymousPipeFileCommPaths mPaths;
     readonly RequestedConnectionsQueue mRequestedConnectionsQueue;
     readonly ILogger mLog;
 }
