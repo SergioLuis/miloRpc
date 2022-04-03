@@ -214,7 +214,7 @@ public class AnonymousPipeClient
                 return;
 
             ReadOnlySpan<char> name = e.Name.AsSpan();
-            if (!mPaths.IsConnectionEstablishedFilePath(name))
+            if (!mPaths.IsConnectionEstablishedFileName(name))
                 return;
 
             EnqueueConnection(mPaths.ParseConnectionId(name));

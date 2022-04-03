@@ -182,7 +182,7 @@ public class AnonymousPipeListener
                 return;
 
             ReadOnlySpan<char> name = e.Name.AsSpan();
-            if (!mPaths.IsConnectionRequestedFilePath(name))
+            if (!mPaths.IsConnectionRequestedFileName(name))
                 return;
 
             CompleteAndEnqueueConnection(

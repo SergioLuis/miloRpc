@@ -72,10 +72,10 @@ public class AnonymousPipeFileCommPaths
             BuildConnectionEstablishedFilePath(connectionId),
             false);
 
-    public bool IsConnectionRequestedFilePath(ReadOnlySpan<char> filePath)
+    public bool IsConnectionRequestedFileName(ReadOnlySpan<char> filePath)
         => filePath.StartsWith(mPrefix) && filePath.EndsWith(FileExtensions.Requested);
 
-    public bool IsConnectionEstablishedFilePath(ReadOnlySpan<char> filePath)
+    public bool IsConnectionEstablishedFileName(ReadOnlySpan<char> filePath)
         => filePath.StartsWith(mPrefix) && filePath.EndsWith(FileExtensions.Established);
 
     public ulong ParseConnectionId(string? filePath)
