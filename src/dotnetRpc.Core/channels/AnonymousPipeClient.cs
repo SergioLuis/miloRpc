@@ -11,42 +11,6 @@ using dotnetRpc.Core.Shared;
 
 namespace dotnetRpc.Core.Channels;
 
-/**
- * AnonymousPipe channel flow (this class implements client-side behavior):
- *
- * 0) Server creates file [prefix]_[ID].conn_beginning
- *    - 'prefix' will be a string shared with the client. By filtering files
- *      by their prefix, several NamedPipeListener instances can work with the
- *      same directory
- *    - 'ID' is a rotatory unsigned long, auto-incremented with each connection
- *
- * 1) Server side creates an AnonymousPipeServerStream ServerToClient-Server (PipeDirection.Out)
- * 2) Server side writes the Pipe's ClientHandle in file [prefix]_[ID].conn_beginning
- * 3) Server side renames file [prefix]_[ID].conn_beginning to [prefix]_[ID].conn_offered
- *    - First creating the file, then renaming it prevents race conditions with
- *      the clients while writing the Pipe's ClientHandle
- *
- * 4) Client side scans for files starting with [prefix] and extension 'conn_offered'
- *    - Client sorts the files by their [ID]
- *    - Client will try to choose first the one with the lowest [ID]
- * 5) Client side renames file [prefix]_[ID].conn_offered to [prefix]_[ID].conn_requesting
- *    - Because a rename is an atomic operation, this prevents more than one
- *      thread/process requesting the same NamedPipe connection
- *      The first one that renames the file succeeds
- * 6) Client side reads ClientHandle from [prefix]_[ID].conn_requesting
- * 7) Client side creates an AnonymousPipeClientStream ServerToClient-Client (PipeDirection.In)
- *    with the ClientHandle read from [prefix]_[ID].conn_requesting
- * 7) Client side creates an AnonymousPipeServerStream ClientToServer-Client (PipeDirection.Out)
- * 8) Client side writes the Pipe's ClientHandle in file [prefix]_[ID].conn_requesting
- * 9) Client side renames file [prefix]_[ID].conn_requesting to [prefix]_[ID].conn_requested
- *
- * 10) Server side reads ClientHandle from [prefix]_[ID].conn_requested
- * 11) Server side creates an AnonymousPipeClientStream ClientToServer-Server (PipeDirection.In)
- *     with the ClientHandle read from [prefix]_[ID].conn_requested
- * 12) Server side renames file [prefix]_[ID].conn_requested to [prefix]_[ID].conn_established
- *
- * Now both parties are ready to communicate!
- */
 public class AnonymousPipeClient
 {
     class EstablishedConnection
@@ -178,8 +142,8 @@ public class AnonymousPipeClient
 
             ulong connectionId = mPaths.ParseConnectionId(e.Name);
 
-            Console.WriteLine(
-                "AnonymousPipeClient - Connection ID {0} requested, try to refill pool...",
+            mLog.LogDebug(
+                "Connection ID {0} requested, try to refill pool...",
                 connectionId);
 
             await RefillPool();
@@ -191,14 +155,14 @@ public class AnonymousPipeClient
             {
                 if (mReservedConnectionsQueue.Count >= mPoolSize)
                 {
-                    Console.WriteLine(
-                        "AnonymousPipeClient - Pool still has {0} connections, won't refill",
+                    mLog.LogDebug(
+                        "Pool still has {0} connections, won't refill",
                         mReservedConnectionsQueue.Count);
                     return;
                 }
             }
 
-            Console.WriteLine("AnonymousPipeClient - Refilling pool");
+            mLog.LogDebug("Refilling pool");
 
             bool poolRefilled = false;
             while (!poolRefilled)
@@ -209,13 +173,13 @@ public class AnonymousPipeClient
                     nextConnectionId = mPaths.GetNextOfferedConnection();
                     if (nextConnectionId == AnonymousPipeFileCommPaths.INVALID_CONN_ID)
                     {
-                        Console.WriteLine("AnonymousPipeClient - No new connection offered...");
+                        mLog.LogDebug("No new connection offered...");
                         await Task.Delay(100);
                         continue;
                     }
 
-                    Console.WriteLine(
-                        "AnonymousPipeClient - Trying to reserve connection {0}",
+                    mLog.LogDebug(
+                        "Trying to reserve connection {0}",
                         nextConnectionId);
                     break;
                 }
@@ -224,11 +188,13 @@ public class AnonymousPipeClient
                     nextConnectionId,
                     out string connReservedFilePath))
                 {
-                    Console.WriteLine("AnonymousPipeClient - Could not reserve connection {0}", nextConnectionId);
+                    mLog.LogDebug(
+                        "Could not reserve connection {0}",
+                        nextConnectionId);
                     continue;
                 }
 
-                Console.WriteLine("AnonymousPipeClient - Connection {0} successfully reserved!", nextConnectionId);
+                mLog.LogDebug("Connection {0} successfully reserved!", nextConnectionId);
 
                 AnonymousPipeClientStream serverToClient = new(
                     PipeDirection.In,
@@ -446,6 +412,11 @@ public class AnonymousPipeClient
             mPaths, mReservedConnectionsPool);
 
         mFileSystemWatcher = new FileSystemWatcher(directory);
+        mFileSystemWatcher.Filters.Add(
+            mPaths.GetSearchPattern(AnonymousPipeFileCommPaths.FileExtensions.Requested));
+        mFileSystemWatcher.Filters.Add(
+            mPaths.GetSearchPattern(AnonymousPipeFileCommPaths.FileExtensions.Established));
+        mFileSystemWatcher.InternalBufferSize = 64 * 1024;
     }
 
     public void Dispose()

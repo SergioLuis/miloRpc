@@ -127,8 +127,8 @@ public class AnonymousPipeListener : IDisposable
 
             ulong connectionId = mPaths.ParseConnectionId(e.Name);
 
-            Console.WriteLine(
-                "OfferedConnectionsPool - Connection ID {0} reserved, try to refill pool...",
+            mLog.LogDebug(
+                "Connection ID {0} reserved, try to refill pool...",
                 connectionId);
 
             lock (mOfferedConnectionsSyncLock)
@@ -145,14 +145,14 @@ public class AnonymousPipeListener : IDisposable
             {
                 if (mOfferedConnectionsCount >= mPoolSettings.LowerLimit)
                 {
-                    Console.WriteLine(
-                        "AnonymousPipeListener - Pool still has {0} connections, won't refill",
+                    mLog.LogDebug(
+                        "Pool still has {0} connections, won't refill",
                         mOfferedConnectionsCount);
                     return;
                 }
             }
 
-            Console.WriteLine("AnonymousPipeListener - Refilling pool");
+            mLog.LogDebug("Refilling pool");
 
             bool poolRefilled = false;
             while (!poolRefilled)
@@ -168,12 +168,12 @@ public class AnonymousPipeListener : IDisposable
                 }
 
                 mPaths.SetConnectionOffered(nextConnectionId);
-                Console.WriteLine(
-                    "AnonymousPipeListener - Offered connection {0}",
+                mLog.LogDebug(
+                    "Offered connection {0}",
                     nextConnectionId);
             }
 
-            Console.WriteLine("AnonymousPipeListener - Pool refilled");
+            mLog.LogDebug("Pool refilled");
         }
 
         public AnonymousPipeServerStream? GetConnection(ulong connectionId)
@@ -302,8 +302,8 @@ public class AnonymousPipeListener : IDisposable
 
         void ProcessFileSystemEvent(FileSystemEventArgs e)
         {
-            Console.WriteLine(
-                "RequestedConnectionsQueue - OnCreated event triggered on file {0}",
+            mLog.LogDebug(
+                "OnCreated event triggered on file {0}",
                 e.Name);
 
             if (string.IsNullOrEmpty(e.Name))
@@ -369,6 +369,11 @@ public class AnonymousPipeListener : IDisposable
             mPaths, mOfferedConnectionsPool);
 
         mFileSystemWatcher = new FileSystemWatcher(directory);
+        mFileSystemWatcher.Filters.Add(
+            mPaths.GetSearchPattern(AnonymousPipeFileCommPaths.FileExtensions.Reserved));
+        mFileSystemWatcher.Filters.Add(
+            mPaths.GetSearchPattern(AnonymousPipeFileCommPaths.FileExtensions.Requested));
+        mFileSystemWatcher.InternalBufferSize = 64 * 1024;
     }
 
     public void Dispose()
