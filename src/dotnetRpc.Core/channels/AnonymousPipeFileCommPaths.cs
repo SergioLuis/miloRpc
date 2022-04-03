@@ -88,9 +88,10 @@ public class AnonymousPipeFileCommPaths
     public ulong ParseConnectionId(ReadOnlySpan<char> filePath)
         => ulong.Parse(filePath[mPrefix.Length..filePath.IndexOf('.')]);
 
-    internal FileSystemWatcher BuildWatcherMonitorRequestedConns()
+    internal FileSystemWatcher BuildListenerWatcher()
     {
         FileSystemWatcher result = new(mDirectory);
+        result.Filters.Add($"*{FileExtensions.Requesting}");
         result.Filters.Add($"*{FileExtensions.Requested}");
         if (!string.IsNullOrEmpty(mPrefix))
             result.Filters.Add($"{mPrefix}*");
@@ -99,7 +100,7 @@ public class AnonymousPipeFileCommPaths
         return result;
     }
 
-    internal FileSystemWatcher BuildWatcherMonitorEstablishedConns()
+    internal FileSystemWatcher BuildClientWatcher()
     {
         FileSystemWatcher result = new(mDirectory);
         result.Filters.Add($"*{FileExtensions.Established}");

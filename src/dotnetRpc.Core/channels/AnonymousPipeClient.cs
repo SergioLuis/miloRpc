@@ -180,7 +180,7 @@ public class AnonymousPipeClient
             mEstablishedConnections = new Queue<EstablishedConnection>();
             mSemaphoreSlim = new SemaphoreSlim(0);
 
-            mFileSystemWatcher = mPaths.BuildWatcherMonitorEstablishedConns();
+            mFileSystemWatcher = mPaths.BuildClientWatcher();
             mFileSystemWatcher.Renamed += OnFileRenamed;
             mFileSystemWatcher.EnableRaisingEvents = true;
         }

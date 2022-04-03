@@ -146,7 +146,7 @@ public class AnonymousPipeListener
             mRequestedConnections = new Queue<RequestedConnection>();
             mSemaphoreSlim = new SemaphoreSlim(0);
 
-            mFileSystemWatcher = mPaths.BuildWatcherMonitorRequestedConns();
+            mFileSystemWatcher = mPaths.BuildListenerWatcher();
             mFileSystemWatcher.Renamed += OnFileRenamed;
             mFileSystemWatcher.EnableRaisingEvents = true;
         }
