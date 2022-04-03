@@ -11,9 +11,11 @@ public class AnonymousPipeRpcChannel : IRpcChannel
     public IPEndPoint RemoteEndPoint { get; }
 
     public AnonymousPipeRpcChannel(
+        string connEstablishedFilePath,
         AnonymousPipeServerStream output,
         AnonymousPipeClientStream input)
     {
+        mConnectionEstablishedFilePath = connEstablishedFilePath;
         mOutput = output;
         mInput = input;
 
@@ -32,6 +34,7 @@ public class AnonymousPipeRpcChannel : IRpcChannel
 
     public bool IsConnected() => mOutput.IsConnected && mInput.IsConnected;
 
+    readonly string mConnectionEstablishedFilePath;
     readonly AnonymousPipeServerStream mOutput;
     readonly AnonymousPipeClientStream mInput;
 }
