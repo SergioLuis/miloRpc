@@ -27,9 +27,9 @@ public class AnonymousPipeFileCommPaths
         mDirectory,
         string.Concat(mPrefix, connectionId, FileExtensions.Offered));
 
-    public string GetConnRequestingFilePath(ulong connectionId) => Path.Combine(
+    public string GetConnReservedFilePath(ulong connectionId) => Path.Combine(
         mDirectory,
-        string.Concat(mPrefix, connectionId, FileExtensions.Requesting));
+        string.Concat(mPrefix, connectionId, FileExtensions.Reserved));
 
     public string GetConnRequestedFilePath(ulong connectionId) => Path.Combine(
         mDirectory,
@@ -39,18 +39,18 @@ public class AnonymousPipeFileCommPaths
         mDirectory,
         string.Concat(mPrefix, connectionId, FileExtensions.Established));
 
-    public void SetConnectionAsOffered(ulong connectionId)
+    public void SetConnectionOffered(ulong connectionId)
         => File.Move(
             GetConnBeginningFilePath(connectionId),
             GetConnOfferedFilePath(connectionId),
             false);
 
-    public bool TrySetConnectionAsRequesting(
+    public bool SetConnectionReserved(
         ulong connectionId, out string connRequestingFilePath)
     {
         try
         {
-            connRequestingFilePath = GetConnRequestingFilePath(connectionId);
+            connRequestingFilePath = GetConnReservedFilePath(connectionId);
             File.Move(
                 GetConnOfferedFilePath(connectionId),
                 connRequestingFilePath,
@@ -64,13 +64,13 @@ public class AnonymousPipeFileCommPaths
         }
     }
 
-    public void SetConnectionAsRequested(ulong connectionId)
+    public void SetConnectionRequested(ulong connectionId)
         => File.Move(
-            GetConnRequestingFilePath(connectionId),
+            GetConnReservedFilePath(connectionId),
             GetConnRequestedFilePath(connectionId),
             false);
 
-    public void SetConnectionAsEstablished(ulong connectionId)
+    public void SetConnectionEstablished(ulong connectionId)
         => File.Move(
             GetConnRequestedFilePath(connectionId),
             GetConnEstablishedFilePath(connectionId),
@@ -91,7 +91,7 @@ public class AnonymousPipeFileCommPaths
     internal FileSystemWatcher BuildListenerWatcher()
     {
         FileSystemWatcher result = new(mDirectory);
-        result.Filters.Add($"*{FileExtensions.Requesting}");
+        result.Filters.Add($"*{FileExtensions.Reserved}");
         result.Filters.Add($"*{FileExtensions.Requested}");
         if (!string.IsNullOrEmpty(mPrefix))
             result.Filters.Add($"{mPrefix}*");
@@ -121,7 +121,7 @@ public class AnonymousPipeFileCommPaths
     {
         public const string Beginning = ".conn_begining";
         public const string Offered = ".conn_offered";
-        public const string Requesting = ".conn_requesting";
+        public const string Reserved = ".conn_reserved";
         public const string Requested = ".conn_requested";
         public const string Established = ".conn_established";
     }

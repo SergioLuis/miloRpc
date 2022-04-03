@@ -115,7 +115,7 @@ public class AnonymousPipeClient
                     break;
                 }
 
-                if (!mPaths.TrySetConnectionAsRequesting(
+                if (!mPaths.SetConnectionReserved(
                     nextConnectionId,
                     out string connRequestingFilePath))
                 {
@@ -143,7 +143,7 @@ public class AnonymousPipeClient
                     poolRefilled = mRequestedConnections.Count >= mPoolSize;
                 }
 
-                mPaths.SetConnectionAsRequested(nextConnectionId);
+                mPaths.SetConnectionRequested(nextConnectionId);
             }
         }
 

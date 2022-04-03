@@ -96,7 +96,7 @@ public class AnonymousPipeListener
                     poolRefilled = mOfferedConnections.Count >= mPoolSize;
                 }
 
-                mPaths.SetConnectionAsOffered(nextConnectionId);
+                mPaths.SetConnectionOffered(nextConnectionId);
             }
         }
 
@@ -172,7 +172,7 @@ public class AnonymousPipeListener
                 result = mRequestedConnections.Dequeue();
             }
 
-            mPaths.SetConnectionAsEstablished(result.ConnectionId);
+            mPaths.SetConnectionEstablished(result.ConnectionId);
             return result;
         }
 
