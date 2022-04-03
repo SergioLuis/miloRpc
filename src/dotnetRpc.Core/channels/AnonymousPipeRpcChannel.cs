@@ -28,7 +28,7 @@ public class AnonymousPipeRpcChannel : IRpcChannel
 
         Stream = new MeteredStream(new AnonymousPipeCompositeStream(output, input));
 
-        RemoteEndPoint = new IPEndPoint(IPAddress.None, -1);
+        RemoteEndPoint = new IPEndPoint(IPAddress.None, 0);
     }
 
     public void Dispose()
