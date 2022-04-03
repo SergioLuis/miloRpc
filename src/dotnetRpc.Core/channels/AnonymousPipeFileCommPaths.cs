@@ -6,34 +6,37 @@ namespace dotnetRpc.Core.Channels;
 
 public class AnonymousPipeFileCommPaths
 {
-    public AnonymousPipeFileCommPaths(string directory, string prefix)
+    public string BaseDirectory { get; }
+    public string Prefix { get; }
+
+    public AnonymousPipeFileCommPaths(string baseDirectory, string prefix)
     {
-        mDirectory = directory;
-        mPrefix = prefix;
+        BaseDirectory = baseDirectory;
+        Prefix = prefix;
     }
 
     public ulong? GetNextOfferedConnection()
         => Directory.EnumerateFiles(
-                mDirectory,
+                BaseDirectory,
                 GetSearchPattern(FileExtensions.Offered))
             .Select(Path.GetFileName)
             .Select(ParseConnectionId)
             .FirstOrDefault();
 
     public string BuildConnectionBeginningFilePath(ulong connectionId)
-        => Path.Combine(mDirectory, string.Concat(mPrefix, connectionId, FileExtensions.Beginning));
+        => Path.Combine(BaseDirectory, string.Concat(Prefix, connectionId, FileExtensions.Beginning));
 
     public string BuildConnectionOfferedFilePath(ulong connectionId)
-        => Path.Combine(mDirectory, string.Concat(mPrefix, connectionId, FileExtensions.Offered));
+        => Path.Combine(BaseDirectory, string.Concat(Prefix, connectionId, FileExtensions.Offered));
 
     public string BuildConnectionReservedFilePath(ulong connectionId)
-        => Path.Combine(mDirectory, string.Concat(mPrefix, connectionId, FileExtensions.Reserved));
+        => Path.Combine(BaseDirectory, string.Concat(Prefix, connectionId, FileExtensions.Reserved));
 
     public string BuildConnectionRequestedFilePath(ulong connectionId)
-        => Path.Combine(mDirectory, string.Concat(mPrefix, connectionId, FileExtensions.Requested));
+        => Path.Combine(BaseDirectory, string.Concat(Prefix, connectionId, FileExtensions.Requested));
 
     public string BuildConnectionEstablishedFilePath(ulong connectionId)
-        => Path.Combine(mDirectory, string.Concat(mPrefix, connectionId, FileExtensions.Established));
+        => Path.Combine(BaseDirectory, string.Concat(Prefix, connectionId, FileExtensions.Established));
 
     public void SetConnectionOffered(ulong connectionId)
         => File.Move(
@@ -72,21 +75,24 @@ public class AnonymousPipeFileCommPaths
             BuildConnectionEstablishedFilePath(connectionId),
             false);
 
-    public bool IsConnectionRequestedFileName(ReadOnlySpan<char> filePath)
-        => filePath.StartsWith(mPrefix) && filePath.EndsWith(FileExtensions.Requested);
+    public bool IsConnectionReservedFileName(ReadOnlySpan<char> fileName)
+        => fileName.StartsWith(Prefix) && fileName.EndsWith(FileExtensions.Reserved);
 
-    public bool IsConnectionEstablishedFileName(ReadOnlySpan<char> filePath)
-        => filePath.StartsWith(mPrefix) && filePath.EndsWith(FileExtensions.Established);
+    public bool IsConnectionRequestedFileName(ReadOnlySpan<char> fileName)
+        => fileName.StartsWith(Prefix) && fileName.EndsWith(FileExtensions.Requested);
 
-    public ulong ParseConnectionId(string? filePath)
-        => string.IsNullOrEmpty(filePath) ? 0 : ParseConnectionId(filePath.AsSpan());
+    public bool IsConnectionEstablishedFileName(ReadOnlySpan<char> fileName)
+        => fileName.StartsWith(Prefix) && fileName.EndsWith(FileExtensions.Established);
 
-    public ulong ParseConnectionId(ReadOnlySpan<char> filePath)
-        => ulong.Parse(filePath[mPrefix.Length..filePath.IndexOf('.')]);
+    public ulong ParseConnectionId(string? fileName)
+        => string.IsNullOrEmpty(fileName) ? 0 : ParseConnectionId(fileName.AsSpan());
+
+    public ulong ParseConnectionId(ReadOnlySpan<char> fileName)
+        => ulong.Parse(fileName[Prefix.Length..fileName.IndexOf('.')]);
 
     internal FileSystemWatcher BuildListenerWatcher()
     {
-        FileSystemWatcher result = new(mDirectory);
+        FileSystemWatcher result = new(BaseDirectory);
         result.Filters.Add(GetSearchPattern(FileExtensions.Reserved));
         result.Filters.Add(GetSearchPattern(FileExtensions.Requested));
         result.IncludeSubdirectories = false;
@@ -96,20 +102,17 @@ public class AnonymousPipeFileCommPaths
 
     internal FileSystemWatcher BuildClientWatcher()
     {
-        FileSystemWatcher result = new(mDirectory);
+        FileSystemWatcher result = new(BaseDirectory);
         result.Filters.Add(GetSearchPattern(FileExtensions.Established));
         result.IncludeSubdirectories = false;
 
         return result;
     }
 
-    string GetSearchPattern(string extension)
-        => string.IsNullOrEmpty(mPrefix) ? $"*{extension}" : $"{mPrefix}*{extension}";
+    public string GetSearchPattern(string extension)
+        => string.IsNullOrEmpty(Prefix) ? $"*{extension}" : $"{Prefix}*{extension}";
 
-    readonly string mDirectory;
-    readonly string mPrefix;
-
-    static class FileExtensions
+    public static class FileExtensions
     {
         public const string Beginning = ".conn_begining";
         public const string Offered = ".conn_offered";
