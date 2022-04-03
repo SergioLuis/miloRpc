@@ -12,37 +12,33 @@ public class AnonymousPipeFileCommPaths
         mPrefix = prefix;
     }
 
-    public ulong? GetNextConnectionOffered()
+    public ulong? GetNextOfferedConnection()
         => Directory.EnumerateFiles(
                 mDirectory,
-                GetSearchPattern(mPrefix, FileExtensions.Offered))
+                GetSearchPattern(FileExtensions.Offered))
+            .Select(Path.GetFileName)
             .Select(ParseConnectionId)
             .FirstOrDefault();
 
-    public string GetConnBeginningFilePath(ulong connectionId) => Path.Combine(
-        mDirectory,
-        string.Concat(mPrefix, connectionId, FileExtensions.Beginning));
+    public string BuildConnectionBeginningFilePath(ulong connectionId)
+        => Path.Combine(mDirectory, string.Concat(mPrefix, connectionId, FileExtensions.Beginning));
 
-    public string GetConnOfferedFilePath(ulong connectionId) => Path.Combine(
-        mDirectory,
-        string.Concat(mPrefix, connectionId, FileExtensions.Offered));
+    public string BuildConnectionOfferedFilePath(ulong connectionId)
+        => Path.Combine(mDirectory, string.Concat(mPrefix, connectionId, FileExtensions.Offered));
 
-    public string GetConnReservedFilePath(ulong connectionId) => Path.Combine(
-        mDirectory,
-        string.Concat(mPrefix, connectionId, FileExtensions.Reserved));
+    public string BuildConnectionReservedFilePath(ulong connectionId)
+        => Path.Combine(mDirectory, string.Concat(mPrefix, connectionId, FileExtensions.Reserved));
 
-    public string GetConnRequestedFilePath(ulong connectionId) => Path.Combine(
-        mDirectory,
-        string.Concat(mPrefix, connectionId, FileExtensions.Requested));
+    public string BuildConnectionRequestedFilePath(ulong connectionId)
+        => Path.Combine(mDirectory, string.Concat(mPrefix, connectionId, FileExtensions.Requested));
 
-    public string GetConnEstablishedFilePath(ulong connectionId) => Path.Combine(
-        mDirectory,
-        string.Concat(mPrefix, connectionId, FileExtensions.Established));
+    public string BuildConnectionEstablishedFilePath(ulong connectionId)
+        => Path.Combine(mDirectory, string.Concat(mPrefix, connectionId, FileExtensions.Established));
 
     public void SetConnectionOffered(ulong connectionId)
         => File.Move(
-            GetConnBeginningFilePath(connectionId),
-            GetConnOfferedFilePath(connectionId),
+            BuildConnectionBeginningFilePath(connectionId),
+            BuildConnectionOfferedFilePath(connectionId),
             false);
 
     public bool SetConnectionReserved(
@@ -50,9 +46,9 @@ public class AnonymousPipeFileCommPaths
     {
         try
         {
-            connRequestingFilePath = GetConnReservedFilePath(connectionId);
+            connRequestingFilePath = BuildConnectionReservedFilePath(connectionId);
             File.Move(
-                GetConnOfferedFilePath(connectionId),
+                BuildConnectionOfferedFilePath(connectionId),
                 connRequestingFilePath,
                 false);
             return true;
@@ -66,24 +62,24 @@ public class AnonymousPipeFileCommPaths
 
     public void SetConnectionRequested(ulong connectionId)
         => File.Move(
-            GetConnReservedFilePath(connectionId),
-            GetConnRequestedFilePath(connectionId),
+            BuildConnectionReservedFilePath(connectionId),
+            BuildConnectionRequestedFilePath(connectionId),
             false);
 
     public void SetConnectionEstablished(ulong connectionId)
         => File.Move(
-            GetConnRequestedFilePath(connectionId),
-            GetConnEstablishedFilePath(connectionId),
+            BuildConnectionRequestedFilePath(connectionId),
+            BuildConnectionEstablishedFilePath(connectionId),
             false);
 
-    public bool IsConnRequestedFilePath(ReadOnlySpan<char> filePath)
+    public bool IsConnectionRequestedFilePath(ReadOnlySpan<char> filePath)
         => filePath.StartsWith(mPrefix) && filePath.EndsWith(FileExtensions.Requested);
 
-    public bool IsConnEstablishedFilePath(ReadOnlySpan<char> filePath)
+    public bool IsConnectionEstablishedFilePath(ReadOnlySpan<char> filePath)
         => filePath.StartsWith(mPrefix) && filePath.EndsWith(FileExtensions.Established);
 
-    public ulong ParseConnectionId(string filePath)
-        => ParseConnectionId(filePath.AsSpan());
+    public ulong ParseConnectionId(string? filePath)
+        => string.IsNullOrEmpty(filePath) ? 0 : ParseConnectionId(filePath.AsSpan());
 
     public ulong ParseConnectionId(ReadOnlySpan<char> filePath)
         => ulong.Parse(filePath[mPrefix.Length..filePath.IndexOf('.')]);
@@ -91,10 +87,8 @@ public class AnonymousPipeFileCommPaths
     internal FileSystemWatcher BuildListenerWatcher()
     {
         FileSystemWatcher result = new(mDirectory);
-        result.Filters.Add($"*{FileExtensions.Reserved}");
-        result.Filters.Add($"*{FileExtensions.Requested}");
-        if (!string.IsNullOrEmpty(mPrefix))
-            result.Filters.Add($"{mPrefix}*");
+        result.Filters.Add(GetSearchPattern(FileExtensions.Reserved));
+        result.Filters.Add(GetSearchPattern(FileExtensions.Requested));
         result.IncludeSubdirectories = false;
 
         return result;
@@ -103,16 +97,14 @@ public class AnonymousPipeFileCommPaths
     internal FileSystemWatcher BuildClientWatcher()
     {
         FileSystemWatcher result = new(mDirectory);
-        result.Filters.Add($"*{FileExtensions.Established}");
-        if (!string.IsNullOrEmpty(mPrefix))
-            result.Filters.Add($"{mPrefix}*");
+        result.Filters.Add(GetSearchPattern(FileExtensions.Established));
         result.IncludeSubdirectories = false;
 
         return result;
     }
 
-    static string GetSearchPattern(string prefix, string extension)
-        => string.IsNullOrEmpty(prefix) ? $"*{extension}" : $"{prefix}*{extension}";
+    string GetSearchPattern(string extension)
+        => string.IsNullOrEmpty(mPrefix) ? $"*{extension}" : $"{mPrefix}*{extension}";
 
     readonly string mDirectory;
     readonly string mPrefix;

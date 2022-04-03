@@ -116,7 +116,7 @@ public class AnonymousPipeListener
             AnonymousPipeServerStream serverToClient = new(
                 PipeDirection.Out, HandleInheritability.Inheritable);
 
-            string connBeginningFilePath = mPaths.GetConnBeginningFilePath(connectionId);
+            string connBeginningFilePath = mPaths.BuildConnectionBeginningFilePath(connectionId);
             string clientHandle = serverToClient.GetClientHandleAsString();
 
             await File.WriteAllTextAsync(connBeginningFilePath, clientHandle);
@@ -182,7 +182,7 @@ public class AnonymousPipeListener
                 return;
 
             ReadOnlySpan<char> name = e.Name.AsSpan();
-            if (!mPaths.IsConnRequestedFilePath(name))
+            if (!mPaths.IsConnectionRequestedFilePath(name))
                 return;
 
             CompleteAndEnqueueConnection(
@@ -241,7 +241,7 @@ public class AnonymousPipeListener
             await mRequestedConnectionsQueue.EstablishNextConnection(ct);
 
         IRpcChannel result = new AnonymousPipeRpcChannel(
-            mPaths.GetConnEstablishedFilePath(requestedConnection.ConnectionId),
+            mPaths.BuildConnectionEstablishedFilePath(requestedConnection.ConnectionId),
             requestedConnection.ServerToClient,
             requestedConnection.ClientToServer);
 

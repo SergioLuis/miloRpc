@@ -104,7 +104,7 @@ public class AnonymousPipeClient
                 ulong nextConnectionId = 0;
                 while (!ct.IsCancellationRequested)
                 {
-                    ulong? tmpNextConnectionId = mPaths.GetNextConnectionOffered();
+                    ulong? tmpNextConnectionId = mPaths.GetNextOfferedConnection();
                     if (!tmpNextConnectionId.HasValue)
                     {
                         await Task.Delay(100, ct);
@@ -214,7 +214,7 @@ public class AnonymousPipeClient
                 return;
 
             ReadOnlySpan<char> name = e.Name.AsSpan();
-            if (!mPaths.IsConnEstablishedFilePath(name))
+            if (!mPaths.IsConnectionEstablishedFilePath(name))
                 return;
 
             EnqueueConnection(mPaths.ParseConnectionId(name));
@@ -281,7 +281,7 @@ public class AnonymousPipeClient
             await mEstablishedConnectionsQueue.EstablishNextConnection(ct);
 
         IRpcChannel result = new AnonymousPipeRpcChannel(
-            mPaths.GetConnEstablishedFilePath(establishedConnection.ConnectionId),
+            mPaths.BuildConnectionEstablishedFilePath(establishedConnection.ConnectionId),
             establishedConnection.ClientToServer,
             establishedConnection.ServerToClient);
 
