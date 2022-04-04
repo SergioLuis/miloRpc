@@ -241,18 +241,26 @@ public class AnonymousPipeListener : IDisposable
             GC.SuppressFinalize(this);
         }
 
-        public async Task<RequestedConnection> EstablishNextConnection(CancellationToken ct)
+        public async Task<RequestedConnection?> EstablishNextConnection(CancellationToken ct)
         {
-            await mSemaphoreSlim.WaitAsync(ct);
-
-            RequestedConnection result;
-            lock (mRequestedConnections)
+            while (!ct.IsCancellationRequested)
             {
-                result = mRequestedConnections.Dequeue();
+                if (await mSemaphoreSlim.WaitAsync(250, ct))
+                {
+                    RequestedConnection result;
+                    lock (mRequestedConnections)
+                    {
+                        result = mRequestedConnections.Dequeue();
+                    }
+
+                    mPaths.SetConnectionEstablished(result.ConnectionId);
+                    return result;
+                }
+
+                // TODO: Poll the directory and try to find the next *.conn_requested
             }
 
-            mPaths.SetConnectionEstablished(result.ConnectionId);
-            return result;
+            return null;
         }
 
         internal void OnCreated(object _, FileSystemEventArgs e)

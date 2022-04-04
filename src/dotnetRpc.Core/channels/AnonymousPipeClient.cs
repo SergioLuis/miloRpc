@@ -87,9 +87,11 @@ public class AnonymousPipeClient
             GC.SuppressFinalize(this);
         }
 
+        // TODO: Remove FSW for this pool
         internal void OnCreated(object _, FileSystemEventArgs e)
             => EnqueueFileSystemEventArg(e);
 
+        // TODO: Remove FSW for this pool
         internal void OnRenamed(object _, FileSystemEventArgs e)
             => EnqueueFileSystemEventArg(e);
 
@@ -222,14 +224,18 @@ public class AnonymousPipeClient
             }
         }
 
-        public async Task<ulong> GetNextReservedConnectionId(CancellationToken ct)
+        public async Task ReserveNextConnection(CancellationToken ct)
         {
             await mSemaphoreSlim.WaitAsync(ct);
 
+            ulong nextConnectionId;
             lock (mSyncLock)
             {
-                return mReservedConnectionsQueue.Dequeue();
+                nextConnectionId = mReservedConnectionsQueue.Dequeue();
             }
+
+            mPaths.SetConnectionRequested(nextConnectionId);
+            // TODO: Push rename FS event
         }
 
         public ReservedConnection? GetReservedConnection(ulong connectionId)
@@ -284,22 +290,24 @@ public class AnonymousPipeClient
             GC.SuppressFinalize(this);
         }
 
-        public async Task<EstablishedConnection> GetNextEstablishedConnection(CancellationToken ct)
+        public async Task<EstablishedConnection?> GetNextEstablishedConnection(CancellationToken ct)
         {
-            ulong nextConnectionId =
-                await mReservedConnectionsPool.GetNextReservedConnectionId(ct);
+            await mReservedConnectionsPool.ReserveNextConnection(ct);
 
-            mPaths.SetConnectionRequested(nextConnectionId);
-
-            await mSemaphoreSlim.WaitAsync(ct);
-
-            EstablishedConnection result;
-            lock (mSyncLock)
+            while (!ct.IsCancellationRequested)
             {
-                result = mEstablishedConnections.Dequeue();
+                if (await mSemaphoreSlim.WaitAsync(100, ct))
+                {
+                    lock (mSyncLock)
+                    {
+                        return mEstablishedConnections.Dequeue();
+                    }
+                }
+
+                // TODO: Poll the directory and try to find the next *.conn_established
             }
 
-            return result;
+            return null;
         }
 
         internal void OnCreated(object _, FileSystemEventArgs e)
