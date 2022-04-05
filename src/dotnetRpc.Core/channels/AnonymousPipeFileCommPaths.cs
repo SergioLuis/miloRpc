@@ -24,6 +24,32 @@ public class AnonymousPipeFileCommPaths
             .Select(ParseConnectionId)
             .Min();
 
+    public ulong GetNextRequestedConnection()
+    {
+        List<ulong> requestedConnectionIds =
+            Directory.EnumerateFiles(BaseDirectory, GetSearchPattern(FileExtensions.Requested))
+                .Select(s => Path.GetFileName(s))
+                .Select(ParseConnectionId)
+                .ToList();
+
+        return !requestedConnectionIds.Any()
+            ? INVALID_CONN_ID
+            : requestedConnectionIds.Min();
+    }
+
+    public ulong GetNextEstablishedConnection()
+    {
+        List<ulong> establishedConnectionIds =
+            Directory.EnumerateFiles(BaseDirectory, GetSearchPattern(FileExtensions.Established))
+                .Select(s => Path.GetFileName(s))
+                .Select(ParseConnectionId)
+                .ToList();
+
+        return !establishedConnectionIds.Any()
+            ? INVALID_CONN_ID
+            : establishedConnectionIds.Min();
+    }
+
     public string BuildConnectionBeginningFilePath(ulong connectionId)
         => Path.Combine(BaseDirectory, string.Concat(Prefix, connectionId, FileExtensions.Beginning));
 
@@ -57,7 +83,6 @@ public class AnonymousPipeFileCommPaths
                 connOfferedFilePath,
                 connReservedFilePath,
                 false);
-            Console.WriteLine("Moved {0} -> {1}", connOfferedFilePath, connReservedFilePath);
             return true;
         }
         catch

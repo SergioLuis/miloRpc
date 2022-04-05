@@ -48,7 +48,7 @@ public class AnonymousPipeClient
 
         public ReservedConnectionsPool(AnonymousPipeFileCommPaths paths, int poolSize)
         {
-            mLog = RpcLoggerFactory.CreateLogger("RequestedConnectionsPool");
+            mLog = RpcLoggerFactory.CreateLogger("ReservedConnectionsPool");
 
             mPaths = paths;
             mPoolSize = poolSize;
@@ -56,12 +56,12 @@ public class AnonymousPipeClient
             mReservedConnectionsDict = new Dictionary<ulong, ReservedConnection>();
             mSyncLock = new object();
 
-            mFsEventsQueue = new Queue<FileSystemEventArgs>();
-            mFsEventsLoopSyncLock = new object();
+            mRequestedEventsQueue = new Queue<ulong>();
+            mRequestedEventsLoopSyncLock = new object();
 
             mSemaphoreSlim = new SemaphoreSlim(0);
 
-            Task.Factory.StartNew(ProcessFileSystemEventLoop, TaskCreationOptions.LongRunning);
+            Task.Factory.StartNew(ProcessConnectionRequestedEventLoop, TaskCreationOptions.LongRunning);
         }
 
         public void Dispose()
@@ -87,40 +87,32 @@ public class AnonymousPipeClient
             GC.SuppressFinalize(this);
         }
 
-        // TODO: Remove FSW for this pool
-        internal void OnCreated(object _, FileSystemEventArgs e)
-            => EnqueueFileSystemEventArg(e);
-
-        // TODO: Remove FSW for this pool
-        internal void OnRenamed(object _, FileSystemEventArgs e)
-            => EnqueueFileSystemEventArg(e);
-
-        void EnqueueFileSystemEventArg(FileSystemEventArgs e)
+        void EnqueueConnectionRequestedEvent(ulong connectionId)
         {
-            lock (mFsEventsLoopSyncLock)
+            lock (mRequestedEventsLoopSyncLock)
             {
-                mFsEventsQueue.Enqueue(e);
-                Monitor.Pulse(mFsEventsLoopSyncLock);
+                mRequestedEventsQueue.Enqueue(connectionId);
+                Monitor.Pulse(mRequestedEventsLoopSyncLock);
             }
         }
 
-        async void ProcessFileSystemEventLoop()
+        async void ProcessConnectionRequestedEventLoop()
         {
             while (true)
             {
-                FileSystemEventArgs nextEvent;
-                lock (mFsEventsLoopSyncLock)
+                ulong nextEvent;
+                lock (mRequestedEventsLoopSyncLock)
                 {
-                    if (mFsEventsQueue.Count == 0)
+                    if (mRequestedEventsQueue.Count == 0)
                     {
-                        Monitor.Wait(mFsEventsLoopSyncLock);
+                        Monitor.Wait(mRequestedEventsLoopSyncLock);
                         continue;
                     }
 
-                    if (mFsEventsQueue.Count == 0)
+                    if (mRequestedEventsQueue.Count == 0)
                         return;
 
-                    nextEvent = mFsEventsQueue.Dequeue();
+                    nextEvent = mRequestedEventsQueue.Dequeue();
                 }
 
                 try
@@ -134,18 +126,10 @@ public class AnonymousPipeClient
             }
         }
 
-        async Task ProcessFileSystemEvent(FileSystemEventArgs e)
+        async Task ProcessFileSystemEvent(ulong connectionId)
         {
-            if (string.IsNullOrEmpty(e.Name))
-                return;
-
-            if (!mPaths.IsConnectionRequestedFileName(e.Name))
-                return;
-
-            ulong connectionId = mPaths.ParseConnectionId(e.Name);
-
             mLog.LogDebug(
-                "Connection ID {0} requested, try to refill pool...",
+                "Connection '{id}' requested, try to refill pool...",
                 connectionId);
 
             await RefillPool();
@@ -158,7 +142,7 @@ public class AnonymousPipeClient
                 if (mReservedConnectionsQueue.Count >= mPoolSize)
                 {
                     mLog.LogDebug(
-                        "Pool still has {0} connections, won't refill",
+                        "Pool still has {connectionsCount} connections, won't refill",
                         mReservedConnectionsQueue.Count);
                     return;
                 }
@@ -181,7 +165,7 @@ public class AnonymousPipeClient
                     }
 
                     mLog.LogDebug(
-                        "Trying to reserve connection {0}",
+                        "Trying to reserve connection '{id}'",
                         nextConnectionId);
                     break;
                 }
@@ -191,12 +175,12 @@ public class AnonymousPipeClient
                     out string connReservedFilePath))
                 {
                     mLog.LogDebug(
-                        "Could not reserve connection {0}",
+                        "Could not reserve connection '{id}'",
                         nextConnectionId);
                     continue;
                 }
 
-                mLog.LogDebug("Connection {0} successfully reserved!", nextConnectionId);
+                mLog.LogDebug("Connection '{id}' reserved", nextConnectionId);
 
                 AnonymousPipeClientStream serverToClient = new(
                     PipeDirection.In,
@@ -210,6 +194,9 @@ public class AnonymousPipeClient
                     connReservedFilePath,
                     clientToServer.GetClientHandleAsString());
 
+                // Wait for the file descriptor to settle in...
+                await Task.Delay(100);
+
                 ReservedConnection reservedConnection = new(serverToClient, clientToServer);
 
                 lock (mSyncLock)
@@ -222,9 +209,11 @@ public class AnonymousPipeClient
 
                 mSemaphoreSlim.Release(1);
             }
+
+            mLog.LogDebug("Pool refilled");
         }
 
-        public async Task ReserveNextConnection(CancellationToken ct)
+        public async Task RequestNextConnection(CancellationToken ct)
         {
             await mSemaphoreSlim.WaitAsync(ct);
 
@@ -235,18 +224,27 @@ public class AnonymousPipeClient
             }
 
             mPaths.SetConnectionRequested(nextConnectionId);
-            // TODO: Push rename FS event
+            EnqueueConnectionRequestedEvent(nextConnectionId);
         }
 
         public ReservedConnection? GetReservedConnection(ulong connectionId)
         {
+            ReservedConnection? result;
             lock (mSyncLock)
             {
-                return mReservedConnectionsDict.Remove(
-                    connectionId, out ReservedConnection? result)
-                    ? result
-                    : null;
+                if (!mReservedConnectionsDict.Remove(connectionId, out result))
+                {
+                    mLog.LogWarning(
+                        "Connection '{id}' was not in the reserved pool",
+                        connectionId);
+                    return null;
+                }
             }
+
+            mLog.LogDebug(
+                "Connection '{id}' returned and removed from the reserved pool",
+                connectionId);
+            return result;
         }
 
         readonly AnonymousPipeFileCommPaths mPaths;
@@ -256,8 +254,8 @@ public class AnonymousPipeClient
         readonly Dictionary<ulong, ReservedConnection> mReservedConnectionsDict;
         readonly object mSyncLock;
 
-        readonly Queue<FileSystemEventArgs> mFsEventsQueue;
-        readonly object mFsEventsLoopSyncLock;
+        readonly Queue<ulong> mRequestedEventsQueue;
+        readonly object mRequestedEventsLoopSyncLock;
 
         readonly SemaphoreSlim mSemaphoreSlim;
         readonly ILogger mLog;
@@ -292,11 +290,14 @@ public class AnonymousPipeClient
 
         public async Task<EstablishedConnection?> GetNextEstablishedConnection(CancellationToken ct)
         {
-            await mReservedConnectionsPool.ReserveNextConnection(ct);
+            const int msTimeout = 1000;
+
+            await mReservedConnectionsPool.RequestNextConnection(ct);
 
             while (!ct.IsCancellationRequested)
             {
-                if (await mSemaphoreSlim.WaitAsync(100, ct))
+                mLog.LogDebug("Waiting to dequeue a new established connection");
+                if (await mSemaphoreSlim.WaitAsync(msTimeout, ct))
                 {
                     lock (mSyncLock)
                     {
@@ -304,7 +305,22 @@ public class AnonymousPipeClient
                     }
                 }
 
-                // TODO: Poll the directory and try to find the next *.conn_established
+                mLog.LogDebug(
+                    "Waited {ms} ms. to establish a new connection without success, polling FS directly",
+                    msTimeout);
+
+                ulong nextEstablishedConnectionId = mPaths.GetNextEstablishedConnection();
+                if (nextEstablishedConnectionId == AnonymousPipeFileCommPaths.INVALID_CONN_ID)
+                {
+                    mLog.LogDebug("Didn't found any new established connection polling FS");
+                    continue;
+                }
+
+                mLog.LogDebug(
+                    "Found connection '{id}' as established, will try to enqueue it",
+                    nextEstablishedConnectionId);
+
+                EnqueueEstablishedConnection(nextEstablishedConnectionId);
             }
 
             return null;
@@ -374,10 +390,15 @@ public class AnonymousPipeClient
 
             if (requestedConn == null)
             {
-                // More than one AnonymousPipeClient might be listening on
-                // the same directory using the same prefix.
+                mLog.LogWarning(
+                    "Did not found connection '{id}' in the pool",
+                    connectionId);
                 return;
             }
+
+            mLog.LogDebug(
+                "Connection '{id}' established, enqueuing it",
+                connectionId);
 
             EstablishedConnection result = new(
                 connectionId,
@@ -389,7 +410,9 @@ public class AnonymousPipeClient
                 mEstablishedConnections.Enqueue(result);
             }
 
-            mSemaphoreSlim.Release(1);
+            mLog.LogDebug("Releasing semaphore");
+            int oldCount = mSemaphoreSlim.Release(1);
+            mLog.LogTrace("Semaphore count: {count}", oldCount + 1);
         }
 
         readonly AnonymousPipeFileCommPaths mPaths;
@@ -431,8 +454,6 @@ public class AnonymousPipeClient
     {
         mFileSystemWatcher.EnableRaisingEvents = false;
 
-        mFileSystemWatcher.Created -= mReservedConnectionsPool.OnCreated;
-        mFileSystemWatcher.Renamed -= mReservedConnectionsPool.OnRenamed;
         mReservedConnectionsPool.Dispose();
 
         mFileSystemWatcher.Created -= mEstablishedConnectionsQueue.OnCreated;
@@ -447,9 +468,6 @@ public class AnonymousPipeClient
         mFileSystemWatcher.EnableRaisingEvents = true;
 
         await mReservedConnectionsPool.RefillPool();
-
-        mFileSystemWatcher.Created += mReservedConnectionsPool.OnCreated;
-        mFileSystemWatcher.Renamed += mReservedConnectionsPool.OnRenamed;
 
         mFileSystemWatcher.Created += mEstablishedConnectionsQueue.OnCreated;
         mFileSystemWatcher.Renamed += mEstablishedConnectionsQueue.OnRenamed;
