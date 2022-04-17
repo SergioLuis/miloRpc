@@ -145,6 +145,15 @@ public class ConnectionFromClient
                 }
                 catch (Exception ex)
                 {
+                    if (ct.IsCancellationRequested)
+                        mLog.LogError("The general CancellationToken was cancelled");
+
+                    if (idlingCt.IsCancellationRequested)
+                        mLog.LogError("The Idling CancellationToken was cancelled");
+
+                    if (runningCt.IsCancellationRequested)
+                        mLog.LogError("The Running CancellationToken was cancelled");
+
                     if (mRpc is null)
                     {
                         mLog.LogError(
