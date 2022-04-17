@@ -8,8 +8,9 @@ namespace dotnetRpc.Core.Channels;
 
 public class MeteredStream : Stream
 {
-    public ulong ReadBytes => mReadBytes;
-    public ulong WrittenBytes => mWrittenBytes;
+    public ulong ReadBytes { get; private set; }
+
+    public ulong WrittenBytes { get; private set; }
 
     public TimeSpan ReadTime => mReadStopWatch.Elapsed;
     public TimeSpan WriteTime => mWriteStopWatch.Elapsed;
@@ -43,7 +44,20 @@ public class MeteredStream : Stream
         mReadStopWatch.Start();
 
         int read = mInnerStream.Read(buffer, offset, count);
-        mReadBytes += (ulong)read;
+        ReadBytes += (ulong)read;
+
+        mReadStopWatch.Stop();
+
+        return read;
+    }
+
+    public override async ValueTask<int> ReadAsync(
+        Memory<byte> buffer, CancellationToken ct = new())
+    {
+        mReadStopWatch.Start();
+
+        int read = await mInnerStream.ReadAsync(buffer, ct);
+        ReadBytes += (ulong) read;
 
         mReadStopWatch.Stop();
 
@@ -55,8 +69,8 @@ public class MeteredStream : Stream
     {
         mReadStopWatch.Start();
 
-        int read = await mInnerStream.ReadAsync(buffer, offset, count, ct);
-        mReadBytes += (ulong)read;
+        int read = await mInnerStream.ReadAsync(buffer.AsMemory(offset, count), ct);
+        ReadBytes += (ulong)read;
 
         mReadStopWatch.Stop();
 
@@ -78,7 +92,7 @@ public class MeteredStream : Stream
         mWriteStopWatch.Start();
 
         mInnerStream.Write(buffer, offset, count);
-        mWrittenBytes += (ulong)count;
+        WrittenBytes += (ulong)count;
 
         mWriteStopWatch.Stop();
     }
@@ -88,18 +102,24 @@ public class MeteredStream : Stream
     {
         mWriteStopWatch.Start();
 
-        await mInnerStream.WriteAsync(buffer, offset, count, ct);
-        mWrittenBytes += (ulong)count;
+        await mInnerStream.WriteAsync(buffer.AsMemory(offset, count), ct);
+        WrittenBytes += (ulong)count;
 
         mWriteStopWatch.Stop();
     }
 
-    ulong mReadBytes = 0;
-    ulong mWrittenBytes = 0;
+    public override async ValueTask WriteAsync(
+        ReadOnlyMemory<byte> buffer, CancellationToken ct = new())
+    {
+        mWriteStopWatch.Start();
+
+        await mInnerStream.WriteAsync(buffer, ct);
+        WrittenBytes += (ulong)buffer.Length;
+
+        mWriteStopWatch.Stop();
+    }
 
     readonly Stream mInnerStream;
-    readonly object mSyncLock = new();
-
     readonly Stopwatch mReadStopWatch = new();
     readonly Stopwatch mWriteStopWatch = new();
 }
