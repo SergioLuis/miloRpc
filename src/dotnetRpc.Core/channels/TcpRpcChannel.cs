@@ -62,8 +62,8 @@ internal class TcpRpcChannel : IRpcChannel
             }
             catch (Exception ex)
             {
-                mLog.LogError("There was an error closing RpcSocket: {0}", ex.Message);
-                mLog.LogDebug("StackTrace:{0}{1}", Environment.NewLine, ex.StackTrace);
+                mLog.LogError("There was an error closing RpcSocket: {ExMessage}", ex.Message);
+                mLog.LogDebug("StackTrace: {ExStackTrace}", ex.StackTrace);
             }
             finally
             {
