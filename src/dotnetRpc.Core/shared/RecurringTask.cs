@@ -21,7 +21,7 @@ public class RecurringTask
 
     public void Start(TimeSpan interval, CancellationToken ct)
     {
-        mSemaphore.Wait();
+        mSemaphore.Wait(ct);
         try
         {
             if (ct.IsCancellationRequested)
@@ -89,12 +89,11 @@ public class RecurringTask
 
         try
         {
-            if (mRecurringLoopCts != null)
-                mRecurringLoopCts.Cancel();
+            mRecurringLoopCts?.Cancel();
 
             try
             {
-                if (mRecurringLoopTask != null)
+                if (mRecurringLoopTask is not null)
                     await mRecurringLoopTask;
             }
             finally
@@ -131,6 +130,7 @@ public class RecurringTask
                 {
                     try
                     {
+                        mLog.LogTrace("Running recurring action {TaskName}", mTaskName);
                         await action(actionToken);
                     }
                     catch (Exception ex)
@@ -138,7 +138,7 @@ public class RecurringTask
                         lock (mSyncLock) mLastException = ex;
                     }
 
-                    mTimesInvoked++;
+                    Interlocked.Increment(ref mTimesInvoked);
 
                     await SafeDelay(interval, breakToken);
                 }
@@ -156,7 +156,10 @@ public class RecurringTask
         {
             await Task.Delay(interval, ct);
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
     }
 
     Task? mRecurringLoopTask;
