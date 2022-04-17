@@ -26,10 +26,10 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 
     public DefaultServerProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilites,
+        RpcCapabilities optionalCapabilities,
         ArrayPool<byte> arrayPool) : this(
             mandatoryCapabilities,
-            optionalCapabilites,
+            optionalCapabilities,
             arrayPool,
             string.Empty,
             string.Empty) { }
@@ -125,10 +125,9 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         }
 
         mLog.LogInformation(
-            "Protocol was correctly negotiated for conn {0}. " +
-            "Optional missing capabilities: {1}",
-            connId,
-            negotiationResult.OptionalMissingCapabilities);
+            "Protocol was correctly negotiated for conn {ConnectionId} from {RemoteEndPoint}. " +
+            "Optional missing capabilities: {OptionalMissingCapabilities}",
+            connId, remoteEndPoint, negotiationResult.OptionalMissingCapabilities);
 
         return new RpcProtocolNegotiationResult(
             resultStream, tempReader, tempWriter);
@@ -221,11 +220,9 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         catch (Exception ex)
         {
             mLog.LogError(
-                "There was an error generating self-signed certificate '{0}': {1}",
+                "There was an error generating self-signed certificate '{CertPath}': {ExMessage}",
                 certificatePath, ex.Message);
-            mLog.LogDebug(
-                "StackTrace:{0}{1}",
-                Environment.NewLine, ex.StackTrace);
+            mLog.LogDebug("StackTrace: {ExStackTrace}", ex.StackTrace);
         }
 
         certificate = null;
@@ -245,7 +242,7 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         catch (Exception ex)
         {
             mLog.LogError(
-                "Could not read certificate '{0}': {1}",
+                "Could not read certificate '{CertPath}': {ExMessage}",
                 certificatePath, ex.Message);
         }
 

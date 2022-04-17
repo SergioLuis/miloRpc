@@ -1,6 +1,6 @@
 using System;
+using System.Buffers;
 using System.IO;
-using System.IO.Compression;
 using System.Net;
 using System.Threading.Tasks;
 using System.Net.Security;
@@ -8,7 +8,6 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 
 using dotnetRpc.Core.Shared;
-using System.Buffers;
 
 namespace dotnetRpc.Core.Client;
 
@@ -97,11 +96,9 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
 
         if (!negotiationResult.NegotiatedOk)
         {
-            string exMessage = string.Format(
-                "Protocol was not correctly negotiated for conn {0}. "
-                + "Required missing capabilities: {1}",
-                connId,
-                negotiationResult.RequiredMissingCapabilities);
+            string exMessage =
+                $"Protocol was not correctly negotiated for conn {connId}. " +
+                $"Required missing capabilities: {negotiationResult.RequiredMissingCapabilities}";
             throw new NotSupportedException(exMessage);
         }
 
@@ -123,8 +120,8 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         }
 
         mLog.LogInformation(
-            "Protocol was correctly negotiated for conn {0}. " +
-            "Optional missing capabilities: {1}",
+            "Protocol was correctly negotiated for conn {ConnectionId}. " +
+            "Optional missing capabilities: {OptionalMissingCapabilities}",
             connId,
             negotiationResult.OptionalMissingCapabilities);
 

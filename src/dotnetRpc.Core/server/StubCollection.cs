@@ -42,12 +42,9 @@ public class StubCollection
     }
 
     internal string? SolveMethodName(IMethodId methodId)
-    {
-        if (mMethodNames.TryGetValue(methodId, out string? result))
-            return result;
-
-        return string.Empty;
-    }
+        => mMethodNames.TryGetValue(methodId, out string? result)
+            ? result
+            : string.Empty;
 
     readonly List<IStub> mStubList = new();
     readonly Dictionary<IMethodId, string?> mMethodNames = new();
