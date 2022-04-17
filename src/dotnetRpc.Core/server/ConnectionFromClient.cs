@@ -109,7 +109,7 @@ public class ConnectionFromClient
                     if (stub == null)
                     {
                         mLog.LogWarning(
-                            "Client tried to run an unsupport method (connId {0}): {1}",
+                            "Client tried to run an unsupported method (connId {ConnectionId}): {MethodId}",
                             mConnectionId, methodId);
                         mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.NotSupported);
                         return;
@@ -194,24 +194,18 @@ public class ConnectionFromClient
                     TimeSpan callIdlingTime = mIdleStopwatch.Elapsed;
                     TimeSpan callReadingTime = mRpcChannel.Stream.ReadTime - mLastReadTime;
                     TimeSpan callRunningTime = mRunStopwatch.Elapsed;
-                    TimeSpan callWrittingTime = mRpcChannel.Stream.WriteTime - mLastWriteTime;
+                    TimeSpan callWritingTime = mRpcChannel.Stream.WriteTime - mLastWriteTime;
 
                     ulong callReadBytes = mRpcChannel.Stream.ReadBytes - mLastReadBytes;
                     ulong callWrittenBytes = mRpcChannel.Stream.WrittenBytes - mLastWrittenBytes;
 
                     mLog.LogTrace(
-#pragma warning disable CA2017
-                        "Finished method call {1}{0}" +
-                        "Times{0}" +
-                        "  Idling: {2}, Reading: {3}, Running: {4}, Writing: {5}{0}" +
-                        "Bytes:{0}" +
-                        "  Read: {6}, Written: {7}",
-#pragma warning restore CA2017
-                        Environment.NewLine,
-                        methodCallId,
-                        callIdlingTime, callReadingTime, callRunningTime, callWrittingTime,
-                        callReadBytes, callWrittenBytes);
-
+                        "T {MethodCallId} | Idling: {Idling}ms. | Reading: {Reading}ms. " +
+                        "| Running: {Running}ms. | Writing: {Writing}ms.",
+                        methodCallId, callIdlingTime, callReadingTime, callRunningTime, callWritingTime);
+                    mLog.LogTrace(
+                        "B {MethodCallId} | Read: {ReadBytes} | Written: {WrittenBytes}",
+                        methodCallId, callReadBytes, callWrittenBytes);
 
                     mTotalIdlingTime += callIdlingTime;
                     mTotalRunningTime += callRunningTime;
@@ -233,8 +227,8 @@ public class ConnectionFromClient
             mLog.LogError(
                 "Caught an exception not handled by ProcessConnMessagesLoop, " +
                 "the connection is going to exit");
-            mLog.LogError("Type: {0}, Message: {1}", ex.GetType(), ex.Message);
-            mLog.LogDebug("StackTrace:{0}{1}", Environment.NewLine, ex.StackTrace);
+            mLog.LogError("Type: {ExType}, Message: {ExMessage}", ex.GetType(), ex.Message);
+            mLog.LogDebug("StackTrace:\r\n{ExStackTrace}", ex.StackTrace);
         }
         finally
         {
