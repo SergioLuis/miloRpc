@@ -2,19 +2,20 @@ namespace dotnetRpc.Core.Shared;
 
 public class DefaultMethodId : IMethodId
 {
-    public string Name => mName;
-    public byte Id => mId;
+    public string Name { get; private set; }
+
+    public byte Id { get; }
 
     public DefaultMethodId(byte id)
     {
-        mId = id;
-        mName = string.Empty;
+        Id = id;
+        Name = string.Empty;
     }
 
     public DefaultMethodId(byte id, string name)
     {
-        mId = id;
-        mName = name;
+        Id = id;
+        Name = name;
     }
 
     public override bool Equals(object? obj)
@@ -25,7 +26,7 @@ public class DefaultMethodId : IMethodId
         if (obj is not DefaultMethodId otherMethodId)
             return false;
 
-        return mId == otherMethodId.Id;
+        return Id == otherMethodId.Id;
     }
 
     public static bool operator ==(DefaultMethodId a, DefaultMethodId b)
@@ -34,15 +35,11 @@ public class DefaultMethodId : IMethodId
     public static bool operator !=(DefaultMethodId a, DefaultMethodId b)
         => a.Id != b.Id;
 
-    public override int GetHashCode() => mId.GetHashCode();
+    public override int GetHashCode() => Id.GetHashCode();
 
-    public override string ToString() => string.IsNullOrEmpty(mName)
-        ? $"[0x{mId:X} (NO_NAME)]"
-        : $"[0x{mId:X} ({mName})]";
+    public override string ToString() => string.IsNullOrEmpty(Name)
+        ? $"[0x{Id:X} (NO_NAME)]"
+        : $"[0x{Id:X} ({Name})]";
 
-    void IMethodId.SetSolvedMethodName(string? name)
-        => mName = name ?? string.Empty;
-
-    string mName;
-    readonly byte mId;
+    void IMethodId.SetSolvedMethodName(string? name) => Name = name ?? string.Empty;
 }
