@@ -200,8 +200,8 @@ public class ConnectionFromClient
                     ulong callWrittenBytes = mRpcChannel.Stream.WrittenBytes - mLastWrittenBytes;
 
                     mLog.LogTrace(
-                        "T {MethodCallId} | Idling: {Idling}ms. | Reading: {Reading}ms. " +
-                        "| Running: {Running}ms. | Writing: {Writing}ms.",
+                        "T {MethodCallId} | Idling: {IdlingTimeMs}ms. | Reading: {ReadingTimeMs}ms. " +
+                        "| Running: {RunningTimeMs}ms. | Writing: {WritingTimeMs}ms.",
                         methodCallId, callIdlingTime, callReadingTime, callRunningTime, callWritingTime);
                     mLog.LogTrace(
                         "B {MethodCallId} | Read: {ReadBytes} | Written: {WrittenBytes}",

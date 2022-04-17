@@ -140,11 +140,12 @@ public class ConnectionToServer : IDisposable
             ulong callReadBytes = mRpcChannel.Stream.ReadBytes - mLastReadBytes;
 
             mLog.LogTrace(
-                $@"Finished method call {methodCallId}
-Times
-  Idling: {callIdlingTime}, Writing: {callWritingTime}, Waiting: {callWaitingTime}, Reading: {callReadingTime}
-Bytes
-  Written: {callWrittenBytes}, Read: {callReadBytes}");
+                "T {MethodCallId} | Idling: {IdlingTimeMs}ms. | Writing: {WritingTimeMs}ms. " +
+                "| Waiting: {WaitingTimeMs}ms. | Reading: {ReadingTimeMs}ms. ",
+                methodCallId, callIdlingTime, callWritingTime, callWaitingTime, callReadingTime);
+            mLog.LogTrace(
+                "B {MethodCallId} | Written: {WrittenBytes} | Read: {ReadBytes}",
+                methodCallId, callWrittenBytes, callReadBytes);
 
             mTotalIdlingTime += callIdlingTime;
             mTotalWaitingTime += callWaitingTime;
