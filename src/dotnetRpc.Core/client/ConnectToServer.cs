@@ -34,7 +34,7 @@ public class ConnectToServer
         mNegotiateProtocol = negotiateProtocol;
         mWriteMethodId = writeMethodId;
         mReadMethodCallResult = readMethodCallResult;
-        mMetrics = new();
+        mMetrics = new RpcMetrics();
     }
 
     public async Task<ConnectionToServer> ConnectAsync(CancellationToken ct)
@@ -43,7 +43,7 @@ public class ConnectToServer
         await tcpClient.ConnectAsync(mServerEndpoint, ct);
 
         TcpRpcChannel channel = new(tcpClient.Client, ct);
-        return new(
+        return new ConnectionToServer(
             mNegotiateProtocol,
             mWriteMethodId,
             mReadMethodCallResult,
