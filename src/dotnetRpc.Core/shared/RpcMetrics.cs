@@ -51,5 +51,5 @@ public class RpcMetrics
     }
 
     RpcCounters mCounters = new();
-    static readonly object mSyncLock = new object();
+    readonly object mSyncLock = new object();
 }
