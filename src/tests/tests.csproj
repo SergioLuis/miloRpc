@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\dotnetRpc.Core\dotnetRpc.Core.csproj" />
+    <ProjectReference Include="..\dotnetRpc.Serialization\dotnetRpc.Serialization.csproj" />
   </ItemGroup>
 
 </Project>

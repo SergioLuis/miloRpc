@@ -129,7 +129,7 @@ public class ConnectionFromClient
                     mRunStopwatch.Stop();
 
                     CurrentStatus = Status.Writing;
-                    mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.OK);
+                    mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.Ok);
                     messages.Response.Serialize(mRpc.Writer);
                     mRpc.Writer.Flush();
 

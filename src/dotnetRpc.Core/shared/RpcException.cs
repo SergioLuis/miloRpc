@@ -1,8 +1,6 @@
 using System;
 using System.IO;
 
-using dotnetRpc.Core.Shared.Serialization;
-
 namespace dotnetRpc.Core.Shared;
 
 public class RpcException : Exception
@@ -12,7 +10,7 @@ public class RpcException : Exception
     public override string? StackTrace => mStackTrace;
 
     public static RpcException FromException(Exception ex)
-        => new RpcException(ex.GetType().FullName, ex.Message, ex.StackTrace);
+        => new(ex.GetType().FullName, ex.Message, ex.StackTrace);
 
     private RpcException(
         string? originalExceptionType,
@@ -47,15 +45,27 @@ public class RpcException : Exception
 
     void Serialize(BinaryWriter writer)
     {
-        Serializer<string>.Serialize(writer, mExceptionType);
-        Serializer<string>.Serialize(writer, mExceptionMessage);
-        Serializer<string>.Serialize(writer, mStackTrace);
+        SerializeNullable(writer, mExceptionType);
+        writer.Write((string)mExceptionMessage);
+        SerializeNullable(writer, mStackTrace);
     }
 
     void Deserialize(BinaryReader reader)
     {
-        mExceptionType = Serializer<string>.Deserialize(reader) ?? string.Empty;
-        mExceptionMessage = Serializer<string>.Deserialize(reader) ?? string.Empty;
-        mStackTrace = Serializer<string>.Deserialize(reader);
+        mExceptionType = DeserializeNullable(reader);
+        mExceptionMessage = reader.ReadString();
+        mStackTrace = DeserializeNullable(reader);
+    }
+
+    static void SerializeNullable(BinaryWriter writer, string? str)
+    {
+        writer.Write((bool)(str is not null));
+        if (str is not null)
+            writer.Write(str);
+    }
+
+    static string? DeserializeNullable(BinaryReader reader)
+    {
+        return reader.ReadBoolean() ? reader.ReadString() : null;
     }
 }

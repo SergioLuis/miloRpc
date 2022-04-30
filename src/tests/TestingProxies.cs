@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 using dotnetRpc.Core.Client;
 using dotnetRpc.Core.Shared;
-using dotnetRpc.Core.Shared.Serialization;
+using dotnetRpc.Serialization;
 
 namespace dotnetRpc.Tests;
 

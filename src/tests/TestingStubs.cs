@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 using dotnetRpc.Core.Server;
 using dotnetRpc.Core.Shared;
-using dotnetRpc.Core.Shared.Serialization;
+using dotnetRpc.Serialization;
 
 namespace dotnetRpc.Tests;
 

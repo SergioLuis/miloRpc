@@ -13,7 +13,7 @@ using NUnit.Framework;
 using dotnetRpc.Core.Client;
 using dotnetRpc.Core.Server;
 using dotnetRpc.Core.Shared;
-using dotnetRpc.Core.Shared.Serialization;
+using dotnetRpc.Serialization;
 
 namespace dotnetRpc.Tests;
 
@@ -484,12 +484,12 @@ public class TcpEndToEndTests
         }
 
         bool IStub.CanHandleMethod(IMethodId method)
-            => Unsafe.As<DefaultMethodId>(method) == CallAsync_MethodId;
+            => Unsafe.As<DefaultMethodId>(method) == CallAsyncMethodId;
 
         IEnumerable<IMethodId> IStub.GetHandledMethods()
             => new List<DefaultMethodId>
             {
-                CallAsync_MethodId
+                CallAsyncMethodId
             };
 
         async Task<RpcNetworkMessages> IStub.RunMethodCallAsync(
@@ -499,7 +499,7 @@ public class TcpEndToEndTests
         {
             return Unsafe.As<DefaultMethodId>(methodId).Id switch
             {
-                CallAsync_Id => await CallAsync(reader, beginMethodRunCallback),
+                CallAsyncId => await CallAsync(reader, beginMethodRunCallback),
                 _ => throw new NotImplementedException()
             };
         }
@@ -537,7 +537,7 @@ public class TcpEndToEndTests
             RpcNetworkMessages msg = new(req, res);
 
             await mConnToServer.ProcessMethodCallAsync(
-                CallAsync_MethodId, msg, ct);
+                CallAsyncMethodId, msg, ct);
         }
 
         public async Task CallUnsupportedAsync(CancellationToken ct)
@@ -547,7 +547,7 @@ public class TcpEndToEndTests
             RpcNetworkMessages msg = new(req, res);
 
             await mConnToServer.ProcessMethodCallAsync(
-                CallUnsupportedAsync_MethodId, msg, ct);
+                CallUnsupportedAsyncMethodId, msg, ct);
         }
 
         readonly ConnectionToServer mConnToServer;
@@ -560,14 +560,14 @@ public class TcpEndToEndTests
         Task CallUnsupportedAsync(CancellationToken ct);
     }
 
-    const byte CallAsync_Id = 1;
-    const byte CallUnsupportedAsync_Id = 2;
+    const byte CallAsyncId = 1;
+    const byte CallUnsupportedAsyncId = 2;
 
-    static readonly DefaultMethodId CallAsync_MethodId =
-        new(CallAsync_Id, "CallAsync");
+    static readonly DefaultMethodId CallAsyncMethodId =
+        new(CallAsyncId, "CallAsync");
 
-    static readonly DefaultMethodId CallUnsupportedAsync_MethodId =
-        new(CallUnsupportedAsync_Id, "CallUnsupportedAsync");
+    static readonly DefaultMethodId CallUnsupportedAsyncMethodId =
+        new(CallUnsupportedAsyncId, "CallUnsupportedAsync");
 
     #endregion
 }

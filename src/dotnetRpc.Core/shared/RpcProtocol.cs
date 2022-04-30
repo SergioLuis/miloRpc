@@ -7,7 +7,7 @@ namespace dotnetRpc.Core.Shared;
 
 public enum MethodCallResult : byte
 {
-    OK           = 0,
+    Ok           = 0,
     Failed       = 1,
     NotSupported = 2
 }
@@ -15,9 +15,9 @@ public enum MethodCallResult : byte
 
 public class RpcProtocolNegotiationResult
 {
-    internal Stream Stream { get; private set; }
-    internal BinaryReader Reader { get; private set; }
-    internal BinaryWriter Writer { get; private set; }
+    internal Stream Stream { get; }
+    internal BinaryReader Reader { get; }
+    internal BinaryWriter Writer { get; }
 
     public RpcProtocolNegotiationResult(
         Stream stream, BinaryReader reader, BinaryWriter writer)
@@ -42,5 +42,3 @@ public interface INegotiateRpcProtocol
         IPEndPoint remoteEndPoint,
         Stream baseStream);
 }
-
-

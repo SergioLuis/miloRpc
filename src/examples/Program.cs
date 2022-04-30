@@ -3,12 +3,13 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-using dotnetRpc.Core.Channels;
-using dotnetRpc.Core.Shared;
 using NLog;
 using NLog.Config;
 using NLog.Targets;
 using NLog.Extensions.Logging;
+
+using dotnetRpc.Core.Channels;
+using dotnetRpc.Core.Shared;
 
 namespace dotnetRpc.Examples;
 

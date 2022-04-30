@@ -20,7 +20,7 @@ public class DefaultReadMethodCallResult : IReadMethodCallResult
         MethodCallResult methodResult = (MethodCallResult)(reader.ReadByte());
         bool isExceptionAvailable = reader.ReadBoolean();
 
-        isResultAvailable = methodResult == MethodCallResult.OK;
+        isResultAvailable = methodResult == MethodCallResult.Ok;
         ex = isExceptionAvailable ? RpcException.FromReader(reader) : null;
 
         return methodResult;
