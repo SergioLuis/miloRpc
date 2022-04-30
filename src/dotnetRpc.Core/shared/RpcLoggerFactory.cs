@@ -6,11 +6,10 @@ namespace dotnetRpc.Core.Shared;
 public static class RpcLoggerFactory
 {
     public static void RegisterLoggerFactory(ILoggerFactory loggerFactory)
-        => mLoggerFactory = loggerFactory;
+        => _loggerFactory = loggerFactory;
 
     public static ILogger CreateLogger(string categoryName)
-        => mLoggerFactory.CreateLogger(categoryName);
+        => _loggerFactory.CreateLogger(categoryName);
 
-    static object mSyncLock = new();
-    static ILoggerFactory mLoggerFactory = NullLoggerFactory.Instance;
+    static ILoggerFactory _loggerFactory = NullLoggerFactory.Instance;
 }
