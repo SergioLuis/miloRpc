@@ -1,11 +1,11 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-using dotnetRpc.Core.Client;
-using dotnetRpc.Core.Shared;
-using dotnetRpc.Serialization;
+using miloRPC.Core.Client;
+using miloRPC.Core.Shared;
+using miloRPC.Serialization;
 
-namespace dotnetRpc.Tests;
+namespace miloRPC.Tests;
 
 public interface IVoidCall
 {

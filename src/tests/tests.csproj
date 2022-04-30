@@ -15,8 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\dotnetRpc.Core\dotnetRpc.Core.csproj" />
-    <ProjectReference Include="..\dotnetRpc.Serialization\dotnetRpc.Serialization.csproj" />
+    <ProjectReference Include="..\miloRPC.Core\miloRPC.Core.csproj" />
+    <ProjectReference Include="..\miloRPC.Serialization\miloRPC.Serialization.csproj" />
   </ItemGroup>
 
 </Project>

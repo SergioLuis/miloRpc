@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace dotnetRpc.Tests;
+namespace miloRPC.Tests;
 
 // This stream mimics the behavior of a NetworkStream (or any other kind of stream
 // in which the client reads faster than what the stream can provide / buffer)

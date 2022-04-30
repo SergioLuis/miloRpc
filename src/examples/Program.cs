@@ -8,10 +8,10 @@ using NLog.Config;
 using NLog.Targets;
 using NLog.Extensions.Logging;
 
-using dotnetRpc.Core.Channels;
-using dotnetRpc.Core.Shared;
+using miloRPC.Core.Channels;
+using miloRPC.Core.Shared;
 
-namespace dotnetRpc.Examples;
+namespace miloRPC.Examples;
 
 static class Program
 {

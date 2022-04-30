@@ -3,11 +3,11 @@ using System.IO;
 
 using NUnit.Framework;
 
-using dotnetRpc.Core.Client;
-using dotnetRpc.Core.Server;
-using dotnetRpc.Core.Shared;
+using miloRPC.Core.Client;
+using miloRPC.Core.Server;
+using miloRPC.Core.Shared;
 
-namespace dotnetRpc.Tests;
+namespace miloRPC.Tests;
 
 [TestFixture]
 public class DefaultMethodCallResultTests

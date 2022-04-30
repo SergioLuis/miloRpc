@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 
 using NUnit.Framework;
 
-using dotnetRpc.Core.Shared;
+using miloRPC.Core.Shared;
 
-namespace dotnetRpc.Tests;
+namespace miloRPC.Tests;
 
 [TestFixture]
 public class RecurringTaskTests

@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 
 using NUnit.Framework;
 
-using dotnetRpc.Core.Client;
-using dotnetRpc.Core.Server;
+using miloRPC.Core.Client;
+using miloRPC.Core.Server;
 
-namespace dotnetRpc.Tests;
+namespace miloRPC.Tests;
 
 [TestFixture]
 public class ActiveConnectionsTests

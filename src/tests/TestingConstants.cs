@@ -1,4 +1,4 @@
-namespace dotnetRpc.Tests;
+namespace miloRPC.Tests;
 
 public static class TestingConstants
 {

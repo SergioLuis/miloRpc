@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\dotnetRpc.Core\dotnetRpc.Core.csproj" />
+    <ProjectReference Include="..\miloRPC.Core\miloRPC.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

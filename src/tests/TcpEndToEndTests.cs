@@ -10,12 +10,12 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
-using dotnetRpc.Core.Client;
-using dotnetRpc.Core.Server;
-using dotnetRpc.Core.Shared;
-using dotnetRpc.Serialization;
+using miloRPC.Core.Client;
+using miloRPC.Core.Server;
+using miloRPC.Core.Shared;
+using miloRPC.Serialization;
 
-namespace dotnetRpc.Tests;
+namespace miloRPC.Tests;
 
 [TestFixture]
 public class TcpEndToEndTests

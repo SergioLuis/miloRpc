@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 
 using NUnit.Framework;
 
-using dotnetRpc.Core.Channels;
+using miloRPC.Core.Channels;
 
-namespace dotnetRpc.Tests;
+namespace miloRPC.Tests;
 
 [TestFixture]
 public class MeteredStreamTests
