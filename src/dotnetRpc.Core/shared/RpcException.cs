@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using System.Reflection;
+
 using dotnetRpc.Core.Shared.Serialization;
 
 namespace dotnetRpc.Core.Shared;
@@ -20,7 +20,7 @@ public class RpcException : Exception
         string? originalStackTrace)
     {
         mExceptionType = originalExceptionType;
-        mExceptionMessage = originalExceptionMessage ?? string.Empty;
+        mExceptionMessage = originalExceptionMessage;
         mStackTrace = originalStackTrace;
     }
 
