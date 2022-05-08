@@ -2,8 +2,15 @@
 
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <RootNamespace>miloRPC.Serialization</RootNamespace>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <PackageId>miloRPC.Serialization</PackageId>
+        <Version>0.1.0-beta</Version>
+        <Authors>Sergio Luis Para</Authors>
+        <Company>Sergio Luis Para</Company>
     </PropertyGroup>
 
     <ItemGroup>
