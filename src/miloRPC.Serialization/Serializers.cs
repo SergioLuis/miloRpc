@@ -43,7 +43,7 @@ public static class Serializer<T>
     static readonly object _syncLock = new();
 }
 
-internal class Serializers
+public class Serializers
 {
     Serializers()
     {
