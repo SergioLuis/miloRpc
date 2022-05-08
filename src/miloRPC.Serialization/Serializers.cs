@@ -88,6 +88,9 @@ public class Serializers
     public void Add<T>(ISerializer<T> serializer)
         => mSerializers.Add(typeof(T), serializer);
 
+    public void AddOrOverride<T>(ISerializer<T> serializer)
+        => mSerializers[typeof(T)] = serializer;
+
     public ISerializer<T> Get<T>()
     {
         Type t = typeof(T);
