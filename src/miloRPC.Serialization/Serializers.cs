@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -21,7 +22,7 @@ public static class Serializer<T>
     public static T? Deserialize(BinaryReader reader)
         => Instance.Deserialize(reader);
 
-    static ISerializer<T> Instance
+    public static ISerializer<T> Instance
     {
         get
         {
@@ -47,49 +48,52 @@ public class Serializers
 {
     Serializers()
     {
-        mSerializers = new Dictionary<Type, ISerializer>();
-        Add(new StringSerializer());
+        mSerializers = new ConcurrentDictionary<Type, ISerializer>();
+        mGenericSerializers = new ConcurrentDictionary<Type, Type>();
 
-        Add(new ByteSerializer());
-        Add(new NullableByteSerializer());
-        Add(new BoolSerializer());
-        Add(new NullableBoolSerializer());
-        Add(new CharSerializer());
-        Add(new NullableCharSerializer());
+        RegisterInstance(new StringSerializer());
 
-        Add(new DecimalSerializer());
-        Add(new NullableDecimalSerializers());
-        Add(new Int16Serializer());
-        Add(new NullableInt16Serializer());
-        Add(new Int32Serialier());
-        Add(new NullableInt32Serializer());
-        Add(new Int64Serializer());
-        Add(new NullableInt64Serializer());
+        RegisterInstance(new ByteSerializer());
+        RegisterInstance(new NullableByteSerializer());
+        RegisterInstance(new BoolSerializer());
+        RegisterInstance(new NullableBoolSerializer());
+        RegisterInstance(new CharSerializer());
+        RegisterInstance(new NullableCharSerializer());
 
-        Add(new SingleSerializer());
-        Add(new NullableSingleSerializer());
-        Add(new DoubleSerializer());
-        Add(new NullableDoubleSerializer());
-        Add(new SByteSerializer());
-        Add(new NullableSByteSerializer());
+        RegisterInstance(new DecimalSerializer());
+        RegisterInstance(new NullableDecimalSerializers());
+        RegisterInstance(new Int16Serializer());
+        RegisterInstance(new NullableInt16Serializer());
+        RegisterInstance(new Int32Serialier());
+        RegisterInstance(new NullableInt32Serializer());
+        RegisterInstance(new Int64Serializer());
+        RegisterInstance(new NullableInt64Serializer());
 
-        Add(new UInt16Serializer());
-        Add(new NullableUInt16Serializer());
-        Add(new UInt32Serializer());
-        Add(new NullableUInt32Serializer());
-        Add(new UInt64Serializer());
-        Add(new NullableUInt64Serializer());
+        RegisterInstance(new SingleSerializer());
+        RegisterInstance(new NullableSingleSerializer());
+        RegisterInstance(new DoubleSerializer());
+        RegisterInstance(new NullableDoubleSerializer());
+        RegisterInstance(new SByteSerializer());
+        RegisterInstance(new NullableSByteSerializer());
 
-        Add(new DateTimeSerializer());
-        Add(new GuidSerializer());
+        RegisterInstance(new UInt16Serializer());
+        RegisterInstance(new NullableUInt16Serializer());
+        RegisterInstance(new UInt32Serializer());
+        RegisterInstance(new NullableUInt32Serializer());
+        RegisterInstance(new UInt64Serializer());
+        RegisterInstance(new NullableUInt64Serializer());
+
+        RegisterInstance(new DateTimeSerializer());
+        RegisterInstance(new GuidSerializer());
+
+        RegisterGeneric(typeof(List<>), typeof(ListSerializer<>));
     }
 
-    // ReSharper disable once MemberCanBePrivate.Global
-    public void Add<T>(ISerializer<T> serializer)
-        => mSerializers.Add(typeof(T), serializer);
-
-    public void AddOrOverride<T>(ISerializer<T> serializer)
+    public void RegisterInstance<T>(ISerializer<T> serializer)
         => mSerializers[typeof(T)] = serializer;
+
+    public void RegisterGeneric(Type genericTargetType, Type genericSerializerType)
+        => mGenericSerializers[genericTargetType] = genericSerializerType;
 
     public ISerializer<T> Get<T>()
     {
@@ -97,10 +101,28 @@ public class Serializers
         if (mSerializers.TryGetValue(t, out ISerializer? serializer))
             return Unsafe.As<ISerializer<T>>(serializer);
 
+        if (t.IsGenericType && t.IsConstructedGenericType)
+        {
+            // Let's try to build a serializer!
+            Type targetType = t.GetGenericTypeDefinition();
+
+            if (!mGenericSerializers.TryGetValue(targetType, out var serializerType))
+                throw new InvalidOperationException($"Can't find a serializer for type {t}");
+
+            Type resultType = serializerType.MakeGenericType(t.GenericTypeArguments);
+
+            if (Activator.CreateInstance(resultType) is ISerializer<T> result)
+            {
+                mSerializers[t] = result;
+                return result;
+            }
+        }
+
         throw new InvalidOperationException($"Can't find a serializer for type {t}");
     }
 
-    readonly Dictionary<Type, ISerializer> mSerializers;
+    readonly ConcurrentDictionary<Type, ISerializer> mSerializers;
+    readonly ConcurrentDictionary<Type, Type> mGenericSerializers;
 
     public static readonly Serializers Instance = new();
 }
