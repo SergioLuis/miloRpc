@@ -42,7 +42,7 @@ public class ConnectionToServer : IDisposable
 
     public Status CurrentStatus => mRpcChannel.IsConnected() ? mCurrentStatus : Status.Exited;
 
-    internal ConnectionToServer(
+    public ConnectionToServer(
         INegotiateRpcProtocol negotiateProtocol,
         IWriteMethodId writeMethodId,
         IReadMethodCallResult readMethodCallResult,
