@@ -8,15 +8,15 @@ using miloRPC.Core.Shared;
 
 namespace miloRPC.Core.Client;
 
-public class ConnectToServer
+public class ConnectToTcpServer : IConnectToServer
 {
-    public ConnectToServer(IPEndPoint connectTo) : this(
+    public ConnectToTcpServer(IPEndPoint connectTo) : this(
         connectTo,
         DefaultClientProtocolNegotiation.Instance,
         DefaultWriteMethodId.Instance,
         DefaultReadMethodCallResult.Instance) { }
 
-    public ConnectToServer(
+    public ConnectToTcpServer(
         IPEndPoint connectTo,
         INegotiateRpcProtocol negotiateProtocol) : this(
             connectTo,
@@ -24,7 +24,7 @@ public class ConnectToServer
             DefaultWriteMethodId.Instance,
             DefaultReadMethodCallResult.Instance) { }
 
-    public ConnectToServer(
+    public ConnectToTcpServer(
         IPEndPoint connectTo,
         INegotiateRpcProtocol negotiateProtocol,
         IWriteMethodId writeMethodId,

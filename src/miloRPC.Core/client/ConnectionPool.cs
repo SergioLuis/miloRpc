@@ -12,7 +12,7 @@ namespace miloRPC.Core.Client;
 public class ConnectionPool
 {
     public ConnectionPool(
-        ConnectToServer connectToServer,
+        IConnectToServer connectToServer,
         int minimumPooledConnections = 2)
     {
         mConnectToServer = connectToServer;
@@ -140,7 +140,7 @@ public class ConnectionPool
 
     int mWaitingThreads = 0;
 
-    readonly ConnectToServer mConnectToServer;
+    readonly IConnectToServer mConnectToServer;
     readonly int mMinimumPooledConnections;
     readonly Queue<ConnectionToServer> mPooledConnections;
     readonly HashSet<uint> mRentedConnections = new();
