@@ -87,6 +87,8 @@ public class Serializers
         RegisterInstance(new GuidSerializer());
 
         RegisterGeneric(typeof(List<>), typeof(ListSerializer<>));
+        RegisterGeneric(typeof(Tuple<,>), typeof(TupleSerializer<,>));
+        RegisterGeneric(typeof(Tuple<,,>), typeof(TupleSerializer<,,>));
     }
 
     public void RegisterInstance<T>(ISerializer<T> serializer)
