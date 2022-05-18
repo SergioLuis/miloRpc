@@ -25,7 +25,7 @@ public class ConnectionPoolTests
         connectToServerMock.Setup(
             mock => mock.ConnectAsync(
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(BuildConnectionToServer(metrics));
+            .ReturnsAsync(() => BuildConnectionToServer(metrics));
 
         ConnectionPool pool = new(connectToServerMock.Object, initialCount);
 
@@ -34,6 +34,150 @@ public class ConnectionPoolTests
         connectToServerMock.Verify(
             mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
             Times.Exactly(initialCount));
+    }
+
+    [Test]
+    public async Task Returned_Connections_Are_Rented_Again()
+    {
+        RpcMetrics metrics = new();
+
+        Mock<IConnectToServer> connectToServerMock = new(MockBehavior.Strict);
+        connectToServerMock.Setup(
+                mock => mock.ConnectAsync(
+                    It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => BuildConnectionToServer(metrics));
+
+        ConnectionPool pool = new(connectToServerMock.Object, 2);
+
+        await pool.WarmupPool();
+
+        connectToServerMock.Verify(
+            mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+
+        Task<ConnectionToServer> firstRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> secondRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> thirdRentTask = Task.Run(() => pool.RentConnectionAsync());
+
+        Assert.That(() => firstRentTask.IsCompleted, Is.True.After(1000, 100));
+        Assert.That(() => secondRentTask.IsCompleted, Is.True.After(1000, 100));
+        Assert.That(() => thirdRentTask.IsCompleted, Is.False.After(1000, 100));
+
+        ConnectionToServer _ = await firstRentTask;
+        ConnectionToServer secondConnection = await secondRentTask;
+
+        Assert.That(pool.RentedConnections, Is.EqualTo(2));
+        Assert.That(pool.WaitingThreads, Is.EqualTo(1));
+
+        pool.ReturnConnection(secondConnection);
+
+        Assert.That(() => thirdRentTask.IsCompleted, Is.True.After(1000, 100));
+
+        ConnectionToServer secondConnectionRentedAgain = await thirdRentTask;
+
+        Assert.That(ReferenceEquals(secondConnection, secondConnectionRentedAgain));
+    }
+
+    [Test]
+    public async Task Disconnected_Connections_Are_Not_Returned_To_Pool()
+    {
+        RpcMetrics metrics = new();
+
+        Mock<IConnectToServer> connectToServerMock = new(MockBehavior.Strict);
+        connectToServerMock.Setup(
+                mock => mock.ConnectAsync(
+                    It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => BuildConnectionToServer(metrics));
+
+        ConnectionPool pool = new(connectToServerMock.Object, 2);
+
+        await pool.WarmupPool();
+
+        connectToServerMock.Verify(
+            mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+
+        Task<ConnectionToServer> firstRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> secondRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> thirdRentTask = Task.Run(() => pool.RentConnectionAsync());
+
+        Assert.That(() => firstRentTask.IsCompleted, Is.True.After(1000, 100));
+        Assert.That(() => secondRentTask.IsCompleted, Is.True.After(1000, 100));
+        Assert.That(() => thirdRentTask.IsCompleted, Is.False.After(1000, 100));
+
+        ConnectionToServer firstConnection = await firstRentTask;
+        ConnectionToServer secondConnection = await secondRentTask;
+
+        Assert.That(pool.RentedConnections, Is.EqualTo(2));
+        Assert.That(pool.WaitingThreads, Is.EqualTo(1));
+
+        firstConnection.Dispose();
+        pool.ReturnConnection(firstConnection);
+
+        Assert.That(pool.RentedConnections, Is.EqualTo(1));
+        Assert.That(pool.WaitingThreads, Is.EqualTo(1));
+        Assert.That(() => thirdRentTask.IsCompleted, Is.False.After(1000, 100));
+
+        pool.ReturnConnection(secondConnection);
+
+        Assert.That(() => thirdRentTask.IsCompleted, Is.True.After(1000, 100));
+
+        ConnectionToServer secondConnectionRentedAgain = await thirdRentTask;
+
+        Assert.That(ReferenceEquals(secondConnection, secondConnectionRentedAgain));
+    }
+
+    [Test]
+    public async Task Disconnected_Connections_Are_Not_Returned_From_Pool()
+    {
+        RpcMetrics metrics = new();
+
+        Mock<IConnectToServer> connectToServerMock = new(MockBehavior.Strict);
+        connectToServerMock.Setup(
+                mock => mock.ConnectAsync(
+                    It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => BuildConnectionToServer(metrics));
+
+        ConnectionPool pool = new(connectToServerMock.Object, 2);
+
+        await pool.WarmupPool();
+
+        connectToServerMock.Verify(
+            mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+
+        Task<ConnectionToServer> firstRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> secondRentTask = Task.Run(() => pool.RentConnectionAsync());
+
+        Assert.That(() => firstRentTask.IsCompleted, Is.True.After(1000, 100));
+        Assert.That(() => secondRentTask.IsCompleted, Is.True.After(1000, 100));
+
+        ConnectionToServer firstConnection = await firstRentTask;
+        ConnectionToServer secondConnection = await secondRentTask;
+
+        pool.ReturnConnection(firstConnection);
+        pool.ReturnConnection(secondConnection);
+
+        firstConnection.Dispose();
+        secondConnection.Dispose();
+
+        Task<ConnectionToServer> thirdRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Assert.That(() => thirdRentTask.IsCompleted, Is.True.After(1000, 100));
+
+        Assert.That(pool.RentedConnections, Is.EqualTo(1));
+        // The pool had to create new connections to satisfy the third request
+        // Because there were no waiting threads, it created:
+        //   2 (minimum) + 1 (for the request being served)
+        Assert.That(pool.PooledConnections, Is.EqualTo(2));
+
+        connectToServerMock.Verify(
+            mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
+            Times.Exactly(5));
+
+        ConnectionToServer thirdConnection = await thirdRentTask;
+
+        Assert.That(ReferenceEquals(firstConnection, thirdConnection), Is.False);
+        Assert.That(ReferenceEquals(secondConnection, thirdConnection), Is.False);
     }
 
     static ConnectionToServer BuildConnectionToServer(RpcMetrics metrics)

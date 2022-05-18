@@ -11,6 +11,21 @@ namespace miloRPC.Core.Client;
 
 public class ConnectionPool
 {
+    public int PooledConnections
+    {
+        get { lock (mRentLock) return mPooledConnections.Count; }
+    }
+
+    public int RentedConnections
+    {
+        get { lock (mRentLock) return mRentedConnections.Count; }
+    }
+
+    public int WaitingThreads
+    {
+        get { lock (mRentLock) return mWaitingThreads; }
+    }
+
     public ConnectionPool(
         IConnectToServer connectToServer,
         int minimumPooledConnections = 2)
@@ -112,10 +127,13 @@ public class ConnectionPool
                 for (int i = 0; i < connectionsToCreate - 1; i++)
                     mPooledConnections.Enqueue(newConnections[i]);
 
+                result = newConnections[connectionsToCreate - 1];
+                mRentedConnections.Add(result.ConnectionId);
+
                 Monitor.PulseAll(mRentLock);
             }
 
-            return newConnections[connectionsToCreate - 1];
+            return result;
         }
         finally
         {
@@ -134,7 +152,7 @@ public class ConnectionPool
                 success = result.IsConnected();
             }
 
-            return result;
+            return success ? result : null;
         }
     }
 
