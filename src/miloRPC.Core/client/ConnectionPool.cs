@@ -22,6 +22,23 @@ public class ConnectionPool
         mLog = RpcLoggerFactory.CreateLogger("ConnectionPool");
     }
 
+    public async ValueTask WarmupPool()
+    {
+        await mCreationLock.WaitAsync();
+        try
+        {
+            for (int i = 0; i < mMinimumPooledConnections; i++)
+            {
+                mPooledConnections.Enqueue(
+                    await mConnectToServer.ConnectAsync(CancellationToken.None));
+            }
+        }
+        finally
+        {
+            mCreationLock.Release();
+        }
+    }
+
     public async Task<ConnectionToServer> RentConnectionAsync()
         => await RentConnectionAsync(Timeout.InfiniteTimeSpan, CancellationToken.None);
 
