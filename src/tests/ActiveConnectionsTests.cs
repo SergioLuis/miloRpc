@@ -28,13 +28,13 @@ public class ActiveConnectionsTests
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
 
-        ConnectToServer connectToServer = new(tcpServer.BindAddress!);
+        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
 
         Assert.That(tcpServer.ActiveConnections.Connections, Is.Empty);
 
-        ConnectionToServer firstConn = await connectToServer.ConnectAsync(cts.Token);
-        ConnectionToServer secondConn = await connectToServer.ConnectAsync(cts.Token);
-        ConnectionToServer thirdConn = await connectToServer.ConnectAsync(cts.Token);
+        ConnectionToServer firstConn = await connectToTcpServer.ConnectAsync(cts.Token);
+        ConnectionToServer secondConn = await connectToTcpServer.ConnectAsync(cts.Token);
+        ConnectionToServer thirdConn = await connectToTcpServer.ConnectAsync(cts.Token);
 
         Assert.That(
             () => tcpServer.ActiveConnections.Connections,
@@ -122,13 +122,13 @@ public class ActiveConnectionsTests
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
 
-        ConnectToServer connectToServer = new(tcpServer.BindAddress!);
+        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
 
         Assert.That(tcpServer.ActiveConnections.Connections, Is.Empty);
 
-        ConnectionToServer firstConn = await connectToServer.ConnectAsync(cts.Token);
-        ConnectionToServer secondConn = await connectToServer.ConnectAsync(cts.Token);
-        ConnectionToServer thirdConn = await connectToServer.ConnectAsync(cts.Token);
+        ConnectionToServer firstConn = await connectToTcpServer.ConnectAsync(cts.Token);
+        ConnectionToServer secondConn = await connectToTcpServer.ConnectAsync(cts.Token);
+        ConnectionToServer thirdConn = await connectToTcpServer.ConnectAsync(cts.Token);
 
         Assert.That(
             () => tcpServer.ActiveConnections.Connections,
@@ -219,11 +219,11 @@ public class ActiveConnectionsTests
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
 
-        ConnectToServer connectToServer = new(tcpServer.BindAddress!);
+        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
 
         Assert.That(tcpServer.ActiveConnections.Connections, Is.Empty);
 
-        ConnectionToServer conn = await connectToServer.ConnectAsync(cts.Token);
+        ConnectionToServer conn = await connectToTcpServer.ConnectAsync(cts.Token);
 
         Assert.That(
             () => tcpServer.ActiveConnections.Connections,
@@ -294,11 +294,11 @@ public class ActiveConnectionsTests
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
 
-        ConnectToServer connectToServer = new(tcpServer.BindAddress!);
+        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
 
         Assert.That(tcpServer.ActiveConnections.Connections, Is.Empty);
 
-        ConnectionToServer connToServer = await connectToServer.ConnectAsync(CancellationToken.None);
+        ConnectionToServer connToServer = await connectToTcpServer.ConnectAsync(CancellationToken.None);
 
         Assert.That(
             () => tcpServer.ActiveConnections.Connections,

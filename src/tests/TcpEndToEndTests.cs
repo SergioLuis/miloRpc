@@ -83,8 +83,8 @@ public class TcpEndToEndTests
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
 
-        ConnectToServer connectToServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
-        ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(cts.Token);
+        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
+        ConnectionToServer connectionToServer = await connectToTcpServer.ConnectAsync(cts.Token);
         IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
 
         Assert.That(
@@ -172,8 +172,8 @@ public class TcpEndToEndTests
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
 
-        ConnectToServer connectToServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
-        ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(cts.Token);
+        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
+        ConnectionToServer connectionToServer = await connectToTcpServer.ConnectAsync(cts.Token);
         IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
 
         Assert.That(
@@ -265,8 +265,8 @@ public class TcpEndToEndTests
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
 
-        ConnectToServer connectToServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
-        ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(cts.Token);
+        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
+        ConnectionToServer connectionToServer = await connectToTcpServer.ConnectAsync(cts.Token);
         IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
 
         Assert.That(
@@ -407,8 +407,8 @@ public class TcpEndToEndTests
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
 
-        ConnectToServer connectToServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
-        ConnectionToServer firstConnection = await connectToServer.ConnectAsync(cts.Token);
+        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
+        ConnectionToServer firstConnection = await connectToTcpServer.ConnectAsync(cts.Token);
 
         Assert.That(
             () => tcpServer.ActiveConnections.Counters.ActiveConnections,
@@ -419,7 +419,7 @@ public class TcpEndToEndTests
             Is.True.After(1000, 10));
 
         cancelNextConnection = true;
-        ConnectionToServer secondConnection = await connectToServer.ConnectAsync(cts.Token);
+        ConnectionToServer secondConnection = await connectToTcpServer.ConnectAsync(cts.Token);
 
         Assert.That(
             () => tcpServer.ActiveConnections.Counters.ActiveConnections,

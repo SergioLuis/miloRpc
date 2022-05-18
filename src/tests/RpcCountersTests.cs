@@ -27,7 +27,7 @@ public class RpcCountersTests
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
 
-        ConnectToServer connectToServer = new(tcpServer.BindAddress!);
+        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
 
         Assert.That(
             () => tcpServer.ActiveConnections.Counters.TotalConnections,
@@ -36,7 +36,7 @@ public class RpcCountersTests
             () => tcpServer.ActiveConnections.Counters.ActiveConnections,
             Is.Zero.After(100, 10));
 
-        ConnectionToServer firstConnection = await connectToServer.ConnectAsync(cts.Token);
+        ConnectionToServer firstConnection = await connectToTcpServer.ConnectAsync(cts.Token);
         Assert.That(
             () => tcpServer.ActiveConnections.Counters.TotalConnections,
             Is.EqualTo(1).After(100, 10));
@@ -44,7 +44,7 @@ public class RpcCountersTests
             () => tcpServer.ActiveConnections.Counters.ActiveConnections,
             Is.EqualTo(1).After(1000, 10));
 
-        ConnectionToServer secondConnection = await connectToServer.ConnectAsync(cts.Token);
+        ConnectionToServer secondConnection = await connectToTcpServer.ConnectAsync(cts.Token);
         Assert.That(
             () => tcpServer.ActiveConnections.Counters.TotalConnections,
             Is.EqualTo(2).After(1000, 10));
@@ -88,7 +88,7 @@ public class RpcCountersTests
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
 
-        ConnectToServer connectToServer = new(tcpServer.BindAddress!);
+        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
 
         Assert.That(
             () => tcpServer.ActiveConnections.Counters.TotalMethodCalls,
@@ -97,8 +97,8 @@ public class RpcCountersTests
             () => tcpServer.ActiveConnections.Counters.ActiveMethodCalls,
             Is.Zero.After(100, 10));
 
-        Task<ConnectionToServer> firstConnTask = connectToServer.ConnectAsync(cts.Token);
-        Task<ConnectionToServer> secondConnTask = connectToServer.ConnectAsync(cts.Token);
+        Task<ConnectionToServer> firstConnTask = connectToTcpServer.ConnectAsync(cts.Token);
+        Task<ConnectionToServer> secondConnTask = connectToTcpServer.ConnectAsync(cts.Token);
 
         await Task.WhenAll(firstConnTask, secondConnTask);
 
