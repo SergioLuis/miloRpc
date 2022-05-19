@@ -56,13 +56,13 @@ public class ConnectionPoolTests
             mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
             Times.Exactly(2));
 
-        Task<ConnectionToServer> firstRentTask = Task.Run(() => pool.RentConnectionAsync());
-        Task<ConnectionToServer> secondRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> firstRentTask = pool.RentConnectionAsync();
+        Task<ConnectionToServer> secondRentTask = pool.RentConnectionAsync();
 
         Assert.That(() => firstRentTask.IsCompleted, Is.True.After(1000, 100));
         Assert.That(() => secondRentTask.IsCompleted, Is.True.After(1000, 100));
 
-        Task<ConnectionToServer> thirdRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> thirdRentTask = pool.RentConnectionAsync();
 
         Assert.That(() => thirdRentTask.IsCompleted, Is.False.After(1000, 100));
 
@@ -100,13 +100,13 @@ public class ConnectionPoolTests
             mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
             Times.Exactly(2));
 
-        Task<ConnectionToServer> firstRentTask = Task.Run(() => pool.RentConnectionAsync());
-        Task<ConnectionToServer> secondRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> firstRentTask = pool.RentConnectionAsync();
+        Task<ConnectionToServer> secondRentTask = pool.RentConnectionAsync();
 
         Assert.That(() => firstRentTask.IsCompleted, Is.True.After(1000, 100));
         Assert.That(() => secondRentTask.IsCompleted, Is.True.After(1000, 100));
 
-        Task<ConnectionToServer> thirdRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> thirdRentTask = pool.RentConnectionAsync();
 
         Assert.That(() => thirdRentTask.IsCompleted, Is.False.After(1000, 100));
 
@@ -151,8 +151,8 @@ public class ConnectionPoolTests
             mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
             Times.Exactly(2));
 
-        Task<ConnectionToServer> firstRentTask = Task.Run(() => pool.RentConnectionAsync());
-        Task<ConnectionToServer> secondRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> firstRentTask = pool.RentConnectionAsync();
+        Task<ConnectionToServer> secondRentTask = pool.RentConnectionAsync();
 
         Assert.That(() => firstRentTask.IsCompleted, Is.True.After(1000, 100));
         Assert.That(() => secondRentTask.IsCompleted, Is.True.After(1000, 100));
@@ -166,7 +166,7 @@ public class ConnectionPoolTests
         firstConnection.Dispose();
         secondConnection.Dispose();
 
-        Task<ConnectionToServer> thirdRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> thirdRentTask = pool.RentConnectionAsync();
         Assert.That(() => thirdRentTask.IsCompleted, Is.True.After(1000, 100));
 
         Assert.That(pool.RentedConnections, Is.EqualTo(1));
@@ -204,8 +204,8 @@ public class ConnectionPoolTests
             mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
             Times.Exactly(2));
 
-        Task<ConnectionToServer> firstRentTask = Task.Run(() => pool.RentConnectionAsync());
-        Task<ConnectionToServer> secondRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> firstRentTask = pool.RentConnectionAsync();
+        Task<ConnectionToServer> secondRentTask = pool.RentConnectionAsync();
 
         Assert.That(() => firstRentTask.IsCompleted, Is.True.After(1000, 100));
         Assert.That(() => secondRentTask.IsCompleted, Is.True.After(1000, 100));
@@ -213,7 +213,7 @@ public class ConnectionPoolTests
         Assert.That(pool.PooledConnections, Is.EqualTo(0));
         Assert.That(pool.RentedConnections, Is.EqualTo(2));
 
-        Task<ConnectionToServer> thirdRentTask = Task.Run(() => pool.RentConnectionAsync(TimeSpan.Zero));
+        Task<ConnectionToServer> thirdRentTask = pool.RentConnectionAsync(TimeSpan.Zero);
         Assert.That(() => thirdRentTask.IsCompleted, Is.True.After(1000, 100));
 
         Assert.That(pool.RentedConnections, Is.EqualTo(3));
