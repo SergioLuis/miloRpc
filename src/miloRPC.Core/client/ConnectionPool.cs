@@ -161,14 +161,57 @@ public class ConnectionPool
             {
                 mWaitingThreads++;
 
-                if (Monitor.Wait(mRentLock, waitTimeout))
+                bool yielded = false;
+
+                // Don't try to yield if the wait is going to be minimum
+                // Most probably the overhead will not compensate the yielding
+                if (waitTimeout == Timeout.InfiniteTimeSpan
+                    || waitTimeout >= TimeSpan.FromMilliseconds(150))
                 {
-                    result = DequeueNextValidConnection(mPooledConnections);
-                    if (result is not null)
+                    Monitor.Exit(mRentLock);
+                    rentLockTaken = false;
+
+                    yielded = true;
+
+                    // Yield, as the wait can take some time
+                    await Task.Yield();
+
+                    Monitor.Enter(mRentLock, ref rentLockTaken);
+                }
+
+                try
+                {
+                    if (yielded)
                     {
-                        mWaitingThreads--;
-                        mRentedConnections.Add(result.ConnectionId);
-                        return result;
+                        // We need to check again if there are pooled connections,
+                        // as we might have missed a PulseAll on 'mRentLock' while
+                        // we gave up the lock for switching thread context
+                        result = DequeueNextValidConnection(mPooledConnections);
+                        if (result is not null)
+                        {
+                            mWaitingThreads--;
+                            mRentedConnections.Add(result.ConnectionId);
+                            return result;
+                        }
+                    }
+
+                    if (Monitor.Wait(mRentLock, waitTimeout))
+                    {
+                        result = DequeueNextValidConnection(mPooledConnections);
+                        if (result is not null)
+                        {
+                            mWaitingThreads--;
+                            mRentedConnections.Add(result.ConnectionId);
+                            return result;
+                        }
+                    }
+                }
+                finally
+                {
+                    if (rentLockTaken)
+                    {
+                        Monitor.Exit(mRentLock);
+                        rentLockTaken = false;
                     }
                 }
             }
@@ -186,7 +229,9 @@ public class ConnectionPool
         try
         {
             int waitingThreads;
-            lock (mRentLock)
+
+            Monitor.Enter(mRentLock);
+            try
             {
                 result = DequeueNextValidConnection(mPooledConnections);
                 if (result is not null)
@@ -200,6 +245,10 @@ public class ConnectionPool
 
                 waitingThreads = mWaitingThreads;
             }
+            finally
+            {
+                Monitor.Exit(mRentLock);
+            }
 
             int connectionsToCreate = Math.Max(
                 waitingThreads * 2,
@@ -212,7 +261,8 @@ public class ConnectionPool
                 newConnections.Add(await mConnectToServer.ConnectAsync(ct));
             }
 
-            lock (mRentLock)
+            Monitor.Enter(mRentLock);
+            try
             {
                 for (int i = 0; i < connectionsToCreate - 1; i++)
                     mPooledConnections.Enqueue(newConnections[i]);
@@ -221,6 +271,10 @@ public class ConnectionPool
                 mRentedConnections.Add(result.ConnectionId);
 
                 Monitor.PulseAll(mRentLock);
+            }
+            finally
+            {
+                Monitor.Exit(mRentLock);
             }
 
             return result;
@@ -248,7 +302,8 @@ public class ConnectionPool
 
     public void ReturnConnection(ConnectionToServer connection)
     {
-        lock (mRentLock)
+        Monitor.Enter(mRentLock);
+        try
         {
             if (!mRentedConnections.Contains(connection.ConnectionId))
                 return;
@@ -260,6 +315,10 @@ public class ConnectionPool
             mPooledConnections.Enqueue(connection);
 
             Monitor.PulseAll(mRentLock);
+        }
+        finally
+        {
+            Monitor.Exit(mRentLock);
         }
     }
 
