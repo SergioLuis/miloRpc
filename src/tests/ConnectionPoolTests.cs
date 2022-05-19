@@ -1,3 +1,4 @@
+using System;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -182,6 +183,48 @@ public class ConnectionPoolTests
 
         Assert.That(ReferenceEquals(firstConnection, thirdConnection), Is.False);
         Assert.That(ReferenceEquals(secondConnection, thirdConnection), Is.False);
+    }
+
+    [Test]
+    public async Task Connections_Are_Created_Immediately_If_Wait_Time_Is_Zero()
+    {
+        RpcMetrics metrics = new();
+
+        Mock<IConnectToServer> connectToServerMock = new(MockBehavior.Strict);
+        connectToServerMock.Setup(
+                mock => mock.ConnectAsync(
+                    It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => BuildConnectionToServer(metrics));
+
+        ConnectionPool pool = new(connectToServerMock.Object, 2);
+
+        await pool.WarmupPool();
+
+        connectToServerMock.Verify(
+            mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+
+        Task<ConnectionToServer> firstRentTask = Task.Run(() => pool.RentConnectionAsync());
+        Task<ConnectionToServer> secondRentTask = Task.Run(() => pool.RentConnectionAsync());
+
+        Assert.That(() => firstRentTask.IsCompleted, Is.True.After(1000, 100));
+        Assert.That(() => secondRentTask.IsCompleted, Is.True.After(1000, 100));
+
+        Assert.That(pool.PooledConnections, Is.EqualTo(0));
+        Assert.That(pool.RentedConnections, Is.EqualTo(2));
+
+        Task<ConnectionToServer> thirdRentTask = Task.Run(() => pool.RentConnectionAsync(TimeSpan.Zero));
+        Assert.That(() => thirdRentTask.IsCompleted, Is.True.After(1000, 100));
+
+        Assert.That(pool.RentedConnections, Is.EqualTo(3));
+        // The pool had to create new connections to satisfy the third request
+        // Because there were no waiting threads, it created:
+        //   2 (minimum) + 1 (for the request being served)
+        Assert.That(pool.PooledConnections, Is.EqualTo(2));
+
+        connectToServerMock.Verify(
+            mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
+            Times.Exactly(5));
     }
 
     static ConnectionToServer BuildConnectionToServer(RpcMetrics metrics)
