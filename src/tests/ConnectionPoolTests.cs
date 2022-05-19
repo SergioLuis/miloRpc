@@ -57,10 +57,12 @@ public class ConnectionPoolTests
 
         Task<ConnectionToServer> firstRentTask = Task.Run(() => pool.RentConnectionAsync());
         Task<ConnectionToServer> secondRentTask = Task.Run(() => pool.RentConnectionAsync());
-        Task<ConnectionToServer> thirdRentTask = Task.Run(() => pool.RentConnectionAsync());
 
         Assert.That(() => firstRentTask.IsCompleted, Is.True.After(1000, 100));
         Assert.That(() => secondRentTask.IsCompleted, Is.True.After(1000, 100));
+
+        Task<ConnectionToServer> thirdRentTask = Task.Run(() => pool.RentConnectionAsync());
+
         Assert.That(() => thirdRentTask.IsCompleted, Is.False.After(1000, 100));
 
         ConnectionToServer _ = await firstRentTask;
@@ -99,10 +101,12 @@ public class ConnectionPoolTests
 
         Task<ConnectionToServer> firstRentTask = Task.Run(() => pool.RentConnectionAsync());
         Task<ConnectionToServer> secondRentTask = Task.Run(() => pool.RentConnectionAsync());
-        Task<ConnectionToServer> thirdRentTask = Task.Run(() => pool.RentConnectionAsync());
 
         Assert.That(() => firstRentTask.IsCompleted, Is.True.After(1000, 100));
         Assert.That(() => secondRentTask.IsCompleted, Is.True.After(1000, 100));
+
+        Task<ConnectionToServer> thirdRentTask = Task.Run(() => pool.RentConnectionAsync());
+
         Assert.That(() => thirdRentTask.IsCompleted, Is.False.After(1000, 100));
 
         ConnectionToServer firstConnection = await firstRentTask;
