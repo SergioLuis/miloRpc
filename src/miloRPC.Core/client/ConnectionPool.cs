@@ -67,7 +67,10 @@ public class ConnectionPool
         TimeSpan waitTimeout, CancellationToken ct)
     {
         ConnectionToServer? result = null;
-        lock (mRentLock)
+
+        bool rentLockTaken = false;
+        Monitor.Enter(mRentLock, ref rentLockTaken);
+        try
         {
             result = DequeueNextValidConnection(mPooledConnections);
             if (result is not null)
@@ -76,9 +79,88 @@ public class ConnectionPool
                 return result;
             }
 
+            // There are no valid connections pooled and the caller refuses to wait
+            // for a rented connection to be returned.
+            // Just create the necessary connections and be done with it
+            if (waitTimeout == TimeSpan.Zero)
+            {
+                Monitor.Exit(mRentLock);
+                rentLockTaken = false;
+
+                // Only one thread is allowed to create connections at the same time
+                await mCreationLock.WaitAsync(ct);
+                try
+                {
+                    int connectionsToCreate = -1;
+
+                    // We need to check again whether or not there are new connections pooled,
+                    // in case there was another thread creating them while we awaited
+                    // for the 'mCreationLock'
+                    Monitor.Enter(mRentLock, ref rentLockTaken);
+                    try
+                    {
+                        result = DequeueNextValidConnection(mPooledConnections);
+                        if (result is not null)
+                        {
+                            mRentedConnections.Add(result.ConnectionId);
+                            return result;
+                        }
+
+                        connectionsToCreate = Math.Max(
+                            mWaitingThreads * 2,
+                            mMinimumPooledConnections) + 1;
+                    }
+                    finally
+                    {
+                        if (rentLockTaken)
+                        {
+                            Monitor.Exit(mRentLock);
+                            rentLockTaken = false;
+                        }
+                    }
+
+                    // There are definitely no pooled connections - we proceed to create them
+                    List<ConnectionToServer> newConnections = new(connectionsToCreate);
+                    for (int i = 0; i < connectionsToCreate; i++)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        newConnections.Add(await mConnectToServer.ConnectAsync(ct));
+                    }
+
+                    Monitor.Enter(mRentLock, ref rentLockTaken);
+                    try
+                    {
+                        for (int i = 0; i < connectionsToCreate - 1; i++)
+                            mPooledConnections.Enqueue(newConnections[i]);
+
+                        result = newConnections[connectionsToCreate - 1];
+                        mRentedConnections.Add(result.ConnectionId);
+
+                        Monitor.PulseAll(mRentLock);
+                    }
+                    finally
+                    {
+                        if (rentLockTaken)
+                        {
+                            Monitor.Exit(mRentLock);
+                            rentLockTaken = false;
+                        }
+                    }
+                }
+                finally
+                {
+                    mCreationLock.Release();
+                }
+
+                return result;
+            }
+
+            // There are no valid connections pooled but the caller is willing
+            // to wait for a rented connection to be returned
             if (mRentedConnections.Count > 0)
             {
                 mWaitingThreads++;
+
                 if (Monitor.Wait(mRentLock, waitTimeout))
                 {
                     result = DequeueNextValidConnection(mPooledConnections);
@@ -89,6 +171,14 @@ public class ConnectionPool
                         return result;
                     }
                 }
+            }
+        }
+        finally
+        {
+            if (rentLockTaken)
+            {
+                Monitor.Exit(mRentLock);
+                rentLockTaken = false;
             }
         }
 
