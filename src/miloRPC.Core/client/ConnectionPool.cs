@@ -305,14 +305,19 @@ public class ConnectionPool
         try
         {
             if (!mRentedConnections.Contains(connection.ConnectionId))
+            {
+                connection.Dispose();
                 return;
+            }
 
             mRentedConnections.Remove(connection.ConnectionId);
             if (!connection.IsConnected())
+            {
+                connection.Dispose();
                 return;
+            }
 
             mPooledConnections.Enqueue(connection);
-
             Monitor.PulseAll(mRentLock);
         }
         finally
