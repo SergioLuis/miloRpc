@@ -370,7 +370,5 @@ public class ConnectionPool
     readonly object mRentLock = new();
     readonly SemaphoreSlim mCreationLock = new(1);
 
-    ulong mCurrentReqId = 0;
-
     readonly ILogger mLog;
 }
