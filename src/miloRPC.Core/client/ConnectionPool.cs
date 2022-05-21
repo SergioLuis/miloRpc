@@ -66,6 +66,7 @@ public class ConnectionPool
     public async Task<ConnectionToServer> RentConnectionAsync(
         TimeSpan waitTimeout, CancellationToken ct)
     {
+        int reqIni = Environment.TickCount;
         ConnectionToServer? result = null;
 
         bool rentLockTaken = false;
@@ -76,6 +77,9 @@ public class ConnectionPool
             if (result is not null)
             {
                 mRentedConnections.Add(result.ConnectionId);
+                mLog.LogTrace(
+                    "Satisfied request in {SatisfyMs} ms (result was pooled)",
+                    Environment.TickCount - reqIni);
                 return result;
             }
 
@@ -103,6 +107,9 @@ public class ConnectionPool
                         if (result is not null)
                         {
                             mRentedConnections.Add(result.ConnectionId);
+                            mLog.LogTrace(
+                                "Satisfied request in {SatisfyMs} ms (result was pooled after some time)",
+                                Environment.TickCount - reqIni);
                             return result;
                         }
 
@@ -129,8 +136,8 @@ public class ConnectionPool
                         newConnections.Add(await mConnectToServer.ConnectAsync(ct));
                     }
 
-                    mLog.LogInformation(
-                        "Created {NewConnNumber} new connections in {NewConnMs}",
+                    mLog.LogTrace(
+                        "Created {NewConnNumber} new connections in {NewConnMs} ms",
                         connectionsToCreate, Environment.TickCount - ini);
 
                     Monitor.Enter(mRentLock, ref rentLockTaken);
@@ -158,6 +165,9 @@ public class ConnectionPool
                     mCreationLock.Release();
                 }
 
+                mLog.LogTrace(
+                    "Satisfied request in {SatisfyMs} ms (result was created by this req)",
+                    Environment.TickCount - reqIni);
                 return result;
             }
 
@@ -197,6 +207,9 @@ public class ConnectionPool
                         {
                             mWaitingThreads--;
                             mRentedConnections.Add(result.ConnectionId);
+                            mLog.LogTrace(
+                                "Satisfied request in {SatisfyMs} ms (result was pooled after some time)",
+                                Environment.TickCount - reqIni);
                             return result;
                         }
                     }
@@ -208,6 +221,9 @@ public class ConnectionPool
                         {
                             mWaitingThreads--;
                             mRentedConnections.Add(result.ConnectionId);
+                            mLog.LogTrace(
+                                "Satisfied request in {SatisfyMs} ms (result was pooled after some time)",
+                                Environment.TickCount - reqIni);
                             return result;
                         }
                     }
@@ -245,6 +261,9 @@ public class ConnectionPool
                 if (result is not null)
                 {
                     mRentedConnections.Add(result.ConnectionId);
+                    mLog.LogTrace(
+                        "Satisfied request in {SatisfyMs} ms (result was pooled after some time)",
+                        Environment.TickCount - reqIni);
                     return result;
                 }
 
@@ -269,7 +288,7 @@ public class ConnectionPool
             }
 
             mLog.LogInformation(
-                "Created {NewConnNumber} new connections in {NewConnMs}",
+                "Created {NewConnNumber} new connections in {NewConnMs} ms",
                 connectionsToCreate, Environment.TickCount - ini);
 
             Monitor.Enter(mRentLock);
@@ -288,6 +307,9 @@ public class ConnectionPool
                 Monitor.Exit(mRentLock);
             }
 
+            mLog.LogTrace(
+                "Satisfied request in {SatisfyMs} ms (result was created by this req)",
+                Environment.TickCount - reqIni);
             return result;
         }
         finally
