@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 
 using Moq;
 using NUnit.Framework;
+using NUnit.Framework.Interfaces;
 
 using miloRPC.Core.Channels;
 using miloRPC.Core.Client;
@@ -225,6 +226,79 @@ public class ConnectionPoolTests
         connectToServerMock.Verify(
             mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
             Times.Exactly(5));
+    }
+
+    [TestCase(0)]
+    [TestCase(200)]
+    public async Task Pool_Creates_Enough_Connections_To_Satisfy_All_Waiting_Threads(
+        int unblockingConnectionWaitTime)
+    {
+        RpcMetrics metrics = new();
+
+        Mock<IConnectToServer> connectToServerMock = new(MockBehavior.Strict);
+        connectToServerMock.Setup(
+                mock => mock.ConnectAsync(
+                    It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => BuildConnectionToServer(metrics));
+
+        ConnectionPool pool = new(connectToServerMock.Object, 1);
+
+        await pool.WarmupPool();
+
+        connectToServerMock.Verify(
+            mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
+            Times.Exactly(1));
+
+        ConnectionToServer _ = await pool.RentConnectionAsync();
+
+        Task<ConnectionToServer> firstBlockedTask = pool.RentConnectionAsync();
+        Task<ConnectionToServer> secondBlockedTask = pool.RentConnectionAsync();
+        Task<ConnectionToServer> thirdBlockedTask = pool.RentConnectionAsync();
+        Task<ConnectionToServer> fourthBlockedTask = pool.RentConnectionAsync();
+        Task<ConnectionToServer> fifthBlockedTask = pool.RentConnectionAsync();
+
+        Assert.That(pool.RentedConnections, Is.EqualTo(1));
+        Assert.That(() => pool.WaitingThreads, Is.EqualTo(5).After(1000, 100));
+
+        ConnectionToServer unblockingConnection =
+            await pool.RentConnectionAsync(
+                TimeSpan.FromMilliseconds(unblockingConnectionWaitTime));
+
+        connectToServerMock.Verify(
+            mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
+            Times.Exactly(
+                1       // First warmup
+                + 5     // One for each request waiting
+                + 1     // One to satisfy the request that triggered connection creation
+                + 1));  // Minimum number of pooled connections
+
+        Assert.That(() => pool.RentedConnections, Is.EqualTo(7).After(1000, 100));
+        Assert.That(pool.WaitingThreads, Is.EqualTo(0));
+
+        Assert.That(firstBlockedTask.IsCompleted, Is.True);
+        Assert.That(secondBlockedTask.IsCompleted, Is.True);
+        Assert.That(thirdBlockedTask.IsCompleted, Is.True);
+        Assert.That(fourthBlockedTask.IsCompleted, Is.True);
+        Assert.That(fifthBlockedTask.IsCompleted, Is.True);
+    }
+
+    [Test, Timeout(2000)]
+    public async Task Client_Does_Not_Starve_If_Pool_Cannot_Satisfy_Request()
+    {
+        RpcMetrics metrics = new();
+
+        Mock<IConnectToServer> connectToServerMock = new(MockBehavior.Strict);
+        connectToServerMock.Setup(
+                mock => mock.ConnectAsync(
+                    It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => BuildConnectionToServer(metrics));
+
+        ConnectionPool pool = new(connectToServerMock.Object, 0);
+
+        ConnectionToServer _ = await pool.RentConnectionAsync();
+
+        Assert.That(pool.PooledConnections, Is.EqualTo(0));
+        Assert.That(pool.RentedConnections, Is.EqualTo(1));
     }
 
     static ConnectionToServer BuildConnectionToServer(RpcMetrics metrics)
