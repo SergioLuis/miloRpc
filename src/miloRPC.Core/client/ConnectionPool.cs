@@ -106,9 +106,9 @@ public class ConnectionPool
                             return result;
                         }
 
-                        connectionsToCreate = Math.Max(
-                            mWaitingThreads * 2,
-                            mMinimumPooledConnections) + 1;
+                        connectionsToCreate = mWaitingThreads
+                            + mMinimumPooledConnections
+                            + 1;
                     }
                     finally
                     {
@@ -229,16 +229,15 @@ public class ConnectionPool
         try
         {
             int waitingThreads;
-
             Monitor.Enter(mRentLock);
             try
             {
+                mWaitingThreads--;
+                if (mWaitingThreads < 0) mWaitingThreads = 0;
+
                 result = DequeueNextValidConnection(mPooledConnections);
                 if (result is not null)
                 {
-                    mWaitingThreads--;
-                    if (mWaitingThreads < 0) mWaitingThreads = 0;
-
                     mRentedConnections.Add(result.ConnectionId);
                     return result;
                 }
@@ -250,9 +249,9 @@ public class ConnectionPool
                 Monitor.Exit(mRentLock);
             }
 
-            int connectionsToCreate = Math.Max(
-                waitingThreads * 2,
-                mMinimumPooledConnections) + 1;
+            int connectionsToCreate = waitingThreads
+                + mMinimumPooledConnections
+                + 1;
 
             List<ConnectionToServer> newConnections = new(connectionsToCreate);
             for (int i = 0; i < connectionsToCreate; i++)
