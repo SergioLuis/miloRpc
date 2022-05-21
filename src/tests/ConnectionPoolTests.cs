@@ -301,6 +301,29 @@ public class ConnectionPoolTests
         Assert.That(pool.RentedConnections, Is.EqualTo(1));
     }
 
+    [Test]
+    public async Task Pool_Disposes_Unknown_Returned_Connections()
+    {
+        RpcMetrics metrics = new();
+
+        Mock<IConnectToServer> connectToServerMock = new(MockBehavior.Strict);
+        connectToServerMock.Setup(
+                mock => mock.ConnectAsync(
+                    It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => BuildConnectionToServer(metrics));
+
+        ConnectionToServer unknownConn =
+            await connectToServerMock.Object.ConnectAsync(CancellationToken.None);
+
+        ConnectionPool pool = new(connectToServerMock.Object, 0);
+
+        Assert.That(unknownConn.IsConnected(), Is.True);
+
+        pool.ReturnConnection(unknownConn);
+
+        Assert.That(unknownConn.IsConnected(), Is.False);
+    }
+
     static ConnectionToServer BuildConnectionToServer(RpcMetrics metrics)
         => new(
             DefaultClientProtocolNegotiation.Instance,
