@@ -121,11 +121,17 @@ public class ConnectionPool
 
                     // There are definitely no pooled connections - we proceed to create them
                     List<ConnectionToServer> newConnections = new(connectionsToCreate);
+                    int ini = Environment.TickCount;
+
                     for (int i = 0; i < connectionsToCreate; i++)
                     {
                         ct.ThrowIfCancellationRequested();
                         newConnections.Add(await mConnectToServer.ConnectAsync(ct));
                     }
+
+                    mLog.LogInformation(
+                        "Created {NewConnNumber} new connections in {NewConnMs}",
+                        connectionsToCreate, Environment.TickCount - ini);
 
                     Monitor.Enter(mRentLock, ref rentLockTaken);
                     try
@@ -254,11 +260,17 @@ public class ConnectionPool
                 + 1;
 
             List<ConnectionToServer> newConnections = new(connectionsToCreate);
+            int ini = Environment.TickCount;
+
             for (int i = 0; i < connectionsToCreate; i++)
             {
                 ct.ThrowIfCancellationRequested();
                 newConnections.Add(await mConnectToServer.ConnectAsync(ct));
             }
+
+            mLog.LogInformation(
+                "Created {NewConnNumber} new connections in {NewConnMs}",
+                connectionsToCreate, Environment.TickCount - ini);
 
             Monitor.Enter(mRentLock);
             try
@@ -335,6 +347,8 @@ public class ConnectionPool
 
     readonly object mRentLock = new();
     readonly SemaphoreSlim mCreationLock = new(1);
+
+    ulong mCurrentReqId = 0;
 
     readonly ILogger mLog;
 }
