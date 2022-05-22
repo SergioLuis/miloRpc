@@ -83,100 +83,12 @@ public class ConnectionPool
                 return result;
             }
 
-            // There are no valid connections pooled and the caller refuses to wait
-            // for a rented connection to be returned.
-            // Just create the necessary connections and be done with it
-            if (waitTimeout == TimeSpan.Zero)
-            {
-                Monitor.Exit(mRentLock);
-                rentLockTaken = false;
-
-                // Only one thread is allowed to create connections at the same time
-                await mCreationLock.WaitAsync(ct);
-                try
-                {
-                    int connectionsToCreate = -1;
-
-                    // We need to check again whether or not there are new connections pooled,
-                    // in case there was another thread creating them while we awaited
-                    // for the 'mCreationLock'
-                    Monitor.Enter(mRentLock, ref rentLockTaken);
-                    try
-                    {
-                        result = DequeueNextValidConnection(mPooledConnections);
-                        if (result is not null)
-                        {
-                            mRentedConnections.Add(result.ConnectionId);
-                            mLog.LogTrace(
-                                "Satisfied request in {SatisfyMs} ms (result was pooled after some time)",
-                                Environment.TickCount - reqIni);
-                            return result;
-                        }
-
-                        connectionsToCreate = mWaitingThreads
-                            + mMinimumPooledConnections
-                            + 1;
-                    }
-                    finally
-                    {
-                        if (rentLockTaken)
-                        {
-                            Monitor.Exit(mRentLock);
-                            rentLockTaken = false;
-                        }
-                    }
-
-                    // There are definitely no pooled connections - we proceed to create them
-                    List<ConnectionToServer> newConnections = new(connectionsToCreate);
-                    int ini = Environment.TickCount;
-
-                    for (int i = 0; i < connectionsToCreate; i++)
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        newConnections.Add(await mConnectToServer.ConnectAsync(ct));
-                    }
-
-                    mLog.LogTrace(
-                        "Created {NewConnNumber} new connections in {NewConnMs} ms",
-                        connectionsToCreate, Environment.TickCount - ini);
-
-                    Monitor.Enter(mRentLock, ref rentLockTaken);
-                    try
-                    {
-                        for (int i = 0; i < connectionsToCreate - 1; i++)
-                            mPooledConnections.Enqueue(newConnections[i]);
-
-                        result = newConnections[connectionsToCreate - 1];
-                        mRentedConnections.Add(result.ConnectionId);
-
-                        Monitor.PulseAll(mRentLock);
-                    }
-                    finally
-                    {
-                        if (rentLockTaken)
-                        {
-                            Monitor.Exit(mRentLock);
-                            rentLockTaken = false;
-                        }
-                    }
-                }
-                finally
-                {
-                    mCreationLock.Release();
-                }
-
-                mLog.LogTrace(
-                    "Satisfied request in {SatisfyMs} ms (result was created by this req)",
-                    Environment.TickCount - reqIni);
-                return result;
-            }
+            mWaitingThreads++;
 
             // There are no valid connections pooled but the caller is willing
             // to wait for a rented connection to be returned
-            if (mRentedConnections.Count > 0)
+            if (mRentedConnections.Count > 0 && waitTimeout != TimeSpan.Zero)
             {
-                mWaitingThreads++;
-
                 bool yielded = false;
 
                 // Don't try to yield if the wait is going to be minimum
