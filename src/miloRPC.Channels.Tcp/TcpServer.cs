@@ -8,9 +8,10 @@ using Microsoft.Extensions.Logging;
 
 using miloRPC.Core.Channels;
 using miloRPC.Core.Extensions;
+using miloRPC.Core.Server;
 using miloRPC.Core.Shared;
 
-namespace miloRPC.Core.Server;
+namespace miloRPC.Channels.Tcp;
 
 public class TcpServer : IServer
 {

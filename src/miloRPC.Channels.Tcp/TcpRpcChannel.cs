@@ -5,9 +5,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
+using miloRPC.Core.Channels;
 using miloRPC.Core.Shared;
 
-namespace miloRPC.Core.Channels;
+namespace miloRPC.Channels.Tcp;
 
 internal class TcpRpcChannel : IRpcChannel
 {

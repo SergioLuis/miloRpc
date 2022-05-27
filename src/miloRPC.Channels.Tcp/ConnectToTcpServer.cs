@@ -4,9 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using miloRPC.Core.Channels;
+using miloRPC.Core.Client;
 using miloRPC.Core.Shared;
 
-namespace miloRPC.Core.Client;
+namespace miloRPC.Channels.Tcp;
 
 public class ConnectToTcpServer : IConnectToServer
 {

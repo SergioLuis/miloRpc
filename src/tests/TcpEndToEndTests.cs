@@ -13,6 +13,7 @@ using NUnit.Framework;
 using miloRPC.Core.Client;
 using miloRPC.Core.Server;
 using miloRPC.Core.Shared;
+using miloRPC.Channels.Tcp;
 using miloRPC.Serialization;
 
 namespace miloRPC.Tests;

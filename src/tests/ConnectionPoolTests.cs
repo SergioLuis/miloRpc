@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 
 using Moq;
 using NUnit.Framework;
-using NUnit.Framework.Interfaces;
 
 using miloRPC.Core.Channels;
 using miloRPC.Core.Client;
@@ -36,6 +35,10 @@ public class ConnectionPoolTests
         connectToServerMock.Verify(
             mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
             Times.Exactly(initialCount));
+
+        Assert.That(pool.PooledConnections, Is.EqualTo(initialCount));
+        Assert.That(pool.RentedConnections, Is.EqualTo(0));
+        Assert.That(pool.WaitingThreads, Is.EqualTo(0));
     }
 
     [Test]
@@ -80,6 +83,10 @@ public class ConnectionPoolTests
         ConnectionToServer secondConnectionRentedAgain = await thirdRentTask;
 
         Assert.That(ReferenceEquals(secondConnection, secondConnectionRentedAgain));
+
+        Assert.That(pool.PooledConnections, Is.EqualTo(0));
+        Assert.That(pool.RentedConnections, Is.EqualTo(2));
+        Assert.That(pool.WaitingThreads, Is.EqualTo(0));
     }
 
     [Test]
@@ -131,6 +138,10 @@ public class ConnectionPoolTests
         ConnectionToServer secondConnectionRentedAgain = await thirdRentTask;
 
         Assert.That(ReferenceEquals(secondConnection, secondConnectionRentedAgain));
+
+        Assert.That(pool.PooledConnections, Is.EqualTo(0));
+        Assert.That(pool.RentedConnections, Is.EqualTo(1));
+        Assert.That(pool.WaitingThreads, Is.EqualTo(0));
     }
 
     [Test]
@@ -184,6 +195,8 @@ public class ConnectionPoolTests
 
         Assert.That(ReferenceEquals(firstConnection, thirdConnection), Is.False);
         Assert.That(ReferenceEquals(secondConnection, thirdConnection), Is.False);
+
+        Assert.That(pool.WaitingThreads, Is.EqualTo(0));
     }
 
     [Test]
@@ -222,6 +235,7 @@ public class ConnectionPoolTests
         // Because there were no waiting threads, it created:
         //   2 (minimum) + 1 (for the request being served)
         Assert.That(pool.PooledConnections, Is.EqualTo(2));
+        Assert.That(pool.WaitingThreads, Is.EqualTo(0));
 
         connectToServerMock.Verify(
             mock => mock.ConnectAsync(It.IsAny<CancellationToken>()),
@@ -280,6 +294,8 @@ public class ConnectionPoolTests
         Assert.That(thirdBlockedTask.IsCompleted, Is.True);
         Assert.That(fourthBlockedTask.IsCompleted, Is.True);
         Assert.That(fifthBlockedTask.IsCompleted, Is.True);
+
+        Assert.That(pool.WaitingThreads, Is.EqualTo(0));
     }
 
     [Test, Timeout(2000)]
@@ -299,6 +315,7 @@ public class ConnectionPoolTests
 
         Assert.That(pool.PooledConnections, Is.EqualTo(0));
         Assert.That(pool.RentedConnections, Is.EqualTo(1));
+        Assert.That(pool.WaitingThreads, Is.EqualTo(0));
     }
 
     [Test]
@@ -322,6 +339,10 @@ public class ConnectionPoolTests
         pool.ReturnConnection(unknownConn);
 
         Assert.That(unknownConn.IsConnected(), Is.False);
+
+        Assert.That(pool.PooledConnections, Is.EqualTo(0));
+        Assert.That(pool.RentedConnections, Is.EqualTo(0));
+        Assert.That(pool.WaitingThreads, Is.EqualTo(0));
     }
 
     static ConnectionToServer BuildConnectionToServer(RpcMetrics metrics)

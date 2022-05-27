@@ -8,6 +8,7 @@ using NUnit.Framework;
 
 using miloRPC.Core.Client;
 using miloRPC.Core.Server;
+using miloRPC.Channels.Tcp;
 
 namespace miloRPC.Tests;
 
