@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tests", "tests\tests.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "miloRPC.Serialization", "miloRPC.Serialization\miloRPC.Serialization.csproj", "{321ECDAC-1EC8-4C6C-B112-A618FB004C92}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "miloRPC.Channels.Tcp", "miloRPC.Channels.Tcp\miloRPC.Channels.Tcp.csproj", "{CBF6E1C0-3D25-4388-A940-5455FFF7C296}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,5 +38,9 @@ Global
 		{321ECDAC-1EC8-4C6C-B112-A618FB004C92}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{321ECDAC-1EC8-4C6C-B112-A618FB004C92}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{321ECDAC-1EC8-4C6C-B112-A618FB004C92}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CBF6E1C0-3D25-4388-A940-5455FFF7C296}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CBF6E1C0-3D25-4388-A940-5455FFF7C296}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CBF6E1C0-3D25-4388-A940-5455FFF7C296}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CBF6E1C0-3D25-4388-A940-5455FFF7C296}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

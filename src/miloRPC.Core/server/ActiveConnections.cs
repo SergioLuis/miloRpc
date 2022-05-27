@@ -53,7 +53,7 @@ public class ActiveConnections
         }
     }
 
-    internal ActiveConnections(
+    public ActiveConnections(
         StubCollection stubCollection,
         INegotiateRpcProtocol negotiateProtocol,
         IReadMethodId readMethodId,
@@ -70,16 +70,16 @@ public class ActiveConnections
         mLog = RpcLoggerFactory.CreateLogger("RunningConnections");
     }
 
-    internal void StartConnectionMonitor(TimeSpan loopWaitTime, CancellationToken ct)
+    public void StartConnectionMonitor(TimeSpan loopWaitTime, CancellationToken ct)
         => mMonitorLoop.Start(loopWaitTime, ct);
 
-    internal async Task StopConnectionMonitorAsync()
+    public async Task StopConnectionMonitorAsync()
         => await mMonitorLoop.StopAsync();
 
     public async Task ForceConnectionRecollectAsync()
         => await mMonitorLoop.FireEarlyAsync();
 
-    internal void LaunchNewConnection(IRpcChannel rpcChannel, CancellationTokenSource cts)
+    public void LaunchNewConnection(IRpcChannel rpcChannel, CancellationTokenSource cts)
     {
         ConnectionFromClient connFromClient = new(
             mStubCollection,

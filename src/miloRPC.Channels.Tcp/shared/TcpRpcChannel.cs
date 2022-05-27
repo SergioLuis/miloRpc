@@ -19,13 +19,13 @@ internal class TcpRpcChannel : IRpcChannel
         mSocket = socket;
         mMeteredStream = new MeteredStream(new NetworkStream(mSocket));
         mRemoteEndPoint = (IPEndPoint)mSocket.RemoteEndPoint!;
-        mLog = RpcLoggerFactory.CreateLogger("RpcSocket");
+        mLog = RpcLoggerFactory.CreateLogger("TcpRpcChannel");
 
         ct.Register(() =>
         {
-            mLog.LogTrace("Cancellation requested, closing RpcSocket");
+            mLog.LogTrace("Cancellation requested, closing TcpRpcChannel");
             Dispose();
-            mLog.LogTrace("RpcSocket closed");
+            mLog.LogTrace("TcpRpcChannel closed");
         });
     }
 
@@ -50,7 +50,7 @@ internal class TcpRpcChannel : IRpcChannel
 
     void Close()
     {
-        lock (this)
+        lock (mCloseSyncLock)
         {
             if (mDisposed)
                 return;
@@ -62,7 +62,7 @@ internal class TcpRpcChannel : IRpcChannel
             }
             catch (Exception ex)
             {
-                mLog.LogError("There was an error closing RpcSocket: {ExMessage}", ex.Message);
+                mLog.LogError("There was an error closing TcpRpcChannel: {ExMessage}", ex.Message);
                 mLog.LogDebug("StackTrace: {ExStackTrace}", ex.StackTrace);
             }
             finally
@@ -77,4 +77,6 @@ internal class TcpRpcChannel : IRpcChannel
     readonly MeteredStream mMeteredStream;
     readonly IPEndPoint mRemoteEndPoint;
     readonly ILogger mLog;
+
+    readonly object mCloseSyncLock = new();
 }

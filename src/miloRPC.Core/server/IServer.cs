@@ -10,7 +10,7 @@ public class AcceptLoopStartEventArgs
     public int LaunchCount { get; }
     public bool CancelRequested { get; set; }
 
-    internal AcceptLoopStartEventArgs(int launchCount)
+    public AcceptLoopStartEventArgs(int launchCount)
     {
         LaunchCount = launchCount;
         CancelRequested = false;
@@ -21,7 +21,7 @@ public class AcceptLoopStopEventArgs
 {
     public int LaunchCount { get; }
 
-    internal AcceptLoopStopEventArgs(int launchCount)
+    public AcceptLoopStopEventArgs(int launchCount)
     {
         LaunchCount = launchCount;
     }
@@ -32,7 +32,7 @@ public class ConnectionAcceptEventArgs
     public EndPoint? EndPoint { get; }
     public bool CancelRequested { get; set; }
 
-    internal ConnectionAcceptEventArgs(EndPoint? endPoint)
+    public ConnectionAcceptEventArgs(EndPoint? endPoint)
     {
         EndPoint = endPoint;
     }

@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\miloRPC.Core\miloRPC.Core.csproj" />
+    <ProjectReference Include="..\miloRPC.Channels.Tcp\miloRPC.Channels.Tcp.csproj" />
     <ProjectReference Include="..\miloRPC.Serialization\miloRPC.Serialization.csproj" />
   </ItemGroup>
 
