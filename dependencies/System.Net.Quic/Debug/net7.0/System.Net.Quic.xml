@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>System.Net.Quic</name>
+    </assembly>
+    <members>
+        <member name="P:System.SR.net_quic_addressfamily_notsupported">
+            <summary>Only IPv4 or IPv6 are supported</summary>
+        </member>
+        <member name="P:System.SR.net_quic_connectionaborted">
+            <summary>Connection aborted by peer ({0}).</summary>
+        </member>
+        <member name="P:System.SR.net_quic_operationaborted">
+            <summary>Operation aborted.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_reading_notallowed">
+            <summary>Reading is not allowed on stream.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_sending_aborted">
+            <summary>Sending has already been aborted on the stream</summary>
+        </member>
+        <member name="P:System.SR.net_quic_streamaborted">
+            <summary>Stream aborted by peer ({0}).</summary>
+        </member>
+        <member name="P:System.SR.SystemNetQuic_PlatformNotSupported">
+            <summary>System.Net.Quic is not supported on this platform.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_unsupported_address_family">
+            <summary>Unsupported address family of '{0}' for remote endpoint.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_writing_notallowed">
+            <summary>Writing is not allowed on stream.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_timeout_use_gt_zero">
+            <summary>Timeout can only be set to 'System.Threading.Timeout.Infinite' or a value &gt; 0.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_timeout">
+            <summary>Connection timed out.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_ssl_option">
+            <summary>'{0}' is not supported by System.Net.Quic.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_cert_custom_validation">
+            <summary>The remote certificate was rejected by the provided RemoteCertificateValidationCallback.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_cert_chain_validation">
+            <summary>The remote certificate is invalid because of errors in the certificate chain: {0}</summary>
+        </member>
+        <member name="P:System.SR.net_quic_not_connected">
+            <summary>Connection is not connected.</summary>
+        </member>
+        <member name="P:System.SR.net_ssl_app_protocols_invalid">
+            <summary>The application protocol list is invalid.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_tls_version_notsupported">
+            <summary>Could not use a TLS version required by Quic. TLS 1.3 may have been disabled in the registry.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_empty_cipher_suite">
+            <summary>CipherSuitePolicy must specify at least one cipher supported by QUIC.</summary>
+        </member>
+        <member name="P:System.SR.net_InvalidAddressFamily">
+            <summary>The AddressFamily {0} is not valid for the {1} end point, use {2} instead.</summary>
+        </member>
+        <member name="P:System.SR.net_InvalidSocketAddressSize">
+            <summary>The supplied {0} is an invalid size for the {1} end point.</summary>
+        </member>
+    </members>
+</doc>

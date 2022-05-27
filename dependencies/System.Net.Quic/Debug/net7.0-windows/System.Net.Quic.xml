@@ -1,0 +1,421 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>System.Net.Quic</name>
+    </assembly>
+    <members>
+        <member name="T:System.Net.NetEventSource">
+            <summary>Provides logging facilities for System.Net libraries.</summary>
+        </member>
+        <member name="F:System.Net.NetEventSource.Log">
+            <summary>The single event source instance to use for all logging.</summary>
+        </member>
+        <member name="M:System.Net.NetEventSource.Info(System.Object,System.FormattableString,System.String)">
+            <summary>Logs an information message.</summary>
+            <param name="thisOrContextObject">`this`, or another object that serves to provide context for the operation.</param>
+            <param name="formattableString">The message to be logged.</param>
+            <param name="memberName">The calling member.</param>
+        </member>
+        <member name="M:System.Net.NetEventSource.Info(System.Object,System.Object,System.String)">
+            <summary>Logs an information message.</summary>
+            <param name="thisOrContextObject">`this`, or another object that serves to provide context for the operation.</param>
+            <param name="message">The message to be logged.</param>
+            <param name="memberName">The calling member.</param>
+        </member>
+        <member name="M:System.Net.NetEventSource.Error(System.Object,System.FormattableString,System.String)">
+            <summary>Logs an error message.</summary>
+            <param name="thisOrContextObject">`this`, or another object that serves to provide context for the operation.</param>
+            <param name="formattableString">The message to be logged.</param>
+            <param name="memberName">The calling member.</param>
+        </member>
+        <member name="M:System.Net.NetEventSource.Error(System.Object,System.Object,System.String)">
+            <summary>Logs an error message.</summary>
+            <param name="thisOrContextObject">`this`, or another object that serves to provide context for the operation.</param>
+            <param name="message">The message to be logged.</param>
+            <param name="memberName">The calling member.</param>
+        </member>
+        <member name="M:System.Net.NetEventSource.Verbose(System.Object,System.FormattableString,System.String)">
+            <summary>Logs an info message at verbose mode.</summary>
+            <param name="thisOrContextObject">`this`, or another object that serves to provide context for the operation.</param>
+            <param name="formattableString">The message to be logged.</param>
+            <param name="memberName">The calling member.</param>
+        </member>
+        <member name="M:System.Net.NetEventSource.Verbose(System.Object,System.Object,System.String)">
+            <summary>Logs an info at verbose mode.</summary>
+            <param name="thisOrContextObject">`this`, or another object that serves to provide context for the operation.</param>
+            <param name="message">The message to be logged.</param>
+            <param name="memberName">The calling member.</param>
+        </member>
+        <member name="M:System.Net.NetEventSource.DumpBuffer(System.Object,System.Byte[],System.String)">
+            <summary>Logs the contents of a buffer.</summary>
+            <param name="thisOrContextObject">`this`, or another object that serves to provide context for the operation.</param>
+            <param name="buffer">The buffer to be logged.</param>
+            <param name="memberName">The calling member.</param>
+        </member>
+        <member name="M:System.Net.NetEventSource.DumpBuffer(System.Object,System.Byte[],System.Int32,System.Int32,System.String)">
+            <summary>Logs the contents of a buffer.</summary>
+            <param name="thisOrContextObject">`this`, or another object that serves to provide context for the operation.</param>
+            <param name="buffer">The buffer to be logged.</param>
+            <param name="offset">The starting offset from which to log.</param>
+            <param name="count">The number of bytes to log.</param>
+            <param name="memberName">The calling member.</param>
+        </member>
+        <member name="M:System.Net.NetEventSource.DumpBuffer(System.Object,System.IntPtr,System.Int32,System.String)">
+            <summary>Logs the contents of a buffer.</summary>
+            <param name="thisOrContextObject">`this`, or another object that serves to provide context for the operation.</param>
+            <param name="bufferPtr">The starting location of the buffer to be logged.</param>
+            <param name="count">The number of bytes to log.</param>
+            <param name="memberName">The calling member.</param>
+        </member>
+        <member name="M:System.Net.NetEventSource.Associate(System.Object,System.Object,System.String)">
+            <summary>Logs a relationship between two objects.</summary>
+            <param name="first">The first object.</param>
+            <param name="second">The second object.</param>
+            <param name="memberName">The calling member.</param>
+        </member>
+        <member name="M:System.Net.NetEventSource.Associate(System.Object,System.Object,System.Object,System.String)">
+            <summary>Logs a relationship between two objects.</summary>
+            <param name="thisOrContextObject">`this`, or another object that serves to provide context for the operation.</param>
+            <param name="first">The first object.</param>
+            <param name="second">The second object.</param>
+            <param name="memberName">The calling member.</param>
+        </member>
+        <member name="T:System.Net.Quic.QuicClientConnectionOptions">
+            <summary>
+            Options to provide to the <see cref="T:System.Net.Quic.QuicConnection"/> when connecting to a Listener.
+            </summary>
+        </member>
+        <member name="P:System.Net.Quic.QuicClientConnectionOptions.ClientAuthenticationOptions">
+            <summary>
+            Client authentication options to use when establishing a <see cref="T:System.Net.Quic.QuicConnection"/>.
+            </summary>
+        </member>
+        <member name="P:System.Net.Quic.QuicClientConnectionOptions.LocalEndPoint">
+            <summary>
+            The local endpoint that will be bound to.
+            </summary>
+        </member>
+        <member name="P:System.Net.Quic.QuicClientConnectionOptions.RemoteEndPoint">
+            <summary>
+            The endpoint to connect to.
+            </summary>
+        </member>
+        <member name="M:System.Net.Quic.QuicConnection.#ctor(System.Net.EndPoint,System.Net.Security.SslClientAuthenticationOptions,System.Net.IPEndPoint)">
+            <summary>
+            Create an outbound QUIC connection.
+            </summary>
+            <param name="remoteEndPoint">The remote endpoint to connect to.</param>
+            <param name="sslClientAuthenticationOptions">TLS options</param>
+            <param name="localEndPoint">The local endpoint to connect from.</param>
+        </member>
+        <member name="M:System.Net.Quic.QuicConnection.#ctor(System.Net.Quic.QuicClientConnectionOptions)">
+            <summary>
+            Create an outbound QUIC connection.
+            </summary>
+            <param name="options">The connection options.</param>
+        </member>
+        <member name="P:System.Net.Quic.QuicConnection.Connected">
+            <summary>
+            Indicates whether the QuicConnection is connected.
+            </summary>
+        </member>
+        <member name="M:System.Net.Quic.QuicConnection.ConnectAsync(System.Threading.CancellationToken)">
+            <summary>
+            Connect to the remote endpoint.
+            </summary>
+            <param name="cancellationToken"></param>
+            <returns></returns>
+        </member>
+        <member name="M:System.Net.Quic.QuicConnection.WaitForAvailableUnidirectionalStreamsAsync(System.Threading.CancellationToken)">
+            <summary>
+            Waits for available unidirectional stream capacity to be announced by the peer. If any capacity is available, returns immediately.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:System.Net.Quic.QuicConnection.WaitForAvailableBidirectionalStreamsAsync(System.Threading.CancellationToken)">
+            <summary>
+            Waits for available bidirectional stream capacity to be announced by the peer. If any capacity is available, returns immediately.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:System.Net.Quic.QuicConnection.OpenUnidirectionalStream">
+            <summary>
+            Create an outbound unidirectional stream.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:System.Net.Quic.QuicConnection.OpenBidirectionalStream">
+            <summary>
+            Create an outbound bidirectional stream.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:System.Net.Quic.QuicConnection.AcceptStreamAsync(System.Threading.CancellationToken)">
+            <summary>
+            Accept an incoming stream.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:System.Net.Quic.QuicConnection.CloseAsync(System.Int64,System.Threading.CancellationToken)">
+            <summary>
+            Close the connection and terminate any active streams.
+            </summary>
+        </member>
+        <member name="M:System.Net.Quic.QuicConnection.GetRemoteAvailableUnidirectionalStreamCount">
+            <summary>
+            Gets the maximum number of bidirectional streams that can be made to the peer.
+            </summary>
+        </member>
+        <member name="M:System.Net.Quic.QuicConnection.GetRemoteAvailableBidirectionalStreamCount">
+            <summary>
+            Gets the maximum number of unidirectional streams that can be made to the peer.
+            </summary>
+        </member>
+        <member name="M:System.Net.Quic.QuicListener.#ctor(System.Net.IPEndPoint,System.Net.Security.SslServerAuthenticationOptions)">
+            <summary>
+            Create a QUIC listener.
+            </summary>
+            <param name="listenEndPoint">The local endpoint to listen on.</param>
+            <param name="sslServerAuthenticationOptions">TLS options for the listener.</param>
+        </member>
+        <member name="M:System.Net.Quic.QuicListener.#ctor(System.Net.Quic.QuicListenerOptions)">
+            <summary>
+            Create a QUIC listener.
+            </summary>
+            <param name="options">The listener options.</param>
+        </member>
+        <member name="M:System.Net.Quic.QuicListener.AcceptConnectionAsync(System.Threading.CancellationToken)">
+            <summary>
+            Accept a connection.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:System.Net.Quic.QuicListenerOptions">
+            <summary>
+            Options to provide to the <see cref="T:System.Net.Quic.QuicListener"/>.
+            </summary>
+        </member>
+        <member name="P:System.Net.Quic.QuicListenerOptions.ServerAuthenticationOptions">
+            <summary>
+            Server Ssl options to use for ALPN, SNI, etc.
+            </summary>
+        </member>
+        <member name="P:System.Net.Quic.QuicListenerOptions.ListenEndPoint">
+            <summary>
+            The endpoint to listen on.
+            </summary>
+        </member>
+        <member name="P:System.Net.Quic.QuicListenerOptions.ListenBacklog">
+            <summary>
+            Number of connections to be held without accepting the connection.
+            </summary>
+        </member>
+        <member name="T:System.Net.Quic.QuicOptions">
+            <summary>
+            Options for QUIC
+            </summary>
+        </member>
+        <member name="P:System.Net.Quic.QuicOptions.MaxBidirectionalStreams">
+            <summary>
+            Limit on the number of bidirectional streams the remote peer connection can create on an open connection.
+            Default is 100.
+            </summary>
+        </member>
+        <member name="P:System.Net.Quic.QuicOptions.MaxUnidirectionalStreams">
+            <summary>
+            Limit on the number of unidirectional streams the remote peer connection can create on an open connection.
+            Default is 100.
+            </summary>
+        </member>
+        <member name="P:System.Net.Quic.QuicOptions.IdleTimeout">
+            <summary>
+            Idle timeout for connections, after which the connection will be closed.
+            </summary>
+        </member>
+        <member name="P:System.Net.Quic.QuicStream.StreamId">
+            <summary>
+            QUIC stream ID.
+            </summary>
+        </member>
+        <member name="M:System.Net.Quic.Implementations.MsQuic.MsQuicStream.CopyMsQuicBuffersToUserBuffer(System.ReadOnlySpan{System.Net.Quic.Implementations.MsQuic.Internal.MsQuicNativeMethods.QuicBuffer},System.Span{System.Byte})">
+            <returns>The number of bytes copied.</returns>
+        </member>
+        <member name="M:System.Net.Quic.Implementations.MsQuic.MsQuicStream.NativeCallbackHandler(System.IntPtr,System.IntPtr,System.Net.Quic.Implementations.MsQuic.Internal.MsQuicNativeMethods.StreamEvent*)">
+            <summary>
+            Callback calls for a single instance of a stream are serialized by msquic.
+            They happen on a msquic thread and shouldn't take too long to not to block msquic.
+            </summary>
+        </member>
+        <member name="F:System.Net.Quic.Implementations.MsQuic.MsQuicStream.ReadState.None">
+            <summary>
+            The stream is open, but there is no data available.
+            </summary>
+        </member>
+        <member name="F:System.Net.Quic.Implementations.MsQuic.MsQuicStream.ReadState.IndividualReadComplete">
+            <summary>
+            Data is available in <see cref="F:System.Net.Quic.Implementations.MsQuic.MsQuicStream.State.ReceiveQuicBuffers"/>.
+            </summary>
+        </member>
+        <member name="F:System.Net.Quic.Implementations.MsQuic.MsQuicStream.ReadState.PendingRead">
+            <summary>
+            User called ReadAsync()
+            </summary>
+        </member>
+        <member name="F:System.Net.Quic.Implementations.MsQuic.MsQuicStream.ReadState.ReadsCompleted">
+            <summary>
+            The peer has gracefully shutdown their sends / our receives; the stream's reads are complete.
+            </summary>
+        </member>
+        <member name="F:System.Net.Quic.Implementations.MsQuic.MsQuicStream.ReadState.Aborted">
+            <summary>
+            User has aborted the stream, either via a cancellation token on ReadAsync(), or via AbortRead().
+            </summary>
+        </member>
+        <member name="F:System.Net.Quic.Implementations.MsQuic.MsQuicStream.ReadState.ConnectionClosed">
+            <summary>
+            Connection was closed, either by user or by the peer.
+            </summary>
+        </member>
+        <member name="F:System.Net.Quic.Implementations.MsQuic.MsQuicStream.ReadState.Closed">
+            <summary>
+            Stream is closed for reading.
+            </summary>
+        </member>
+        <member name="T:System.Net.Quic.Implementations.MsQuic.Internal.ResettableCompletionSource`1">
+            <summary>
+            A resettable completion source which can be completed multiple times.
+            Used to make methods async between completed events and their associated async method.
+            </summary>
+        </member>
+        <member name="T:System.Net.Quic.Implementations.MsQuic.Internal.MsQuicNativeMethods">
+            <summary>
+            Contains all native delegates and structs that are used with MsQuic.
+            </summary>
+        </member>
+        <member name="T:System.Threading.Tasks.TaskToApm">
+            <summary>
+            Provides support for efficiently using Tasks to implement the APM (Begin/End) pattern.
+            </summary>
+        </member>
+        <member name="M:System.Threading.Tasks.TaskToApm.Begin(System.Threading.Tasks.Task,System.AsyncCallback,System.Object)">
+            <summary>
+            Marshals the Task as an IAsyncResult, using the supplied callback and state
+            to implement the APM pattern.
+            </summary>
+            <param name="task">The Task to be marshaled.</param>
+            <param name="callback">The callback to be invoked upon completion.</param>
+            <param name="state">The state to be stored in the IAsyncResult.</param>
+            <returns>An IAsyncResult to represent the task's asynchronous operation.</returns>
+        </member>
+        <member name="M:System.Threading.Tasks.TaskToApm.End(System.IAsyncResult)">
+            <summary>Processes an IAsyncResult returned by Begin.</summary>
+            <param name="asyncResult">The IAsyncResult to unwrap.</param>
+        </member>
+        <member name="M:System.Threading.Tasks.TaskToApm.End``1(System.IAsyncResult)">
+            <summary>Processes an IAsyncResult returned by Begin.</summary>
+            <param name="asyncResult">The IAsyncResult to unwrap.</param>
+        </member>
+        <member name="M:System.Threading.Tasks.TaskToApm.GetTask(System.IAsyncResult)">
+            <summary>Gets the task represented by the IAsyncResult.</summary>
+        </member>
+        <member name="M:System.Threading.Tasks.TaskToApm.ThrowArgumentException(System.IAsyncResult)">
+            <summary>Throws an argument exception for the invalid <paramref name="asyncResult"/>.</summary>
+        </member>
+        <member name="T:System.Threading.Tasks.TaskToApm.TaskAsyncResult">
+            <summary>Provides a simple IAsyncResult that wraps a Task.</summary>
+            <remarks>
+            We could use the Task as the IAsyncResult if the Task's AsyncState is the same as the object state,
+            but that's very rare, in particular in a situation where someone cares about allocation, and always
+            using TaskAsyncResult simplifies things and enables additional optimizations.
+            </remarks>
+        </member>
+        <member name="F:System.Threading.Tasks.TaskToApm.TaskAsyncResult._task">
+            <summary>The wrapped Task.</summary>
+        </member>
+        <member name="F:System.Threading.Tasks.TaskToApm.TaskAsyncResult._callback">
+            <summary>Callback to invoke when the wrapped task completes.</summary>
+        </member>
+        <member name="M:System.Threading.Tasks.TaskToApm.TaskAsyncResult.#ctor(System.Threading.Tasks.Task,System.Object,System.AsyncCallback)">
+            <summary>Initializes the IAsyncResult with the Task to wrap and the associated object state.</summary>
+            <param name="task">The Task to wrap.</param>
+            <param name="state">The new AsyncState value.</param>
+            <param name="callback">Callback to invoke when the wrapped task completes.</param>
+        </member>
+        <member name="M:System.Threading.Tasks.TaskToApm.TaskAsyncResult.InvokeCallback">
+            <summary>Invokes the callback.</summary>
+        </member>
+        <member name="P:System.Threading.Tasks.TaskToApm.TaskAsyncResult.AsyncState">
+            <summary>Gets a user-defined object that qualifies or contains information about an asynchronous operation.</summary>
+        </member>
+        <member name="P:System.Threading.Tasks.TaskToApm.TaskAsyncResult.CompletedSynchronously">
+            <summary>Gets a value that indicates whether the asynchronous operation completed synchronously.</summary>
+            <remarks>This is set lazily based on whether the <see cref="F:System.Threading.Tasks.TaskToApm.TaskAsyncResult._task"/> has completed by the time this object is created.</remarks>
+        </member>
+        <member name="P:System.Threading.Tasks.TaskToApm.TaskAsyncResult.IsCompleted">
+            <summary>Gets a value that indicates whether the asynchronous operation has completed.</summary>
+        </member>
+        <member name="P:System.Threading.Tasks.TaskToApm.TaskAsyncResult.AsyncWaitHandle">
+            <summary>Gets a <see cref="T:System.Threading.WaitHandle"/> that is used to wait for an asynchronous operation to complete.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_addressfamily_notsupported">
+            <summary>Only IPv4 or IPv6 are supported</summary>
+        </member>
+        <member name="P:System.SR.net_quic_connectionaborted">
+            <summary>Connection aborted by peer ({0}).</summary>
+        </member>
+        <member name="P:System.SR.net_quic_operationaborted">
+            <summary>Operation aborted.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_reading_notallowed">
+            <summary>Reading is not allowed on stream.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_sending_aborted">
+            <summary>Sending has already been aborted on the stream</summary>
+        </member>
+        <member name="P:System.SR.net_quic_streamaborted">
+            <summary>Stream aborted by peer ({0}).</summary>
+        </member>
+        <member name="P:System.SR.SystemNetQuic_PlatformNotSupported">
+            <summary>System.Net.Quic is not supported on this platform.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_unsupported_address_family">
+            <summary>Unsupported address family of '{0}' for remote endpoint.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_writing_notallowed">
+            <summary>Writing is not allowed on stream.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_timeout_use_gt_zero">
+            <summary>Timeout can only be set to 'System.Threading.Timeout.Infinite' or a value &gt; 0.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_timeout">
+            <summary>Connection timed out.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_ssl_option">
+            <summary>'{0}' is not supported by System.Net.Quic.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_cert_custom_validation">
+            <summary>The remote certificate was rejected by the provided RemoteCertificateValidationCallback.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_cert_chain_validation">
+            <summary>The remote certificate is invalid because of errors in the certificate chain: {0}</summary>
+        </member>
+        <member name="P:System.SR.net_quic_not_connected">
+            <summary>Connection is not connected.</summary>
+        </member>
+        <member name="P:System.SR.net_ssl_app_protocols_invalid">
+            <summary>The application protocol list is invalid.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_tls_version_notsupported">
+            <summary>Could not use a TLS version required by Quic. TLS 1.3 may have been disabled in the registry.</summary>
+        </member>
+        <member name="P:System.SR.net_quic_empty_cipher_suite">
+            <summary>CipherSuitePolicy must specify at least one cipher supported by QUIC.</summary>
+        </member>
+        <member name="P:System.SR.net_InvalidAddressFamily">
+            <summary>The AddressFamily {0} is not valid for the {1} end point, use {2} instead.</summary>
+        </member>
+        <member name="P:System.SR.net_InvalidSocketAddressSize">
+            <summary>The supplied {0} is an invalid size for the {1} end point.</summary>
+        </member>
+    </members>
+</doc>
