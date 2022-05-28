@@ -1,5 +1,5 @@
 ﻿using System;
-using System.IO;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -8,8 +8,13 @@ using NLog.Config;
 using NLog.Targets;
 using NLog.Extensions.Logging;
 
-using miloRPC.Core.Channels;
+using miloRPC.Channels.Tcp;
+using miloRPC.Core.Client;
+using miloRPC.Core.Server;
 using miloRPC.Core.Shared;
+using miloRPC.Examples.Client;
+using miloRPC.Examples.Server;
+using miloRPC.Examples.Shared;
 
 namespace miloRPC.Examples;
 
@@ -18,21 +23,32 @@ static class Program
     static async Task<int> Main(string[] args)
     {
         ConfigureLogging();
+        ExampleSerializers.RegisterSerializers();
 
-        string directory = Path.GetTempPath();
-        string prefix = string.Concat(Guid.NewGuid().ToString()[..8], '_');
         CancellationTokenSource cts = new();
 
-        Task serverTask = RunServer.Run(directory, prefix, cts.Token);
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            cts.Cancel();
+        };
+
+        Console.WriteLine("Press CTRL + C to exit");
+        await Task.Delay(3000, cts.Token);
+
+        IPEndPoint ipEndPoint = new(IPAddress.Loopback, 9876);
+
+        Task serverTask = RunServer.Run(ipEndPoint, cts.Token);
         await Task.Delay(3 * 1000, cts.Token); // Wait for the server to listen to requests
 
-        Task client1Task = RunClient.Run(directory, prefix, cts.Token);
-        Task client2Task = RunClient.Run(directory, prefix, cts.Token);
-        Task client3Task = RunClient.Run(directory, prefix, cts.Token);
+        ConnectionPool pool = new(new ConnectToTcpServer(ipEndPoint));
+
+        Task client1Task = RunClient.Run(pool, cts.Token);
+        Task client2Task = RunClient.Run(pool, cts.Token);
+        Task client3Task = RunClient.Run(pool, cts.Token);
 
         await Task.WhenAll(client1Task, client2Task, client3Task);
 
-        cts.Cancel();
         await serverTask;
 
         return 0;
@@ -43,17 +59,15 @@ static class Program
         var config = new LoggingConfiguration();
 
         var consoleTarget = new ColoredConsoleTarget();
-        consoleTarget.Layout = NLOG_LAYOUT;
+        consoleTarget.Layout = NLogLayout;
 
         var fileTarget = new FileTarget();
-        fileTarget.Layout = NLOG_LAYOUT;
-        fileTarget.FileName = NLOG_FILE;
+        fileTarget.Layout = NLogLayout;
+        fileTarget.FileName = NLogFile;
         fileTarget.KeepFileOpen = true;
 
-        var consoleLoggingRule =
-            new LoggingRule("*", LogLevel.Trace, consoleTarget);
-        var fileLoggingRule =
-            new LoggingRule("*", LogLevel.Trace, fileTarget);
+        LoggingRule consoleLoggingRule = new("*", LogLevel.Trace, consoleTarget);
+        LoggingRule fileLoggingRule = new("*", LogLevel.Trace, fileTarget);
 
         config.AddTarget("console", consoleTarget);
         config.AddTarget("file", fileTarget);
@@ -65,48 +79,38 @@ static class Program
         RpcLoggerFactory.RegisterLoggerFactory(new NLogLoggerFactory());
     }
 
-    const string NLOG_FILE = "${basedir}/example.log.txt";
-    const string NLOG_LAYOUT = @"${date:format=HH\:mm\:ss.fff} ${logger} - ${message}";
+    const string NLogFile = "${basedir}/example.log.txt";
+    const string NLogLayout = @"${date:format=HH\:mm\:ss.fff} ${logger} - ${message}";
 
     static class RunClient
     {
-        public static async Task<bool> Run(
-            string directory, string prefix, CancellationToken ct)
+        public static async Task<bool> Run(ConnectionPool connPool, CancellationToken ct)
         {
-            Random random = new Random(Environment.TickCount);
-
-            AnonymousPipeClient client = new(directory, prefix);
-            await client.Start();
             try
             {
-                while (true)
+                IEchoService echoService = new EchoServiceProxy(connPool);
+                while (!ct.IsCancellationRequested)
                 {
-                    IRpcChannel channel = await client.ConnectAsync(ct);
-                    try
-                    {
-                        BinaryReader reader = new(channel.Stream);
-                        BinaryWriter writer = new(channel.Stream);
+                    string reqValue = Guid.NewGuid().ToString();
+                    DateTime reqDate = DateTime.UtcNow;
 
-                        int toWrite = random.Next();
-                        writer.Write(toWrite);
+                    EchoResult result = await echoService.EchoAsync(reqValue, ct);
 
-                        int read = reader.ReadInt32();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.Message);
-                        Console.WriteLine(ex.StackTrace);
-                    }
-                    finally
-                    {
-                        channel.Dispose();
-                    }
+                    Console.WriteLine(
+                        $"{result.ReceptionDateUtc - reqDate}: {reqValue == result.ReceivedMessage}");
+
+                    await Task.Delay(100);
                 }
+
+                return true;
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine(ex.Message);
-                Console.Error.WriteLine(ex.StackTrace);
+                if (ex is OperationCanceledException)
+                    return true;
+
+                await Console.Error.WriteLineAsync(ex.Message);
+                await Console.Error.WriteLineAsync(ex.StackTrace);
                 return false;
             }
         }
@@ -114,47 +118,21 @@ static class Program
 
     static class RunServer
     {
-        public static async Task<bool> Run(
-            string directory, string prefix, CancellationToken ct)
+        public static async Task<bool> Run(IPEndPoint bindEndpoint, CancellationToken ct)
         {
-            AnonymousPipeListener.PoolSettings poolSettings = new()
-            {
-                LowerLimit = 10,
-                GrowthRate = 10
-            };
+            StubCollection stubs = new(new EchoServiceStub(new EchoService()));
+            IServer server = new TcpServer(bindEndpoint, stubs);
 
-            AnonymousPipeListener listener = new(directory, prefix, poolSettings);
-            await listener.Start();
+            Task serverTask = server.ListenAsync(ct);
             try
             {
-                while (true)
-                {
-                    IRpcChannel channel = await listener.AcceptPipeAsync(ct);
-                    try
-                    {
-                        BinaryReader reader = new(channel.Stream);
-                        BinaryWriter writer = new(channel.Stream);
-
-                        int read = reader.ReadInt32();
-                        writer.Write(read);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.Message);
-                        Console.WriteLine(ex.StackTrace);
-                    }
-                    finally
-                    {
-                        channel.Dispose();
-                    }
-                }
-
+                await serverTask;
                 return true;
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine(ex.Message);
-                Console.Error.WriteLine(ex.StackTrace);
+                await Console.Error.WriteLineAsync(ex.Message);
+                await Console.Error.WriteLineAsync(ex.StackTrace);
                 return false;
             }
         }
