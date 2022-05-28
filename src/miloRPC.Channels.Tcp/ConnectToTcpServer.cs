@@ -3,7 +3,6 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-using miloRPC.Core.Channels;
 using miloRPC.Core.Client;
 using miloRPC.Core.Shared;
 

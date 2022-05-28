@@ -18,23 +18,13 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         RpcCapabilities optionalCapabilities) : this(
             mandatoryCapabilities,
             optionalCapabilities,
-            ArrayPool<byte>.Shared,
-            null) { }
-
-    public DefaultClientProtocolNegotiation(
-        RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities,
-        ArrayPool<byte> arrayPool) : this(
-            mandatoryCapabilities,
-            optionalCapabilities,
-            arrayPool,
-            null) { }
+            ArrayPool<byte>.Shared) { }
 
     public DefaultClientProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
         RpcCapabilities optionalCapabilities,
         ArrayPool<byte> arrayPool,
-        Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? validateServerCertificate)
+        Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? validateServerCertificate = null)
     {
         mMandatoryCapabilities = mandatoryCapabilities;
         mOptionalCapabilities = optionalCapabilities;
@@ -49,6 +39,8 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         IPEndPoint remoteEndpoint,
         Stream baseStream)
     {
+        mLog.LogDebug("Negotiating protocol for connection {ConnId}", connId);
+
         BinaryReader tempReader = new(baseStream);
         BinaryWriter tempWriter = new(baseStream);
 
@@ -79,6 +71,8 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         BinaryWriter tempWriter)
     {
         Stream resultStream = baseStream;
+        BinaryReader resultReader = tempReader;
+        BinaryWriter resultWriter = tempWriter;
 
         tempWriter.Write((byte)mMandatoryCapabilities);
         tempWriter.Write((byte)mOptionalCapabilities);
@@ -111,12 +105,16 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
             SslStream sslStream = new(resultStream, leaveInnerStreamOpen: false, validationCallback);
             await sslStream.AuthenticateAsClientAsync(remoteEndPoint.ToString());
             resultStream = sslStream;
+            resultReader = new BinaryReader(resultStream);
+            resultWriter = new BinaryWriter(resultStream);
         }
 
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
         {
             RpcBrotliStream brotliStream = new(resultStream, mArrayPool);
             resultStream = brotliStream;
+            resultReader = new BinaryReader(resultStream);
+            resultWriter = new BinaryWriter(resultStream);
         }
 
         mLog.LogInformation(
@@ -125,8 +123,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
             connId,
             negotiationResult.OptionalMissingCapabilities);
 
-        return new RpcProtocolNegotiationResult(
-            resultStream, tempReader, tempWriter);
+        return new RpcProtocolNegotiationResult(resultStream, resultReader, resultWriter);
     }
 
     readonly RpcCapabilities mMandatoryCapabilities;

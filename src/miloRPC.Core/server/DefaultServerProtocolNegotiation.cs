@@ -89,6 +89,8 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         BinaryWriter tempWriter)
     {
         Stream resultStream = baseStream;
+        BinaryReader resultReader = tempReader;
+        BinaryWriter resultWriter = tempWriter;
 
         RpcCapabilities clientMandatory = (RpcCapabilities)tempReader.ReadByte();
         RpcCapabilities clientOptional = (RpcCapabilities)tempReader.ReadByte();
@@ -116,12 +118,16 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
             SslStream sslStream = new(resultStream, leaveInnerStreamOpen: false);
             await sslStream.AuthenticateAsServerAsync(mServerCertificate!);
             resultStream = sslStream;
+            resultReader = new BinaryReader(resultStream);
+            resultWriter = new BinaryWriter(resultStream);
         }
 
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
         {
             RpcBrotliStream brotliStream = new(resultStream, mArrayPool);
             resultStream = brotliStream;
+            resultReader = new BinaryReader(resultStream);
+            resultWriter = new BinaryWriter(resultStream);
         }
 
         mLog.LogInformation(
@@ -129,8 +135,7 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
             "Optional missing capabilities: {OptionalMissingCapabilities}",
             connId, remoteEndPoint, negotiationResult.OptionalMissingCapabilities);
 
-        return new RpcProtocolNegotiationResult(
-            resultStream, tempReader, tempWriter);
+        return new RpcProtocolNegotiationResult(resultStream, resultReader, resultWriter);
     }
 
     X509Certificate? ProcessCertificateSettings(

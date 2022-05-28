@@ -10,12 +10,12 @@ public enum RpcCapabilities : byte
     Compression = 1 << 1
 }
 
-internal class RpcCapabilitiesNegotiationResult
+public class RpcCapabilitiesNegotiationResult
 {
-    internal bool NegotiatedOk => RequiredMissingCapabilities == RpcCapabilities.None;
-    internal RpcCapabilities CommonCapabilities { get; private set; }
-    internal RpcCapabilities OptionalMissingCapabilities { get; private set; }
-    internal RpcCapabilities RequiredMissingCapabilities { get; private set; }
+    public bool NegotiatedOk => RequiredMissingCapabilities == RpcCapabilities.None;
+    public RpcCapabilities CommonCapabilities { get; }
+    public RpcCapabilities OptionalMissingCapabilities { get; }
+    public RpcCapabilities RequiredMissingCapabilities { get; }
 
     private RpcCapabilitiesNegotiationResult(
         RpcCapabilities common,
@@ -27,7 +27,7 @@ internal class RpcCapabilitiesNegotiationResult
         RequiredMissingCapabilities = requiredMissing;
     }
 
-    internal static RpcCapabilitiesNegotiationResult Build(
+    public static RpcCapabilitiesNegotiationResult Build(
         RpcCapabilities mandatorySelf,
         RpcCapabilities optionalSelf,
         RpcCapabilities mandatoryOther,

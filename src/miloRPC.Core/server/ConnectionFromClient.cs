@@ -200,11 +200,15 @@ public class ConnectionFromClient
                     ulong callWrittenBytes = mRpcChannel.Stream.WrittenBytes - mLastWrittenBytes;
 
                     mLog.LogTrace(
-                        "T {MethodCallId} | Idling: {IdlingTimeMs}ms. | Reading: {ReadingTimeMs}ms. " +
-                        "| Running: {RunningTimeMs}ms. | Writing: {WritingTimeMs}ms.",
-                        methodCallId, callIdlingTime, callReadingTime, callRunningTime, callWritingTime);
+                        "T {MethodCallId} > Idling: {IdlingTimeMs}ms | Reading: {ReadingTimeMs}ms " +
+                        "| Running: {RunningTimeMs}ms | Writing: {WritingTimeMs}ms",
+                        methodCallId,
+                        callIdlingTime.TotalMilliseconds,
+                        callReadingTime.TotalMilliseconds,
+                        callRunningTime.TotalMilliseconds,
+                        callWritingTime.TotalMilliseconds);
                     mLog.LogTrace(
-                        "B {MethodCallId} | Read: {ReadBytes} | Written: {WrittenBytes}",
+                        "B {MethodCallId} > Read: {ReadBytes} | Written: {WrittenBytes}",
                         methodCallId, callReadBytes, callWrittenBytes);
 
                     mTotalIdlingTime += callIdlingTime;
@@ -221,6 +225,10 @@ public class ConnectionFromClient
                     mServerMetrics.MethodCallEnd();
                 }
             }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Nothing to do
         }
         catch (Exception ex)
         {
