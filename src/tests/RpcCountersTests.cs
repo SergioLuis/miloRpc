@@ -23,7 +23,7 @@ public class RpcCountersTests
         IPEndPoint endpoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new(new VoidCallStub());
-        IServer tcpServer = new TcpServer(endpoint, stubCollection);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endpoint, stubCollection);
         Task serverTask = tcpServer.ListenAsync(cts.Token);
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
@@ -84,7 +84,7 @@ public class RpcCountersTests
 
         LongRunningVoidCallStub voidCallStub = new();
         StubCollection stubCollection = new(voidCallStub);
-        IServer tcpServer = new TcpServer(endpoint, stubCollection);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endpoint, stubCollection);
         Task serverTask = tcpServer.ListenAsync(cts.Token);
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));

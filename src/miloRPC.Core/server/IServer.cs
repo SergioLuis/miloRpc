@@ -27,18 +27,18 @@ public class AcceptLoopStopEventArgs
     }
 }
 
-public class ConnectionAcceptEventArgs
+public class ConnectionAcceptEventArgs<T>
 {
-    public EndPoint? EndPoint { get; }
+    public T? EndPoint { get; }
     public bool CancelRequested { get; set; }
 
-    public ConnectionAcceptEventArgs(EndPoint? endPoint)
+    public ConnectionAcceptEventArgs(T? endPoint)
     {
         EndPoint = endPoint;
     }
 }
 
-public interface IServer
+public interface IServer<T>
 {
     // ReSharper disable once EventNeverSubscribedTo.Global
     event EventHandler<AcceptLoopStartEventArgs> AcceptLoopStart;
@@ -47,9 +47,10 @@ public interface IServer
     event EventHandler<AcceptLoopStopEventArgs> AcceptLoopStop;
 
     // ReSharper disable once EventNeverSubscribedTo.Global
-    event EventHandler<ConnectionAcceptEventArgs> ConnectionAccept;
+    event EventHandler<ConnectionAcceptEventArgs<T>> ConnectionAccept;
 
-    IPEndPoint? BindAddress { get; }
+    string ServerProtocol { get; }
+    T? BindAddress { get; }
     ActiveConnections ActiveConnections { get; }
     ConnectionTimeouts ConnectionTimeouts { get; }
     Task ListenAsync(CancellationToken ct);

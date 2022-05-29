@@ -24,7 +24,7 @@ public class ActiveConnectionsTests
         IPEndPoint endpoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new();
-        IServer tcpServer = new TcpServer(endpoint, stubCollection);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endpoint, stubCollection);
         Task serverTask = tcpServer.ListenAsync(cts.Token);
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
@@ -43,45 +43,45 @@ public class ActiveConnectionsTests
 
         ActiveConnections.ActiveConnection? firstConnFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Conn.ConnectionId == 1);
+                activeConn => activeConn.Connection.ConnectionId == 1);
 
         Assert.That(firstConnFromClient, Is.Not.Null);
 
         ActiveConnections.ActiveConnection? secondConnFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Conn.ConnectionId == 2);
+                activeConn => activeConn.Connection.ConnectionId == 2);
 
         Assert.That(secondConnFromClient, Is.Not.Null);
 
         ActiveConnections.ActiveConnection? thirdConnFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Conn.ConnectionId == 3);
+                activeConn => activeConn.Connection.ConnectionId == 3);
 
         Assert.That(thirdConnFromClient, Is.Not.Null);
 
         Assert.That(firstConn.IsConnected(), Is.True);
-        Assert.That(firstConnFromClient!.Conn.IsConnected(), Is.True);
+        Assert.That(firstConnFromClient!.Connection.IsConnected(), Is.True);
 
         Assert.That(secondConn.IsConnected(), Is.True);
-        Assert.That(secondConnFromClient!.Conn.IsConnected(), Is.True);
+        Assert.That(secondConnFromClient!.Connection.IsConnected(), Is.True);
 
         Assert.That(thirdConn.IsConnected(), Is.True);
-        Assert.That(thirdConnFromClient!.Conn.IsConnected(), Is.True);
+        Assert.That(thirdConnFromClient!.Connection.IsConnected(), Is.True);
 
         firstConn.Dispose();
         secondConn.Dispose();
         thirdConn.Dispose();
 
         Assert.That(
-            () => firstConnFromClient.Conn.CurrentStatus,
+            () => firstConnFromClient.Connection.CurrentStatus,
             Is.EqualTo(ConnectionFromClient.Status.Exited).After(1000, 10));
 
         Assert.That(
-            () => secondConnFromClient.Conn.CurrentStatus,
+            () => secondConnFromClient.Connection.CurrentStatus,
             Is.EqualTo(ConnectionFromClient.Status.Exited).After(1000, 10));
 
         Assert.That(
-            () => thirdConnFromClient.Conn.CurrentStatus,
+            () => thirdConnFromClient.Connection.CurrentStatus,
             Is.EqualTo(ConnectionFromClient.Status.Exited).After(1000, 10));
 
         // The ActiveConnections monitor loop gets triggered after 30 seconds
@@ -97,13 +97,13 @@ public class ActiveConnectionsTests
             Has.Count.EqualTo(0).After(1000, 10));
 
         Assert.That(firstConn.IsConnected(), Is.False);
-        Assert.That(firstConnFromClient.Conn.IsConnected(), Is.False);
+        Assert.That(firstConnFromClient.Connection.IsConnected(), Is.False);
 
         Assert.That(secondConn.IsConnected(), Is.False);
-        Assert.That(secondConnFromClient.Conn.IsConnected(), Is.False);
+        Assert.That(secondConnFromClient.Connection.IsConnected(), Is.False);
 
         Assert.That(thirdConn.IsConnected(), Is.False);
-        Assert.That(thirdConnFromClient.Conn.IsConnected(), Is.False);
+        Assert.That(thirdConnFromClient.Connection.IsConnected(), Is.False);
 
         cts.Cancel();
         await serverTask;
@@ -118,7 +118,7 @@ public class ActiveConnectionsTests
         IPEndPoint endpoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new();
-        IServer tcpServer = new TcpServer(endpoint, stubCollection);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endpoint, stubCollection);
         Task serverTask = tcpServer.ListenAsync(cts.Token);
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
@@ -137,45 +137,45 @@ public class ActiveConnectionsTests
 
         ActiveConnections.ActiveConnection? firstConnFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Conn.ConnectionId == 1);
+                activeConn => activeConn.Connection.ConnectionId == 1);
 
         Assert.That(firstConnFromClient, Is.Not.Null);
 
         ActiveConnections.ActiveConnection? secondConnFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Conn.ConnectionId == 2);
+                activeConn => activeConn.Connection.ConnectionId == 2);
 
         Assert.That(secondConnFromClient, Is.Not.Null);
 
         ActiveConnections.ActiveConnection? thirdConnFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Conn.ConnectionId == 3);
+                activeConn => activeConn.Connection.ConnectionId == 3);
 
         Assert.That(thirdConnFromClient, Is.Not.Null);
 
         Assert.That(firstConn.IsConnected(), Is.True);
-        Assert.That(firstConnFromClient!.Conn.IsConnected(), Is.True);
+        Assert.That(firstConnFromClient!.Connection.IsConnected(), Is.True);
 
         Assert.That(secondConn.IsConnected(), Is.True);
-        Assert.That(secondConnFromClient!.Conn.IsConnected(), Is.True);
+        Assert.That(secondConnFromClient!.Connection.IsConnected(), Is.True);
 
         Assert.That(thirdConn.IsConnected(), Is.True);
-        Assert.That(thirdConnFromClient!.Conn.IsConnected(), Is.True);
+        Assert.That(thirdConnFromClient!.Connection.IsConnected(), Is.True);
 
         firstConnFromClient.Cts.Cancel();
         secondConnFromClient.Cts.Cancel();
         thirdConnFromClient.Cts.Cancel();
 
         Assert.That(
-            () => firstConnFromClient.Conn.CurrentStatus,
+            () => firstConnFromClient.Connection.CurrentStatus,
             Is.EqualTo(ConnectionFromClient.Status.Exited).After(1000, 10));
 
         Assert.That(
-            () => secondConnFromClient.Conn.CurrentStatus,
+            () => secondConnFromClient.Connection.CurrentStatus,
             Is.EqualTo(ConnectionFromClient.Status.Exited).After(1000, 10));
 
         Assert.That(
-            () => thirdConnFromClient.Conn.CurrentStatus,
+            () => thirdConnFromClient.Connection.CurrentStatus,
             Is.EqualTo(ConnectionFromClient.Status.Exited).After(1000, 10));
 
         // The ActiveConnections monitor loop gets triggered after 30 seconds
@@ -191,13 +191,13 @@ public class ActiveConnectionsTests
             Has.Count.EqualTo(0).After(1000, 10));
 
         Assert.That(firstConn.IsConnected(), Is.False);
-        Assert.That(firstConnFromClient.Conn.IsConnected(), Is.False);
+        Assert.That(firstConnFromClient.Connection.IsConnected(), Is.False);
 
         Assert.That(secondConn.IsConnected(), Is.False);
-        Assert.That(secondConnFromClient.Conn.IsConnected(), Is.False);
+        Assert.That(secondConnFromClient.Connection.IsConnected(), Is.False);
 
         Assert.That(thirdConn.IsConnected(), Is.False);
-        Assert.That(thirdConnFromClient.Conn.IsConnected(), Is.False);
+        Assert.That(thirdConnFromClient.Connection.IsConnected(), Is.False);
 
         cts.Cancel();
         await serverTask;
@@ -214,7 +214,7 @@ public class ActiveConnectionsTests
         IPEndPoint endpoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new();
-        IServer tcpServer = new TcpServer(endpoint, stubCollection);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endpoint, stubCollection);
         tcpServer.ConnectionTimeouts.Idling = TimeSpan.FromMilliseconds(idlingTimeoutMs);
         Task serverTask = tcpServer.ListenAsync(cts.Token);
 
@@ -232,18 +232,18 @@ public class ActiveConnectionsTests
 
         ActiveConnections.ActiveConnection? connFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Conn.ConnectionId == 1);
+                activeConn => activeConn.Connection.ConnectionId == 1);
 
         Assert.That(connFromClient, Is.Not.Null);
 
         Assert.That(conn.IsConnected(), Is.True);
-        Assert.That(connFromClient!.Conn.IsConnected(), Is.True);
+        Assert.That(connFromClient!.Connection.IsConnected(), Is.True);
 
         Assert.That(
             conn.CurrentStatus,
             Is.EqualTo(ConnectionToServer.Status.Idling));
         Assert.That(
-            connFromClient.Conn.CurrentStatus,
+            connFromClient.Connection.CurrentStatus,
             Is.EqualTo(ConnectionFromClient.Status.Idling));
 
         // Now we wait for the Idling timeout to kick-in...
@@ -252,7 +252,7 @@ public class ActiveConnectionsTests
             () => conn.CurrentStatus,
             Is.EqualTo(ConnectionToServer.Status.Exited).After(idlingTimeoutMs + 1000, 10));
         Assert.That(
-            () => connFromClient.Conn.CurrentStatus,
+            () => connFromClient.Connection.CurrentStatus,
             Is.EqualTo(ConnectionFromClient.Status.Exited).After(idlingTimeoutMs + 1000, 10));
 
         // The ActiveConnections monitor loop gets triggered after 30 seconds
@@ -268,13 +268,13 @@ public class ActiveConnectionsTests
             Has.Count.EqualTo(0).After(1000, 10));
 
         Assert.That(conn.IsConnected(), Is.False);
-        Assert.That(connFromClient.Conn.IsConnected(), Is.False);
+        Assert.That(connFromClient.Connection.IsConnected(), Is.False);
 
         Assert.That(
             conn.CurrentStatus,
             Is.EqualTo(ConnectionToServer.Status.Exited));
         Assert.That(
-            connFromClient.Conn.CurrentStatus,
+            connFromClient.Connection.CurrentStatus,
             Is.EqualTo(ConnectionFromClient.Status.Exited));
 
         cts.Cancel();
@@ -290,7 +290,7 @@ public class ActiveConnectionsTests
         IPEndPoint endpoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new();
-        IServer tcpServer = new TcpServer(endpoint, stubCollection);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endpoint, stubCollection);
         Task serverTask = tcpServer.ListenAsync(serverToken.Token);
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
@@ -307,17 +307,17 @@ public class ActiveConnectionsTests
 
         ActiveConnections.ActiveConnection? connFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Conn.ConnectionId == 1);
+                activeConn => activeConn.Connection.ConnectionId == 1);
 
         Assert.That(connFromClient, Is.Not.Null);
 
         Assert.That(connToServer.IsConnected(), Is.True);
-        Assert.That(connFromClient!.Conn.IsConnected(), Is.True);
+        Assert.That(connFromClient!.Connection.IsConnected(), Is.True);
 
         serverToken.Cancel();
 
         Assert.That(() => connToServer.IsConnected(), Is.False.After(1000, 10));
-        Assert.That(connFromClient.Conn.IsConnected(), Is.False.After(1000, 10));
+        Assert.That(connFromClient.Connection.IsConnected(), Is.False.After(1000, 10));
 
         serverToken.Cancel();
         await serverTask;

@@ -13,15 +13,16 @@ using miloRPC.Core.Shared;
 
 namespace miloRPC.Channels.Tcp;
 
-public class TcpServer : IServer
+public class TcpServer : IServer<IPEndPoint>
 {
     public event EventHandler<AcceptLoopStartEventArgs>? AcceptLoopStart;
     public event EventHandler<AcceptLoopStopEventArgs>? AcceptLoopStop;
-    public event EventHandler<ConnectionAcceptEventArgs>? ConnectionAccept;
+    public event EventHandler<ConnectionAcceptEventArgs<IPEndPoint>>? ConnectionAccept;
 
-    IPEndPoint? IServer.BindAddress => mBindAddress;
-    ActiveConnections IServer.ActiveConnections => mActiveConnections;
-    ConnectionTimeouts IServer.ConnectionTimeouts => mConnectionTimeouts;
+    string IServer<IPEndPoint>.ServerProtocol => "TCP";
+    IPEndPoint? IServer<IPEndPoint>.BindAddress => mBindAddress;
+    ActiveConnections IServer<IPEndPoint>.ActiveConnections => mActiveConnections;
+    ConnectionTimeouts IServer<IPEndPoint>.ConnectionTimeouts => mConnectionTimeouts;
 
     public TcpServer(
         IPEndPoint bindTo,
@@ -73,7 +74,7 @@ public class TcpServer : IServer
         mLog = RpcLoggerFactory.CreateLogger("TcpServer");
     }
 
-    Task IServer.ListenAsync(CancellationToken ct)
+    Task IServer<IPEndPoint>.ListenAsync(CancellationToken ct)
         => Task.Factory.StartNew(AcceptLoop, ct, TaskCreationOptions.LongRunning).Unwrap();
 
     async Task AcceptLoop(object? state)
@@ -106,7 +107,8 @@ public class TcpServer : IServer
                 {
                     Socket socket = await tcpListener.AcceptSocketAsync(ct);
 
-                    ConnectionAcceptEventArgs connAcceptArgs = new(socket.RemoteEndPoint);
+                    ConnectionAcceptEventArgs<IPEndPoint> connAcceptArgs =
+                        new(Unsafe.As<IPEndPoint>(socket.RemoteEndPoint));
                     ConnectionAccept?.Invoke(this, connAcceptArgs);
                     if (connAcceptArgs.CancelRequested)
                     {

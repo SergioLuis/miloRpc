@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -65,21 +66,17 @@ static class Program
             cts.Cancel();
         };
 
-        Console.WriteLine("Press CTRL + C to exit");
-        await Task.Delay(3000, cts.Token);
-
         IPEndPoint ipEndPoint = new(IPAddress.Loopback, 9876);
 
-        Task serverTask = RunServer.Run(ipEndPoint, negotiateServerProtocol, cts.Token);
-        await Task.Delay(3 * 1000, cts.Token); // Wait for the server to listen to requests
+        Task serverTask = await RunServer.StartServer(ipEndPoint, negotiateServerProtocol, cts.Token);
 
         ConnectionPool pool = new(new ConnectToQuicServer(ipEndPoint, negotiateClientProtocol));
 
-        Task[] tasksToWaitFor = new Task[numClients + 1];
-        tasksToWaitFor[0] = serverTask;
-
+        List<Task> tasksToWaitFor = new(numClients + 1);
         for (int i = 1; i < numClients + 1; i++)
-            tasksToWaitFor[i] = RunClient.Run(pool, cts.Token);
+            tasksToWaitFor.Add(RunClient.Run(pool, cts.Token));
+
+        tasksToWaitFor.Add(serverTask);
 
         await Task.WhenAll(tasksToWaitFor);
 
@@ -148,26 +145,26 @@ static class Program
 
     static class RunServer
     {
-        public static async Task<bool> Run(
+        public static async Task<Task> StartServer(
             IPEndPoint bindEndpoint,
             INegotiateServerQuicRpcProtocol negotiateRpcProtocol,
             CancellationToken ct)
         {
             StubCollection stubs = new(new EchoServiceStub(new EchoService()));
-            IServer server = new QuicServer(bindEndpoint, stubs, negotiateRpcProtocol);
+            IServer<IPEndPoint> server = new QuicServer(bindEndpoint, stubs, negotiateRpcProtocol);
+
+            TaskCompletionSource startServerTcs = new TaskCompletionSource();
+
+            server.AcceptLoopStart += (_, _) => startServerTcs.SetResult();
 
             Task serverTask = server.ListenAsync(ct);
-            try
-            {
-                await serverTask;
-                return true;
-            }
-            catch (Exception ex)
-            {
-                await Console.Error.WriteLineAsync(ex.Message);
-                await Console.Error.WriteLineAsync(ex.StackTrace);
-                return false;
-            }
+
+            // By the time this function returns, the server is ready to accept connections
+            await startServerTcs.Task;
+
+            Console.WriteLine($"Server based on {server.ServerProtocol} ready to accept connections");
+
+            return serverTask;
         }
     }
 }

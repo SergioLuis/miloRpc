@@ -46,17 +46,16 @@ public class ConnectToQuicServer : IConnectToServer
 
     public async Task<ConnectionToServer> ConnectAsync(CancellationToken ct)
     {
-        SslClientAuthenticationOptions authOptions = new();
-        authOptions.AllowRenegotiation = true;
-        authOptions.ApplicationProtocols =
-            new List<SslApplicationProtocol>(mNegotiateProtocol.ApplicationProtocols);
-
-        if (mNegotiateProtocol.ValidateServerCertificate != null)
+        SslClientAuthenticationOptions authOptions = new()
         {
-            authOptions.RemoteCertificateValidationCallback =
-                new RemoteCertificateValidationCallback(
-                    mNegotiateProtocol.ValidateServerCertificate);
-        }
+            AllowRenegotiation = true,
+            ApplicationProtocols = new List<SslApplicationProtocol>(
+                mNegotiateProtocol.ApplicationProtocols),
+            RemoteCertificateValidationCallback =
+                mNegotiateProtocol.ValidateServerCertificate is not null
+                    ? new RemoteCertificateValidationCallback(mNegotiateProtocol.ValidateServerCertificate)
+                    : null
+        };
 
         QuicConnection client = new(mServerEndpoint, authOptions);
         await client.ConnectAsync(ct);

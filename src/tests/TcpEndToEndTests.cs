@@ -42,7 +42,7 @@ public class TcpEndToEndTests
         };
 
         int connAcceptEvents = 0;
-        EventHandler<ConnectionAcceptEventArgs> connAcceptEventHandler = (sender, args) =>
+        EventHandler<ConnectionAcceptEventArgs<IPEndPoint>> connAcceptEventHandler = (sender, args) =>
         {
             Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
             connAcceptEvents++;
@@ -75,7 +75,7 @@ public class TcpEndToEndTests
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
-        IServer tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
         tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
         tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
         tcpServer.ConnectionAccept += connAcceptEventHandler;
@@ -129,7 +129,7 @@ public class TcpEndToEndTests
         };
 
         int connAcceptEvents = 0;
-        EventHandler<ConnectionAcceptEventArgs> connAcceptEventHandler = (sender, args) =>
+        EventHandler<ConnectionAcceptEventArgs<IPEndPoint>> connAcceptEventHandler = (sender, args) =>
         {
             Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
             connAcceptEvents++;
@@ -164,7 +164,7 @@ public class TcpEndToEndTests
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
-        IServer tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
         tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
         tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
         tcpServer.ConnectionAccept += connAcceptEventHandler;
@@ -227,7 +227,7 @@ public class TcpEndToEndTests
         };
 
         int connAcceptEvents = 0;
-        EventHandler<ConnectionAcceptEventArgs> connAcceptEventHandler = (sender, args) =>
+        EventHandler<ConnectionAcceptEventArgs<IPEndPoint>> connAcceptEventHandler = (sender, args) =>
         {
             Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
             connAcceptEvents++;
@@ -257,7 +257,7 @@ public class TcpEndToEndTests
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
-        IServer tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
         tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
         tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
         tcpServer.ConnectionAccept += connAcceptEventHandler;
@@ -329,7 +329,7 @@ public class TcpEndToEndTests
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
-        IServer tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
         tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
         tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
 
@@ -368,7 +368,7 @@ public class TcpEndToEndTests
 
         int connAcceptEvents = 0;
         bool cancelNextConnection = false;
-        EventHandler<ConnectionAcceptEventArgs> connAcceptEventHandler = (sender, args) =>
+        EventHandler<ConnectionAcceptEventArgs<IPEndPoint>> connAcceptEventHandler = (sender, args) =>
         {
             Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
             connAcceptEvents++;
@@ -399,7 +399,7 @@ public class TcpEndToEndTests
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
-        IServer tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
         tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
         tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
         tcpServer.ConnectionAccept += connAcceptEventHandler;

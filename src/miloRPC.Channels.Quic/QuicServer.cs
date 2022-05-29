@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
+using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,15 +18,16 @@ namespace miloRPC.Channels.Quic;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("windows")]
 [SupportedOSPlatform("macOS")]
-public class QuicServer : IServer
+public class QuicServer : IServer<IPEndPoint>
 {
     public event EventHandler<AcceptLoopStartEventArgs>? AcceptLoopStart;
     public event EventHandler<AcceptLoopStopEventArgs>? AcceptLoopStop;
-    public event EventHandler<ConnectionAcceptEventArgs>? ConnectionAccept;
+    public event EventHandler<ConnectionAcceptEventArgs<IPEndPoint>>? ConnectionAccept;
 
-    IPEndPoint? IServer.BindAddress => mBindAddress;
-    ActiveConnections IServer.ActiveConnections => mActiveConnections;
-    ConnectionTimeouts IServer.ConnectionTimeouts => mConnectionTimeouts;
+    string IServer<IPEndPoint>.ServerProtocol => "QUIC";
+    IPEndPoint? IServer<IPEndPoint>.BindAddress => mBindAddress;
+    ActiveConnections IServer<IPEndPoint>.ActiveConnections => mActiveConnections;
+    ConnectionTimeouts IServer<IPEndPoint>.ConnectionTimeouts => mConnectionTimeouts;
 
     public QuicServer(
         IPEndPoint bindTo,
@@ -77,18 +79,20 @@ public class QuicServer : IServer
         mLog = RpcLoggerFactory.CreateLogger("QuicServer");
     }
 
-    Task IServer.ListenAsync(CancellationToken ct)
+    Task IServer<IPEndPoint>.ListenAsync(CancellationToken ct)
         => Task.Factory.StartNew(AcceptLoop, ct, TaskCreationOptions.LongRunning).Unwrap();
 
     async Task AcceptLoop(object? state)
     {
         CancellationToken ct = (CancellationToken) state!;
 
-        SslServerAuthenticationOptions sslOptions = new();
-        sslOptions.AllowRenegotiation = true;
-        sslOptions.ApplicationProtocols =
-            new List<SslApplicationProtocol>(mNegotiateProtocol.ApplicationProtocols);
-        sslOptions.ServerCertificate = mNegotiateProtocol.GetServerCertificate();
+        SslServerAuthenticationOptions sslOptions = new()
+        {
+            AllowRenegotiation = true,
+            ApplicationProtocols = new List<SslApplicationProtocol>(
+                mNegotiateProtocol.ApplicationProtocols),
+            ServerCertificate = mNegotiateProtocol.GetServerCertificate()
+        };
 
         QuicListener quicListener = new(mBindEndpoint, sslOptions);
         mBindAddress = quicListener.ListenEndPoint;
@@ -115,7 +119,8 @@ public class QuicServer : IServer
                 {
                     QuicConnection conn = await quicListener.AcceptConnectionAsync(ct);
 
-                    ConnectionAcceptEventArgs connAcceptArgs = new(conn.RemoteEndPoint);
+                    ConnectionAcceptEventArgs<IPEndPoint> connAcceptArgs =
+                        new(Unsafe.As<IPEndPoint>(conn.RemoteEndPoint));
                     ConnectionAccept?.Invoke(this, connAcceptArgs);
                     if (connAcceptArgs.CancelRequested)
                     {

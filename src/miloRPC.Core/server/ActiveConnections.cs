@@ -14,19 +14,18 @@ public class ActiveConnections
 {
     public class ActiveConnection
     {
-        public ConnectionFromClient Conn { get; }
+        public ConnectionFromClient Connection { get; }
         public CancellationTokenSource Cts { get; }
 
-        internal ActiveConnection(
-            ConnectionFromClient conn, CancellationTokenSource cts)
+        internal ActiveConnection(ConnectionFromClient connection, CancellationTokenSource cts)
         {
-            Conn = conn;
+            Connection = connection;
             Cts = cts;
         }
 
         public override int GetHashCode()
         {
-            return (int)Conn.ConnectionId;
+            return (int)Connection.ConnectionId;
         }
 
         public override bool Equals(object? obj)
@@ -38,7 +37,7 @@ public class ActiveConnections
             if (other is null)
                 return false;
 
-            return other.Conn.ConnectionId == this.Conn.ConnectionId;
+            return other.Connection.ConnectionId == this.Connection.ConnectionId;
         }
     }
 
@@ -135,7 +134,7 @@ public class ActiveConnections
             if (ct.IsCancellationRequested)
                 break;
 
-            ConnectionFromClient connFromClient = activeConn.Conn;
+            ConnectionFromClient connFromClient = activeConn.Connection;
             if (connFromClient.CurrentStatus == ConnectionFromClient.Status.Exited)
             {
                 mLog.LogDebug(
