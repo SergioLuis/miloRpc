@@ -16,14 +16,31 @@
 
     <ItemGroup>
       <Reference Include="System.Net.Quic, Version=7.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+        <HintPath Condition="'$(RuntimeIdentifier)' == ''">..\..\dependencies\System.Net.Quic\ref\Debug\net7.0\System.Net.Quic.dll</HintPath>
         <HintPath Condition="'$(RuntimeIdentifier)' == 'win-x64'">..\..\dependencies\System.Net.Quic\Debug\net7.0-windows\System.Net.Quic.dll</HintPath>
         <HintPath Condition="'$(RuntimeIdentifier)' == 'linux-x64'">..\..\dependencies\System.Net.Quic\Debug\net7.0-linux\System.Net.Quic.dll</HintPath>
         <HintPath Condition="'$(RuntimeIdentifier)' == 'linux-arm64'">..\..\dependencies\System.Net.Quic\Debug\net7.0-linux\System.Net.Quic.dll</HintPath>
         <HintPath Condition="'$(RuntimeIdentifier)' == 'osx-x64'">..\..\dependencies\System.Net.Quic\Debug\net7.0-osx\System.Net.Quic.dll</HintPath>
         <HintPath Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">..\..\dependencies\System.Net.Quic\Debug\net7.0-osx\System.Net.Quic.dll</HintPath>
         <HintPath Condition="'$(RuntimeIdentifier)' == 'linux-x64'">..\..\dependencies\System.Net.Quic\Debug\net7.0-linux\System.Net.Quic.dll</HintPath>
-        <HintPath Condition="'$(RuntimeIdentifier)' == ''">..\..\dependencies\System.Net.Quic\ref\Debug\net7.0\System.Net.Quic.dll</HintPath>
       </Reference>
     </ItemGroup>
+
+    <Target 
+      Name="CopyMsQuic"
+      AfterTargets="AfterBuild"
+      Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
+      <Copy
+        SourceFiles="..\..\dependencies\MsQuic\artifacts\$(RuntimeIdentifier)\$(Configuration)\libmsquic*.dylib"
+        DestinationFolder="$(OutDir)" />
+    </Target>
+    
+    <Target Name="CleanMsQuic" AfterTargets="CoreClean">
+        <Message Text="Cleaning $(OutDir)libmsquic*.dylib" />
+        <Delete Files="$(OutDir)libmsquic*.dylib">
+          <Output TaskParameter="DeletedFiles" ItemName="DeletedList"/>
+        </Delete>
+        <Message Text="Deleted files: '@(DeletedList)'"/>
+    </Target>
 
 </Project>
