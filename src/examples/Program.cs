@@ -1,5 +1,10 @@
 ﻿using System;
+using System.Buffers;
+using System.IO;
 using System.Net;
+using System.Net.Security;
+using System.Reflection;
+using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -8,7 +13,7 @@ using NLog.Config;
 using NLog.Targets;
 using NLog.Extensions.Logging;
 
-using miloRPC.Channels.Tcp;
+using miloRPC.Channels.Quic;
 using miloRPC.Core.Client;
 using miloRPC.Core.Server;
 using miloRPC.Core.Shared;
@@ -18,12 +23,39 @@ using miloRPC.Examples.Shared;
 
 namespace miloRPC.Examples;
 
+[SupportedOSPlatform("linux")]
+[SupportedOSPlatform("windows")]
+[SupportedOSPlatform("macOS")]
 static class Program
 {
     static async Task<int> Main(string[] args)
     {
         ConfigureLogging();
         ExampleSerializers.RegisterSerializers();
+
+        const int numClients = 3;
+        const string applicationProtocol = "miloRPC-demo";
+
+        string certificatePath = Path.Combine(
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
+            "demo.pfx");
+
+        INegotiateServerQuicRpcProtocol negotiateServerProtocol =
+            new DefaultQuicServerProtocolNegotiation(
+                RpcCapabilities.None,
+                RpcCapabilities.None,
+                ArrayPool<byte>.Shared,
+                new []{ new SslApplicationProtocol(applicationProtocol)},
+                certificatePath,
+                "th1s_c3rt_1s_s3lf_s1gn3d");
+
+        INegotiateClientQuicRpcProtocol negotiateClientProtocol =
+            new DefaultQuicClientProtocolNegotiation(
+                RpcCapabilities.None,
+                RpcCapabilities.None,
+                ArrayPool<byte>.Shared,
+                new[] {new SslApplicationProtocol(applicationProtocol)},
+                DefaultQuicClientProtocolNegotiation.AcceptAllCertificates);
 
         CancellationTokenSource cts = new();
 
@@ -38,18 +70,18 @@ static class Program
 
         IPEndPoint ipEndPoint = new(IPAddress.Loopback, 9876);
 
-        Task serverTask = RunServer.Run(ipEndPoint, cts.Token);
+        Task serverTask = RunServer.Run(ipEndPoint, negotiateServerProtocol, cts.Token);
         await Task.Delay(3 * 1000, cts.Token); // Wait for the server to listen to requests
 
-        ConnectionPool pool = new(new ConnectToTcpServer(ipEndPoint));
+        ConnectionPool pool = new(new ConnectToQuicServer(ipEndPoint, negotiateClientProtocol));
 
-        Task client1Task = RunClient.Run(pool, cts.Token);
-        Task client2Task = RunClient.Run(pool, cts.Token);
-        Task client3Task = RunClient.Run(pool, cts.Token);
+        Task[] tasksToWaitFor = new Task[numClients + 1];
+        tasksToWaitFor[0] = serverTask;
 
-        await Task.WhenAll(client1Task, client2Task, client3Task);
+        for (int i = 1; i < numClients + 1; i++)
+            tasksToWaitFor[i] = RunClient.Run(pool, cts.Token);
 
-        await serverTask;
+        await Task.WhenAll(tasksToWaitFor);
 
         return 0;
     }
@@ -98,8 +130,6 @@ static class Program
 
                     Console.WriteLine(
                         $"{result.ReceptionDateUtc - reqDate}: {reqValue == result.ReceivedMessage}");
-
-                    await Task.Delay(100);
                 }
 
                 return true;
@@ -118,10 +148,13 @@ static class Program
 
     static class RunServer
     {
-        public static async Task<bool> Run(IPEndPoint bindEndpoint, CancellationToken ct)
+        public static async Task<bool> Run(
+            IPEndPoint bindEndpoint,
+            INegotiateServerQuicRpcProtocol negotiateRpcProtocol,
+            CancellationToken ct)
         {
             StubCollection stubs = new(new EchoServiceStub(new EchoService()));
-            IServer server = new TcpServer(bindEndpoint, stubs);
+            IServer server = new QuicServer(bindEndpoint, stubs, negotiateRpcProtocol);
 
             Task serverTask = server.ListenAsync(ct);
             try

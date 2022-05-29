@@ -126,7 +126,7 @@ public class QuicServer : IServer
 
                     CancellationTokenSource connCts =
                         CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    IRpcChannel rpcChannel = new QuicRpcChannel(conn, connCts.Token);
+                    IRpcChannel rpcChannel = QuicRpcChannel.CreateForServer(conn, connCts.Token);
 
                     mActiveConnections.LaunchNewConnection(rpcChannel, connCts);
                 }

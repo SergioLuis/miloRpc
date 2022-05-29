@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Threading;
 
@@ -8,6 +9,8 @@ namespace miloRPC.Core.Channels;
 
 public class MeteredStream : Stream
 {
+    public static MeteredStream MeteredNull => new(Null);
+
     public ulong ReadBytes { get; private set; }
 
     public ulong WrittenBytes { get; private set; }
@@ -19,6 +22,8 @@ public class MeteredStream : Stream
     {
         mInnerStream = innerStream;
     }
+
+    public T GetInnerStream<T>() where T : Stream => Unsafe.As<T>(mInnerStream);
 
     public override bool CanRead => mInnerStream.CanRead;
 
@@ -119,7 +124,7 @@ public class MeteredStream : Stream
         mWriteStopWatch.Stop();
     }
 
-    readonly Stream mInnerStream;
+    Stream mInnerStream;
     readonly Stopwatch mReadStopWatch = new();
     readonly Stopwatch mWriteStopWatch = new();
 }

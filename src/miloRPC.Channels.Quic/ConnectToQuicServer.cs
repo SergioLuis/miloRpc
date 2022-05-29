@@ -6,6 +6,7 @@ using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
 
+using miloRPC.Core.Channels;
 using miloRPC.Core.Client;
 using miloRPC.Core.Shared;
 
@@ -60,7 +61,7 @@ public class ConnectToQuicServer : IConnectToServer
         QuicConnection client = new(mServerEndpoint, authOptions);
         await client.ConnectAsync(ct);
 
-        QuicRpcChannel channel = new(client, ct);
+        IRpcChannel channel = QuicRpcChannel.CreateForClient(client, ct);
         return new ConnectionToServer(
             mNegotiateProtocol,
             mWriteMethodId,

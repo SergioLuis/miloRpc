@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.Contracts;
 using System.Net;
 using System.Net.Quic;
 using System.Runtime.Versioning;
@@ -17,13 +18,24 @@ namespace miloRPC.Channels.Quic;
 [SupportedOSPlatform("macOS")]
 internal class QuicRpcChannel : IRpcChannel
 {
-    MeteredStream IRpcChannel.Stream => mMeteredStream;
+    enum ConnectionSide
+    {
+        Client,
+        Server
+    }
+
+    MeteredStream IRpcChannel.Stream => mMeteredStream ?? MeteredStream.MeteredNull;
     IPEndPoint IRpcChannel.RemoteEndPoint => mRemoteEndpoint;
 
-    internal QuicRpcChannel(QuicConnection conn, CancellationToken ct)
+    QuicRpcChannel(
+        ConnectionSide side,
+        QuicConnection conn,
+        MeteredStream? meteredStream,
+        CancellationToken ct)
     {
+        mSide = side;
         mConnection = conn;
-        mMeteredStream = new MeteredStream(mConnection.OpenBidirectionalStream());
+        mMeteredStream = meteredStream;
         mRemoteEndpoint = (IPEndPoint)conn.RemoteEndPoint;
         mLog = RpcLoggerFactory.CreateLogger("QuicRpcChannel");
 
@@ -35,6 +47,20 @@ internal class QuicRpcChannel : IRpcChannel
         });
     }
 
+    internal static IRpcChannel CreateForServer(QuicConnection conn, CancellationToken ct)
+        => new QuicRpcChannel(
+            ConnectionSide.Server,
+            conn,
+            null,
+            ct);
+
+    internal static IRpcChannel CreateForClient(QuicConnection conn, CancellationToken ct)
+        => new QuicRpcChannel(
+            ConnectionSide.Client,
+            conn,
+            new MeteredStream(conn.OpenBidirectionalStream()),
+            ct);
+
     public void Dispose()
     {
         Close();
@@ -42,7 +68,21 @@ internal class QuicRpcChannel : IRpcChannel
     }
 
     public async ValueTask WaitForDataAsync(CancellationToken ct)
-        => await mMeteredStream.ReadAsync(Memory<byte>.Empty, ct);
+    {
+        if (mSide == ConnectionSide.Server && mMeteredStream is null)
+        {
+            // AcceptStreamAsync blocks until the other side calls 'OpenBidirectionalStream'
+            // and (for some reason) actually writes some data.
+            //
+            // Calling this method from QuicServer's AcceptLoop would cause a deadlock
+            // if the client opens a connection that's not going to be used immediately
+            // (which happens when pooling connections)
+            mMeteredStream = new MeteredStream(await mConnection.AcceptStreamAsync(ct));
+        }
+
+        Contract.Assert(mMeteredStream is not null);
+        await mMeteredStream.ReadAsync(Memory<byte>.Empty, ct);
+    }
 
     public bool IsConnected() => !mDisposed && mConnection.Connected;
 
@@ -55,6 +95,7 @@ internal class QuicRpcChannel : IRpcChannel
 
             try
             {
+                mMeteredStream?.GetInnerStream<QuicStream>().Shutdown();
                 mConnection.CloseAsync(0x00, CancellationToken.None).AsTask().Wait();
                 mConnection.Dispose();
             }
@@ -71,8 +112,10 @@ internal class QuicRpcChannel : IRpcChannel
     }
 
     volatile bool mDisposed = false;
+    MeteredStream? mMeteredStream;
+
+    readonly ConnectionSide mSide;
     readonly QuicConnection mConnection;
-    readonly MeteredStream mMeteredStream;
     readonly IPEndPoint mRemoteEndpoint;
     readonly ILogger mLog;
 
