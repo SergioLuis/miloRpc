@@ -17,5 +17,6 @@ public interface IStub
     Task<RpcNetworkMessages> RunMethodCallAsync(
         IMethodId methodId,
         BinaryReader reader,
+        IConnectionContext connectionContext,
         Func<CancellationToken> beginMethodRunCallback);
 }

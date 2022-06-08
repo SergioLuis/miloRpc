@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -12,14 +13,17 @@ namespace miloRPC.Channels.Tcp;
 
 internal class TcpRpcChannel : IRpcChannel
 {
+    string IRpcChannel.ChannelProtocol => WellKnownProtocols.TCP;
     MeteredStream IRpcChannel.Stream => mMeteredStream;
+    IPEndPoint IRpcChannel.LocalEndPoint => mLocalEndPoint;
     IPEndPoint IRpcChannel.RemoteEndPoint => mRemoteEndPoint;
 
     internal TcpRpcChannel(Socket socket, CancellationToken ct)
     {
         mSocket = socket;
         mMeteredStream = new MeteredStream(new NetworkStream(mSocket));
-        mRemoteEndPoint = (IPEndPoint)mSocket.RemoteEndPoint!;
+        mLocalEndPoint = Unsafe.As<IPEndPoint>(mSocket.LocalEndPoint!);
+        mRemoteEndPoint = Unsafe.As<IPEndPoint>(mSocket.RemoteEndPoint!);
         mLog = RpcLoggerFactory.CreateLogger("TcpRpcChannel");
 
         ct.Register(() =>
@@ -76,6 +80,7 @@ internal class TcpRpcChannel : IRpcChannel
     volatile bool mDisposed = false;
     readonly Socket mSocket;
     readonly MeteredStream mMeteredStream;
+    readonly IPEndPoint mLocalEndPoint;
     readonly IPEndPoint mRemoteEndPoint;
     readonly ILogger mLog;
 

@@ -24,7 +24,7 @@ public class QuicServer : IServer<IPEndPoint>
     public event EventHandler<AcceptLoopStopEventArgs>? AcceptLoopStop;
     public event EventHandler<ConnectionAcceptEventArgs<IPEndPoint>>? ConnectionAccept;
 
-    string IServer<IPEndPoint>.ServerProtocol => "QUIC";
+    string IServer<IPEndPoint>.ServerProtocol => WellKnownProtocols.QUIC;
     IPEndPoint? IServer<IPEndPoint>.BindAddress => mBindAddress;
     ActiveConnections IServer<IPEndPoint>.ActiveConnections => mActiveConnections;
     ConnectionTimeouts IServer<IPEndPoint>.ConnectionTimeouts => mConnectionTimeouts;

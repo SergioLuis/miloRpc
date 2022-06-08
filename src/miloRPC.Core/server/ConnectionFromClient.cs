@@ -63,6 +63,12 @@ public class ConnectionFromClient
         mRunStopwatch = new Stopwatch();
         mConnectionId = mServerMetrics.ConnectionStart();
 
+        mConnectionContext = new ConnectionContext(
+            mConnectionId,
+            mRpcChannel.ChannelProtocol,
+            mRpcChannel.LocalEndPoint,
+            mRpcChannel.RemoteEndPoint);
+
         mLog = RpcLoggerFactory.CreateLogger("ConnectionFromClient");
     }
 
@@ -123,8 +129,15 @@ public class ConnectionFromClient
                         return runningCt;
                     };
 
-                    RpcNetworkMessages messages =
-                        await stub.RunMethodCallAsync(methodId, mRpc.Reader, beginMethodRunCallback);
+                    if (mConnectionContext.UpdateRemoteEndPoint(mRpcChannel.RemoteEndPoint))
+                        mLog.LogDebug("Remote client changed its endpoint!");
+
+                    RpcNetworkMessages messages = await stub.RunMethodCallAsync(
+                        methodId,
+                        mRpc.Reader,
+                        mConnectionContext,
+                        beginMethodRunCallback);
+
                     runningCt = CancellationToken.None;
                     mRunStopwatch.Stop();
 
@@ -264,6 +277,7 @@ public class ConnectionFromClient
     readonly RpcMetrics mServerMetrics;
     readonly IRpcChannel mRpcChannel;
     readonly ConnectionTimeouts mConnectionTimeouts;
+    readonly ConnectionContext mConnectionContext;
 
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mRunStopwatch;

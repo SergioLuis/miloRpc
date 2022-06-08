@@ -7,7 +7,9 @@ namespace miloRPC.Core.Channels;
 
 public interface IRpcChannel : IDisposable
 {
+    string ChannelProtocol { get; }
     MeteredStream Stream { get; }
+    IPEndPoint LocalEndPoint { get; }
     IPEndPoint RemoteEndPoint { get; }
 
     ValueTask WaitForDataAsync(CancellationToken ct);

@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -11,7 +10,6 @@ public enum MethodCallResult : byte
     Failed       = 1,
     NotSupported = 2
 }
-
 
 public class RpcProtocolNegotiationResult
 {

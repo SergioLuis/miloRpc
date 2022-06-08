@@ -19,7 +19,7 @@ public class TcpServer : IServer<IPEndPoint>
     public event EventHandler<AcceptLoopStopEventArgs>? AcceptLoopStop;
     public event EventHandler<ConnectionAcceptEventArgs<IPEndPoint>>? ConnectionAccept;
 
-    string IServer<IPEndPoint>.ServerProtocol => "TCP";
+    string IServer<IPEndPoint>.ServerProtocol => WellKnownProtocols.TCP;
     IPEndPoint? IServer<IPEndPoint>.BindAddress => mBindAddress;
     ActiveConnections IServer<IPEndPoint>.ActiveConnections => mActiveConnections;
     ConnectionTimeouts IServer<IPEndPoint>.ConnectionTimeouts => mConnectionTimeouts;

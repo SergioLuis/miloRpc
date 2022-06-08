@@ -2,6 +2,7 @@
 using System.Diagnostics.Contracts;
 using System.Net;
 using System.Net.Quic;
+using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,8 +25,10 @@ internal class QuicRpcChannel : IRpcChannel
         Server
     }
 
+    string IRpcChannel.ChannelProtocol => WellKnownProtocols.QUIC;
     MeteredStream IRpcChannel.Stream => mMeteredStream ?? MeteredStream.MeteredNull;
-    IPEndPoint IRpcChannel.RemoteEndPoint => mRemoteEndpoint;
+    IPEndPoint IRpcChannel.LocalEndPoint => Unsafe.As<IPEndPoint>(mConnection.LocalEndPoint!);
+    IPEndPoint IRpcChannel.RemoteEndPoint => Unsafe.As<IPEndPoint>(mConnection.RemoteEndPoint);
 
     QuicRpcChannel(
         ConnectionSide side,
@@ -36,7 +39,6 @@ internal class QuicRpcChannel : IRpcChannel
         mSide = side;
         mConnection = conn;
         mMeteredStream = meteredStream;
-        mRemoteEndpoint = (IPEndPoint)conn.RemoteEndPoint;
         mLog = RpcLoggerFactory.CreateLogger("QuicRpcChannel");
 
         ct.Register(() =>
@@ -116,7 +118,6 @@ internal class QuicRpcChannel : IRpcChannel
 
     readonly ConnectionSide mSide;
     readonly QuicConnection mConnection;
-    readonly IPEndPoint mRemoteEndpoint;
     readonly ILogger mLog;
 
     readonly object mCloseSyncLock = new();
