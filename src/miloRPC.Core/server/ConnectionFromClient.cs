@@ -222,7 +222,7 @@ public class ConnectionFromClient
                     mIdleStopwatch.Reset();
                     mRunStopwatch.Reset();
 
-                    mServerMetrics.MethodCallEnd();
+                    mServerMetrics.MethodCallEnd(callReadBytes, callWrittenBytes);
                 }
             }
         }

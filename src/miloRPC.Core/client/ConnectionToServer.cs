@@ -161,7 +161,7 @@ public class ConnectionToServer : IDisposable
 
             mWaitStopwatch.Reset();
 
-            mClientMetrics.MethodCallEnd();
+            mClientMetrics.MethodCallEnd(callReadBytes, callWrittenBytes);
             mIdleStopwatch.Restart();
 
             mCallSemaphore.Release();

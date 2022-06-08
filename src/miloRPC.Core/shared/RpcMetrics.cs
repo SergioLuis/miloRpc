@@ -8,6 +8,9 @@ public class RpcMetrics
         public uint ActiveConnections;
         public uint TotalMethodCalls;
         public uint ActiveMethodCalls;
+
+        public ulong TotalReceivedBytes;
+        public ulong TotalSentBytes;
     }
 
     internal RpcCounters Counters { get { lock (mSyncLock) return mCounters; } }
@@ -42,11 +45,13 @@ public class RpcMetrics
         }
     }
 
-    internal void MethodCallEnd()
+    internal void MethodCallEnd(ulong callReadBytes, ulong callWrittenBytes)
     {
         lock (mSyncLock)
         {
             mCounters.ActiveMethodCalls--;
+            mCounters.TotalReceivedBytes += callReadBytes;
+            mCounters.TotalSentBytes += callWrittenBytes;
         }
     }
 
