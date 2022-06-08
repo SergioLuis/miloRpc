@@ -165,7 +165,7 @@ public class ConnectionFromClient
                     if (!mRpcChannel.IsConnected())
                     {
                         mLog.LogError(
-                            "Caught an exception but the RpcSocket is not " +
+                            "Caught an exception but the RpcChannel is not " +
                             "connected, rethrowing...");
                         throw;
                     }
