@@ -26,21 +26,12 @@
       </Reference>
     </ItemGroup>
 
-    <Target 
-      Name="CopyMsQuic"
-      AfterTargets="AfterBuild"
-      Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
-      <Copy
-        SourceFiles="..\..\dependencies\MsQuic\artifacts\$(RuntimeIdentifier)\$(Configuration)\libmsquic*.dylib"
-        DestinationFolder="$(OutDir)" />
-    </Target>
-    
-    <Target Name="CleanMsQuic" AfterTargets="CoreClean">
-        <Message Text="Cleaning $(OutDir)libmsquic*.dylib" />
-        <Delete Files="$(OutDir)libmsquic*.dylib">
-          <Output TaskParameter="DeletedFiles" ItemName="DeletedList"/>
-        </Delete>
-        <Message Text="Deleted files: '@(DeletedList)'"/>
-    </Target>
-
+    <ItemGroup>
+      <Content
+              Include="..\..\dependencies\MsQuic\artifacts\$(RuntimeIdentifier)\$(Configuration)\libmsquic.2.1.0.dylib"
+              Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
+        <Link>libmsquic.2.1.0.dylib</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
 </Project>
