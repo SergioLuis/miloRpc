@@ -2,12 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using miloRPC.Core.Client;
+
 using miloRPC.Core.Server;
 using miloRPC.Core.Shared;
 using miloRPC.Examples.Shared;
@@ -34,7 +32,10 @@ public class EchoServiceStub : IStub
     };
 
     async Task<RpcNetworkMessages> IStub.RunMethodCallAsync(
-        IMethodId methodId, BinaryReader reader, Func<CancellationToken> beginMethodRunCallback)
+        IMethodId methodId,
+        BinaryReader reader,
+        IConnectionContext connCtx,
+        Func<CancellationToken> beginMethodRunCallback)
     {
         DefaultMethodId dmi = Unsafe.As<DefaultMethodId>(methodId);
         Contract.Assert(dmi.Id is <= MinMethod and >= MaxMethod);

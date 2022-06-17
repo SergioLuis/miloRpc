@@ -69,8 +69,13 @@ static class Program
         IPEndPoint ipEndPoint = new(IPAddress.Loopback, 9876);
 
         Task serverTask = await RunServer.StartServer(ipEndPoint, negotiateServerProtocol, cts.Token);
+        await Task.Delay(1000 * 3, cts.Token);
 
-        ConnectionPool pool = new(new ConnectToQuicServer(ipEndPoint, negotiateClientProtocol));
+        ConnectionPool pool = new(
+            new ConnectToQuicServer(ipEndPoint, negotiateClientProtocol),
+            minimumPooledConnections: 1);
+
+        await pool.WarmupPool();
 
         List<Task> tasksToWaitFor = new(numClients + 1);
         for (int i = 1; i < numClients + 1; i++)
@@ -127,6 +132,8 @@ static class Program
 
                     Console.WriteLine(
                         $"{result.ReceptionDateUtc - reqDate}: {reqValue == result.ReceivedMessage}");
+
+                    await Task.Delay(100, ct);
                 }
 
                 return true;
@@ -154,13 +161,12 @@ static class Program
             IServer<IPEndPoint> server = new QuicServer(bindEndpoint, stubs, negotiateRpcProtocol);
 
             TaskCompletionSource startServerTcs = new TaskCompletionSource();
-
             server.AcceptLoopStart += (_, _) => startServerTcs.SetResult();
 
             Task serverTask = server.ListenAsync(ct);
 
             // By the time this function returns, the server is ready to accept connections
-            await startServerTcs.Task;
+            // await startServerTcs.Task;
 
             Console.WriteLine($"Server based on {server.ServerProtocol} ready to accept connections");
 

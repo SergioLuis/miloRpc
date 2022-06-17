@@ -262,6 +262,6 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
         new DefaultQuicServerProtocolNegotiation(
             mandatoryCapabilities: RpcCapabilities.None,
             optionalCapabilities: RpcCapabilities.None,
-            Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "miloRpc-autogen.pfx"),
+            Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "miloRpc-autogen.pfx"),
             "079b5ef9-dc5e-4a48-a2e3-403d7456c495");
 }

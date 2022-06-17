@@ -17,13 +17,16 @@ public class VoidCallStub : IStub
         => Unsafe.As<DefaultMethodId>(method).Id == 1;
 
     IEnumerable<IMethodId> IStub.GetHandledMethods()
-        => new List<DefaultMethodId>()
+        => new List<DefaultMethodId>
         {
-            new DefaultMethodId(1, "CallAsync")
+            new(1, "CallAsync")
         };
 
     async Task<RpcNetworkMessages> IStub.RunMethodCallAsync(
-        IMethodId methodId, BinaryReader reader, Func<CancellationToken> beginMethodRunCallback)
+        IMethodId methodId,
+        BinaryReader reader,
+        IConnectionContext connCtx,
+        Func<CancellationToken> beginMethodRunCallback)
     {
         DefaultMethodId defaultMethodId = Unsafe.As<DefaultMethodId>(methodId);
 
@@ -67,7 +70,10 @@ public class LongRunningVoidCallStub : IStub
         };
 
     async Task<RpcNetworkMessages> IStub.RunMethodCallAsync(
-        IMethodId methodId, BinaryReader reader, Func<CancellationToken> beginMethodRunCallback)
+        IMethodId methodId,
+        BinaryReader reader,
+        IConnectionContext connCtx,
+        Func<CancellationToken> beginMethodRunCallback)
     {
         DefaultMethodId defaultMethodId = Unsafe.As<DefaultMethodId>(methodId);
 

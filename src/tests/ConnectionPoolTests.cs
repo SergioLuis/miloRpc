@@ -356,7 +356,9 @@ public class ConnectionPoolTests
 
 class TestRpcChannel : IRpcChannel
 {
+    string IRpcChannel.ChannelProtocol => "test";
     MeteredStream IRpcChannel.Stream => new(System.IO.Stream.Null);
+    IPEndPoint IRpcChannel.LocalEndPoint => new(IPAddress.Loopback, 9999);
     IPEndPoint IRpcChannel.RemoteEndPoint => new(IPAddress.Loopback, 0);
 
     async ValueTask IRpcChannel.WaitForDataAsync(CancellationToken ct)

@@ -496,6 +496,7 @@ public class TcpEndToEndTests
         async Task<RpcNetworkMessages> IStub.RunMethodCallAsync(
             IMethodId methodId,
             BinaryReader reader,
+            IConnectionContext connCtx,
             Func<CancellationToken> beginMethodRunCallback)
         {
             return Unsafe.As<DefaultMethodId>(methodId).Id switch
