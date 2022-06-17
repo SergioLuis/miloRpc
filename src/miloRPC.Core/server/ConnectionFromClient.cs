@@ -119,8 +119,8 @@ public class ConnectionFromClient
                             mConnectionId, methodId);
                         mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.NotSupported);
 
-                        // TODO: Write End Of Data Sequence to client
-                        // TODO: Consume input until End Of Data Sequence found
+                        EndOfDataSequence.ProcessFromServer(mRpc.Writer, mRpc.Reader);
+                        continue;
                     }
 
                     Func<CancellationToken> beginMethodRunCallback = () =>

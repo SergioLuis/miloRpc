@@ -125,8 +125,9 @@ public class ConnectionToServer : IDisposable
 
             if (result == MethodCallResult.NotSupported)
             {
-                // TODO: Read End Of Data Sequence from server
-                // TODO: Write End Of Data Sequence back to server
+                EndOfDataSequence.ProcessFromClient(mRpc.Writer, mRpc.Reader);
+                throw new NotSupportedException(
+                    $"Method {methodId} is not supported by the server");
             }
         }
         finally
