@@ -1,10 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net6.0</TargetFramework>
-        <Nullable>enable</Nullable>
+      <TargetFramework>net6.0</TargetFramework>
+      <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <PropertyGroup>
+      <PackageId>miloRpc.Tcp</PackageId>
+      <Version>0.2.0-beta</Version>
+      <Authors>Sergio Luis Para</Authors>
+      <Company>Sergio Luis Para</Company>
+    </PropertyGroup>
+    
     <ItemGroup>
       <ProjectReference Include="..\miloRPC.Core\miloRPC.Core.csproj" />
     </ItemGroup>

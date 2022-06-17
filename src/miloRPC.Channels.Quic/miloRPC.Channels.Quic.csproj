@@ -1,9 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net7.0</TargetFramework>
-        <Nullable>enable</Nullable>
-        <RuntimeIdentifiers>win-x64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
+      <TargetFramework>net7.0</TargetFramework>
+      <Nullable>enable</Nullable>
+      <RuntimeIdentifiers>win-x64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
+    </PropertyGroup>
+
+    <PropertyGroup>
+      <PackageId>miloRpc.Quic</PackageId>
+      <Version>0.2.0-beta</Version>
+      <Authors>Sergio Luis Para</Authors>
+      <Company>Sergio Luis Para</Company>
     </PropertyGroup>
 
     <ItemGroup>
