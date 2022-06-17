@@ -118,7 +118,9 @@ public class ConnectionFromClient
                             "Client tried to run an unsupported method (connId {ConnectionId}): {MethodId}",
                             mConnectionId, methodId);
                         mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.NotSupported);
-                        return;
+
+                        // TODO: Write End Of Data Sequence to client
+                        // TODO: Consume input until End Of Data Sequence found
                     }
 
                     Func<CancellationToken> beginMethodRunCallback = () =>

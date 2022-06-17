@@ -125,8 +125,8 @@ public class ConnectionToServer : IDisposable
 
             if (result == MethodCallResult.NotSupported)
             {
-                throw new NotSupportedException(
-                    $"Method {methodId} is not supported by the server");
+                // TODO: Read End Of Data Sequence from server
+                // TODO: Write End Of Data Sequence back to server
             }
         }
         finally
