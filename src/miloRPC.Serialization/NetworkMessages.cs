@@ -1,4 +1,7 @@
+// ReSharper disable MemberCanBePrivate.Global
+
 using System.IO;
+
 using miloRPC.Core.Shared;
 
 namespace miloRPC.Serialization;
