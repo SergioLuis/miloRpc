@@ -7,35 +7,34 @@ internal static class EndOfDataSequence
 {
     internal static void ProcessFromServer(BinaryWriter writer, BinaryReader reader)
     {
-        byte[] outputBuffer = new byte[SequenceLength];
-        byte[] inputBuffer = new byte[SequenceLength];
+        byte[] sendBuffer = new byte[SequenceLength];
+        byte[] receiveBuffer = new byte[SequenceLength];
 
         RandomNumberGenerator generator = RandomNumberGenerator.Create();
-        generator.GetNonZeroBytes(outputBuffer);
+        generator.GetNonZeroBytes(sendBuffer);
 
-        writer.Write(outputBuffer);
+        writer.Write(sendBuffer);
         writer.Flush();
 
-        int inputBufferIdx = 0;
+        int sendBufferIdx = 0;
         while (true)
         {
-            ReadUntilFull(inputBuffer, reader);
-
-            foreach (var b in outputBuffer)
+            int read = reader.Read(receiveBuffer, 0, receiveBuffer.Length);
+            
+            for (int i = 0; i < read; i++)
             {
-                if (inputBuffer[inputBufferIdx] == b)
+                if (sendBuffer[sendBufferIdx] == receiveBuffer[i])
                 {
-                    inputBufferIdx++;
-                    if (inputBufferIdx == inputBuffer.Length)
+                    sendBufferIdx++;
+                    if (sendBufferIdx == sendBuffer.Length)
                         return;
 
                     continue;
                 }
 
-                inputBufferIdx = 0;
+                sendBufferIdx = 0;
             }
         }
-
     }
 
     internal static void ProcessFromClient(BinaryWriter writer, BinaryReader reader)
@@ -43,13 +42,14 @@ internal static class EndOfDataSequence
         byte[] buffer = new byte[SequenceLength];
         ReadUntilFull(buffer, reader);
         writer.Write(buffer);
-    }
-
-    static void ReadUntilFull(byte[] dst, BinaryReader reader)
-    {
-        int read = 0;
-        while (read < dst.Length)
-            read += reader.Read(dst, read, dst.Length);
+        writer.Flush();
+        
+        static void ReadUntilFull(byte[] dst, BinaryReader reader)
+        {
+            int read = 0;
+            while (read < dst.Length)
+                read += reader.Read(dst, read, dst.Length - read);
+        }
     }
 
     const int SequenceLength = 8 * sizeof(int);

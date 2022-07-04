@@ -86,6 +86,7 @@ public class Serializers
         RegisterInstance(new DateTimeSerializer());
         RegisterInstance(new GuidSerializer());
 
+        RegisterGeneric(typeof(Memory<>), typeof(MemorySerializer<>));
         RegisterGeneric(typeof(List<>), typeof(ListSerializer<>));
         RegisterGeneric(typeof(Tuple<,>), typeof(TupleSerializer<,>));
         RegisterGeneric(typeof(Tuple<,,>), typeof(TupleSerializer<,,>));
