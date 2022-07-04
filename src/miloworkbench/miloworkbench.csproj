@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net7.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <RootNamespace>miloRpc.WorkBench</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\miloRPC.Channels.Quic\miloRPC.Channels.Quic.csproj" />
+      <ProjectReference Include="..\miloRPC.Channels.Tcp\miloRPC.Channels.Tcp.csproj" />
+      <ProjectReference Include="..\miloRPC.Core\miloRPC.Core.csproj" />
+      <ProjectReference Include="..\miloRPC.Serialization\miloRPC.Serialization.csproj" />
+    </ItemGroup>
+
+</Project>
