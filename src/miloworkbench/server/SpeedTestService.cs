@@ -12,12 +12,15 @@ internal class SpeedTestService
         mSpeedtestBuffer = buffer;
     }
 
-    internal void DownloadAsync(int sizeInBytes, byte[] buffer)
+    internal unsafe void DownloadAsync(int sizeInBytes, byte[] buffer)
     {
         Contract.Assert(sizeInBytes <= MaxBlockSize);
-
-        Memory<byte> dst = new(buffer, 0, sizeInBytes);
-        mSpeedtestBuffer.CopyTo(dst);
+        fixed (byte *pSource = mSpeedtestBuffer)
+        fixed (byte* pDestination = buffer)
+        {
+            for (int i = 0; i < sizeInBytes; i++)
+                pDestination[i] = pSource[i];
+        }
     }
 
     internal void UploadAsync(ReadOnlyMemory<byte> data)
@@ -25,6 +28,6 @@ internal class SpeedTestService
         Contract.Assert(data.Length > 0);
     }
 
-    readonly ReadOnlyMemory<byte> mSpeedtestBuffer;
+    readonly byte[] mSpeedtestBuffer;
     internal const int MaxBlockSize = 4 * 1024 * 1024;
 }
