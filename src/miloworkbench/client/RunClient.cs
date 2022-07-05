@@ -1,13 +1,22 @@
-using System.Threading;
 using System.Threading.Tasks;
 
-namespace miloRpc.WorkBench.Client;
+using Spectre.Console.Cli;
+
+using miloRpc.TestWorkBench.Client.Commands;
+
+namespace miloRpc.TestWorkBench.Client;
 
 public static class RunClient
 {
-    public static async Task<int> RunAsync(string[] args, CancellationToken ct = default)
+    public static async Task<int> RunAsync(string[] args)
     {
-        await Task.Delay(1000, ct);
-        return 0;
+        var commandApp = new CommandApp();
+        commandApp.Configure(config =>
+        {
+            config.AddCommand<SpeedTestCommand>("speedtest")
+                .WithDescription("Runs a speed test against the specified server");
+        });
+
+        return await commandApp.RunAsync(args);
     }
 }

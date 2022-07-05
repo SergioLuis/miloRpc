@@ -1,13 +1,22 @@
-using System.Threading;
 using System.Threading.Tasks;
 
-namespace miloRpc.WorkBench.Server;
+using Spectre.Console.Cli;
+
+using miloRpc.TestWorkBench.Server.Commands;
+
+namespace miloRpc.TestWorkBench.Server;
 
 public static class RunServer
 {
-    public static async Task<int> RunAsync(string[] args, CancellationToken ct = default)
+    public static async Task<int> RunAsync(string[] args)
     {
-        await Task.Delay(1000, ct);
-        return 0;
+        var commandApp = new CommandApp();
+        commandApp.Configure(config =>
+        {
+            config.AddCommand<ListenCommand>("listen")
+                .WithDescription("Starts the requested miloRpc servers");
+        });
+
+        return await commandApp.RunAsync(args);
     }
 }

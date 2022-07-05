@@ -1,11 +1,10 @@
 ﻿using System;
-using System.Threading;
 using System.Threading.Tasks;
 
-using miloRpc.WorkBench.Client;
-using miloRpc.WorkBench.Server;
+using miloRpc.TestWorkBench.Client;
+using miloRpc.TestWorkBench.Server;
 
-namespace miloRpc.TestWorkBench.Server;
+namespace miloRpc.TestWorkBench;
 
 public static class Program
 {
@@ -17,13 +16,13 @@ public static class Program
             return 1;
         }
 
-        Func<string[], CancellationToken, Task<int>> funcToRun = args[0].ToLowerInvariant() switch
+        Func<string[], Task<int>> funcToRun = args[0].ToLowerInvariant() switch
         {
             "server" => RunServer.RunAsync,
             "client" => RunClient.RunAsync,
             _ => throw new NotSupportedException($"Invalid argument '{args[0]}'")
         };
 
-        return await funcToRun(args[1..], CancellationToken.None);
+        return await funcToRun(args[1..]);
     }
 }
