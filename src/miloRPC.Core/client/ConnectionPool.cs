@@ -54,17 +54,11 @@ public class ConnectionPool
         }
     }
 
-    public async Task<ConnectionToServer> RentConnectionAsync()
-        => await RentConnectionAsync(Timeout.InfiniteTimeSpan, CancellationToken.None);
-
-    public async Task<ConnectionToServer> RentConnectionAsync(CancellationToken ct)
+    public async Task<ConnectionToServer> RentConnectionAsync(CancellationToken ct = default)
         => await RentConnectionAsync(Timeout.InfiniteTimeSpan, ct);
 
-    public async Task<ConnectionToServer> RentConnectionAsync(TimeSpan waitTimeout)
-        => await RentConnectionAsync(waitTimeout, CancellationToken.None);
-
     public async Task<ConnectionToServer> RentConnectionAsync(
-        TimeSpan waitTimeout, CancellationToken ct)
+        TimeSpan waitTimeout, CancellationToken ct = default)
     {
         int reqIni = Environment.TickCount;
         ConnectionToServer? result = null;
