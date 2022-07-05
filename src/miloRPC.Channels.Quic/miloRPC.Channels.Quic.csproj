@@ -35,10 +35,19 @@
 
     <ItemGroup>
       <Content
-              Include="..\..\dependencies\MsQuic\artifacts\$(RuntimeIdentifier)\$(Configuration)\libmsquic.2.1.0.dylib"
+              Include="..\..\dependencies\MsQuic\artifacts\$(RuntimeIdentifier)\Release\libmsquic.2.dylib"
               Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
         <Link>libmsquic.2.1.0.dylib</Link>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content
+                Include="..\..\dependencies\MsQuic\artifacts\$(RuntimeIdentifier)\Release\libmsquic.so.2"
+                Condition="'$(RuntimeIdentifier)' == 'linux-x64' Or '$(RuntimeIdentifier)' == 'linux-arm64'">
+            <Link>libmsquic.2.so</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
 </Project>
