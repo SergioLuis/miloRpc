@@ -57,7 +57,7 @@ public class SpeedTestCommand : AsyncCommand<SpeedTestCommand.Settings>
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        Uri serverUri = new(settings.Uri);
+        Uri serverUri = new(settings.Uri!);
 
         string[] acceptedSchemes = new[] {"tcp", "ssl", "quic"};
         if (!acceptedSchemes.Contains(serverUri.Scheme, StringComparer.InvariantCultureIgnoreCase))
@@ -125,15 +125,15 @@ public class SpeedTestCommand : AsyncCommand<SpeedTestCommand.Settings>
 
         TimeSpan downloadTime = sw.Elapsed;
 
-        double uploadMbPerSecond = totalSizeMb / uploadTime.TotalSeconds;
-        double downloadMbPerSecond = totalSizeMb / downloadTime.TotalSeconds;
+        double uploadMbps = (totalSizeMb << 3) / uploadTime.TotalSeconds;
+        double downloadMbps = (totalSizeMb << 3) / downloadTime.TotalSeconds;
         
         Console.WriteLine(
-            "Upload speed   = {0,6:0.0}Mbps.   Time uploading {1}MB = {2:0}ms.",
-            uploadMbPerSecond, totalSizeMb, uploadTime.TotalMilliseconds);
+            "Upload speed   = {0,6:0.0}Mbps. Time uploading {1}MB   = {2:0}ms.",
+            uploadMbps, totalSizeMb, uploadTime.TotalMilliseconds);
         Console.WriteLine(
             "Download speed = {0,6:0.0}Mbps. Time downloading {1}MB = {2:0}ms.",
-            downloadMbPerSecond, totalSizeMb, downloadTime.TotalMilliseconds);
+            downloadMbps, totalSizeMb, downloadTime.TotalMilliseconds);
     }
 
     static async Task RunUpload(
