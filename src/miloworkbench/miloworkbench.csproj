@@ -4,7 +4,7 @@
         <OutputType>Exe</OutputType>
         <TargetFramework>net7.0</TargetFramework>
         <Nullable>enable</Nullable>
-        <RootNamespace>miloRpc.WorkBench</RootNamespace>
+        <RootNamespace>miloRpc.TestWorkBench</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
@@ -12,6 +12,11 @@
       <ProjectReference Include="..\miloRPC.Channels.Tcp\miloRPC.Channels.Tcp.csproj" />
       <ProjectReference Include="..\miloRPC.Core\miloRPC.Core.csproj" />
       <ProjectReference Include="..\miloRPC.Serialization\miloRPC.Serialization.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Spectre.Console" Version="0.44.1-preview.0.29" />
+      <PackageReference Include="Spectre.Console.Cli" Version="0.44.1-preview.0.29" />
     </ItemGroup>
 
 </Project>
