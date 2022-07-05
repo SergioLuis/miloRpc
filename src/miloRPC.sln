@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "miloRPC.Channels.Tcp", "mil
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "miloRPC.Channels.Quic", "miloRPC.Channels.Quic\miloRPC.Channels.Quic.csproj", "{68B72EEE-858B-40BC-AA3E-2F9F21D112B6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "miloworkbench", "miloworkbench\miloworkbench.csproj", "{618EC909-09CC-400B-A237-154BD7F05BC2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -48,5 +50,9 @@ Global
 		{68B72EEE-858B-40BC-AA3E-2F9F21D112B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{68B72EEE-858B-40BC-AA3E-2F9F21D112B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{68B72EEE-858B-40BC-AA3E-2F9F21D112B6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{618EC909-09CC-400B-A237-154BD7F05BC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{618EC909-09CC-400B-A237-154BD7F05BC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{618EC909-09CC-400B-A237-154BD7F05BC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{618EC909-09CC-400B-A237-154BD7F05BC2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

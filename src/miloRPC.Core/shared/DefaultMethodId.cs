@@ -35,6 +35,18 @@ public class DefaultMethodId : IMethodId
     public static bool operator !=(DefaultMethodId a, DefaultMethodId b)
         => a.Id != b.Id;
 
+    public static bool operator <(DefaultMethodId a, DefaultMethodId b)
+        => a.Id < b.Id;
+
+    public static bool operator <=(DefaultMethodId a, DefaultMethodId b)
+        => a.Id <= b.Id;
+
+    public static bool operator >(DefaultMethodId a, DefaultMethodId b)
+        => a.Id > b.Id;
+
+    public static bool operator >=(DefaultMethodId a, DefaultMethodId b)
+        => a.Id >= b.Id;
+
     public override int GetHashCode() => Id.GetHashCode();
 
     public override string ToString() => string.IsNullOrEmpty(Name)
