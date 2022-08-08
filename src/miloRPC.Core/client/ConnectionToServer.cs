@@ -77,12 +77,6 @@ public class ConnectionToServer : IDisposable
         RpcNetworkMessages messages,
         CancellationToken ct)
     {
-        // This Task.Yield allows the client to fire the task and await it
-        // at a later point without having to wait for all the synchronous
-        // write operations, in case the call semaphore returns a completed
-        // task and no thread switch occurs.
-        await Task.Yield();
-
         await mCallSemaphore.WaitAsync(ct);
         uint methodCallId = mClientMetrics.MethodCallStart();
         try
