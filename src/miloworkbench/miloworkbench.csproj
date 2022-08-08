@@ -16,6 +16,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="NLog.Extensions.Logging" Version="5.0.1" />
       <PackageReference Include="Spectre.Console" Version="0.44.1-preview.0.29" />
       <PackageReference Include="Spectre.Console.Cli" Version="0.44.1-preview.0.29" />
     </ItemGroup>
