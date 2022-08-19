@@ -159,6 +159,7 @@ public class ConnectionToServer : IDisposable
             mClientMetrics.MethodCallEnd(callReadBytes, callWrittenBytes);
             mIdleStopwatch.Restart();
 
+            mCurrentStatus = Status.Idling;
             mCallSemaphore.Release();
         }
     }
