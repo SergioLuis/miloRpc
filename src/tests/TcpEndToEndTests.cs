@@ -207,7 +207,7 @@ public class TcpEndToEndTests
     }
 
     [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
-    public async Task Not_Supported_Remote_Procedure_Call_Closes_Connection(RpcCapabilities capabilities)
+    public async Task Not_Supported_Remote_Procedure_Call_Does_Not_Close_Connection(RpcCapabilities capabilities)
     {
         int acceptLoopStartEvents = 0;
         EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
@@ -280,7 +280,7 @@ public class TcpEndToEndTests
 
         Assert.That(
             () => connectionToServer.IsConnected(),
-            Is.False.After(1000, 10));
+            Is.True.After(1000, 10));
 
         connectionToServer.Dispose();
         cts.Cancel();
