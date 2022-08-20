@@ -112,10 +112,8 @@ public class ActiveConnections
         }
     }
 
-    async Task MonitorActiveConnections(CancellationToken ct)
+    void MonitorActiveConnections(CancellationToken ct)
     {
-        await Task.Yield();
-
         if (ct.IsCancellationRequested)
             return;
 
@@ -145,25 +143,25 @@ public class ActiveConnections
                 connsToRemove.Add(activeConn);
             }
 
-            if (!connFromClient.IsConnected())
-            {
-                mLog.LogDebug(
-                    "Connection {0} not identified as exited but its socket is disconnected",
-                    connFromClient.ConnectionId);
+            if (connFromClient.IsConnected())
+                continue;
 
-                activeConn.Cts.Cancel();
-            }
+            mLog.LogDebug(
+                "Connection {ConnectionId} not identified as exited but its socket is disconnected",
+                connFromClient.ConnectionId);
+
+            activeConn.Cts.Cancel();
         }
 
         mLog.LogDebug(
-            "Going to evict {0} exited connections from the system",
+            "Going to evict {ConnectionCount} exited connections from the system",
             connsToRemove.Count);
 
         lock (mActiveConnections)
         {
             mActiveConnections.ExceptWith(connsToRemove);
             mLog.LogTrace(
-                "Active connections after eviction: {0}",
+                "Active connections after eviction: {ConnectionCount}",
                 mActiveConnections.Count);
         }
 

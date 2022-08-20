@@ -11,7 +11,7 @@ public class RecurringTask
     public uint TimesInvoked => mTimesInvoked;
     public Exception? LastException { get { lock (mSyncLock) return mLastException; } }
 
-    public RecurringTask(Func<CancellationToken, Task> action, string taskName)
+    public RecurringTask(Action<CancellationToken> action, string taskName)
     {
         mAction = action;
         mTaskName = taskName;
@@ -103,7 +103,7 @@ public class RecurringTask
                 mRecurringLoopTask = null;
             }
 
-            await mAction(ct);
+            mAction(ct);
 
             mRecurringLoopCts = CancellationTokenSource.CreateLinkedTokenSource(mOriginalStartToken);
             mRecurringLoopTask = RunRecurringAsync(mAction, mOriginalRunInterval, ct, mRecurringLoopCts.Token);
@@ -116,7 +116,7 @@ public class RecurringTask
     }
 
     Task RunRecurringAsync(
-        Func<CancellationToken, Task> action,
+        Action<CancellationToken> action,
         TimeSpan interval,
         CancellationToken actionToken,
         CancellationToken breakToken)
@@ -131,7 +131,7 @@ public class RecurringTask
                     try
                     {
                         mLog.LogTrace("Running recurring action {TaskName}", mTaskName);
-                        await action(actionToken);
+                        action(actionToken);
                     }
                     catch (Exception ex)
                     {
@@ -170,7 +170,7 @@ public class RecurringTask
     volatile bool mIsRunning;
     volatile uint mTimesInvoked;
 
-    readonly Func<CancellationToken, Task> mAction;
+    readonly Action<CancellationToken> mAction;
     readonly string mTaskName;
     readonly object mSyncLock = new();
     readonly SemaphoreSlim mSemaphore = new(1, 1);
