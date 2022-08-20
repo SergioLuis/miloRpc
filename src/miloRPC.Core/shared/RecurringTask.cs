@@ -5,13 +5,13 @@ using Microsoft.Extensions.Logging;
 
 namespace miloRPC.Core.Shared;
 
-public class RecurringTask
+internal class RecurringTask
 {
-    public bool IsRunning => mIsRunning;
-    public uint TimesInvoked => mTimesInvoked;
-    public Exception? LastException { get { lock (mSyncLock) return mLastException; } }
+    internal bool IsRunning => mIsRunning;
+    internal uint TimesInvoked => mTimesInvoked;
+    internal Exception? LastException { get { lock (mSyncLock) return mLastException; } }
 
-    public RecurringTask(Action<CancellationToken> action, string taskName)
+    internal RecurringTask(Action<CancellationToken> action, string taskName)
     {
         mAction = action;
         mTaskName = taskName;
@@ -19,7 +19,7 @@ public class RecurringTask
         mLog = RpcLoggerFactory.CreateLogger("RecurringTask");
     }
 
-    public void Start(TimeSpan interval, CancellationToken ct)
+    internal void Start(TimeSpan interval, CancellationToken ct)
     {
         mSemaphore.Wait(ct);
         try
@@ -41,10 +41,10 @@ public class RecurringTask
         }
     }
 
-    public async Task StopAsync()
+    internal async Task StopAsync()
         => await TryStopAsync(Timeout.InfiniteTimeSpan, CancellationToken.None);
 
-    public async Task<bool> TryStopAsync(
+    internal async Task<bool> TryStopAsync(
         TimeSpan timeout, CancellationToken ct)
     {
         bool semaphoreEntered = await mSemaphore.WaitAsync(timeout, ct);
@@ -77,10 +77,10 @@ public class RecurringTask
         }
     }
 
-    public async Task FireEarlyAsync()
+    internal async Task FireEarlyAsync()
         => await TryFireEarlyAsync(Timeout.InfiniteTimeSpan, CancellationToken.None);
 
-    public async Task<bool> TryFireEarlyAsync(
+    internal async Task<bool> TryFireEarlyAsync(
         TimeSpan timeout, CancellationToken ct)
     {
         bool semaphoreEntered = await mSemaphore.WaitAsync(timeout, ct);
