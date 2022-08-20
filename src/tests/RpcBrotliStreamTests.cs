@@ -95,9 +95,14 @@ public class RpcBrotliStreamTests
     [TestCase(CompressionHeader.CompressionFlag.Uncompressed, 8190)]
     [TestCase(CompressionHeader.CompressionFlag.Compressed, 8194)]
     [TestCase(CompressionHeader.CompressionFlag.Uncompressed, 8194)]
-    public void Encoded_Compression_Header_Should_Match_Decoded_Information(
-        CompressionHeader.CompressionFlag compressionFlag, int size)
+    public void Encoded_Compression_Header_Should_Match_Decoded_Information(object flag, int size)
     {
+        // Ugly workaround to use internal parameter type in public method
+        // Suggested by Jon Skeet at:
+        //     https://stackoverflow.com/questions/37379168/how-to-use-nunit-testcase-with-internal-type-as-argument#comment62269504_37379168
+        CompressionHeader.CompressionFlag compressionFlag =
+            (CompressionHeader.CompressionFlag) flag;
+        
         byte[] buffer = new byte[5];
         MemoryStream ms = new(buffer);
 
