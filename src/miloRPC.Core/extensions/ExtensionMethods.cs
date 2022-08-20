@@ -13,16 +13,4 @@ public static class ExtensionMethods
         cts.CancelAfter(timeout);
         return cts.Token;
     }
-
-    public static void ShutdownAndCloseSafely(this Socket socket)
-    {
-        try
-        {
-            socket.Shutdown(SocketShutdown.Both);
-        }
-        finally
-        {
-            socket.Close();
-        }
-    }
 }
