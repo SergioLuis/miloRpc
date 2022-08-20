@@ -30,7 +30,7 @@ public class RpcBrotliStream : Stream
         mBaseStream = baseStream;
         mArrayPool = arrayPool;
         mMaxChunkSize = maxChunkSize;
-        mCurrentReadChunk = new CurrentReadChunk(arrayPool, maxChunkSize);
+        mCurrentReadChunk = new ReadChunk(arrayPool, maxChunkSize);
     }
 
     public override int Read(byte[] buffer, int offset, int count)
@@ -176,16 +176,16 @@ public class RpcBrotliStream : Stream
         }
     }
 
-    readonly CurrentReadChunk mCurrentReadChunk;
+    readonly ReadChunk mCurrentReadChunk;
     readonly Stream mBaseStream;
     readonly int mMaxChunkSize;
     readonly ArrayPool<byte> mArrayPool;
 
-    class CurrentReadChunk : IDisposable
+    class ReadChunk : IDisposable
     {
         internal bool HasPendingBytes => mLength > 0 && mRead < mLength;
 
-        internal CurrentReadChunk(ArrayPool<byte> arrayPool, int maxChunkSize)
+        internal ReadChunk(ArrayPool<byte> arrayPool, int maxChunkSize)
         {
             mArrayPool = arrayPool;
             mMaxChunkSize = maxChunkSize;

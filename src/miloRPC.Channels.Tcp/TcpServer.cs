@@ -112,7 +112,7 @@ public class TcpServer : IServer<IPEndPoint>
                     ConnectionAccept?.Invoke(this, connAcceptArgs);
                     if (connAcceptArgs.CancelRequested)
                     {
-                        socket.ShutdownAndCloseSafely();
+                        ShutdownSocket(socket);
                         continue;
                     }
 
@@ -140,6 +140,22 @@ public class TcpServer : IServer<IPEndPoint>
         await mActiveConnections.StopConnectionMonitorAsync();
 
         mLog.LogTrace("AcceptLoop completed");
+    }
+
+    static void ShutdownSocket(Socket socket)
+    {
+        try
+        {
+            socket.Shutdown(SocketShutdown.Both);
+        }
+        catch
+        {
+            // Nothing to do
+        }
+        finally
+        {
+            socket.Close();
+        }
     }
 
     IPEndPoint? mBindAddress;

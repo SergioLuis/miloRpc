@@ -16,7 +16,7 @@ public class RecurringTaskTests
     {
         RecurringTaskCountInvocations testRecurringTask = new();
         RecurringTask recurringTask = new(
-            testRecurringTask.InvokeAsync,
+            testRecurringTask.Action,
             nameof(RecurringTaskCountInvocations));
 
         const int minimumInvokations = 5;
@@ -48,7 +48,7 @@ public class RecurringTaskTests
 
         RecurringTaskCountInvocations testRecurringTask = new();
         RecurringTask recurringTask = new(
-            testRecurringTask.InvokeAsync,
+            testRecurringTask.Action,
             nameof(RecurringTaskCountInvocations));
 
         const int minimumInvokations = 5;
@@ -78,7 +78,7 @@ public class RecurringTaskTests
     {
         RecurringTaskCountInvocations testRecurringTask = new();
         RecurringTask recurringTask = new(
-            testRecurringTask.InvokeAsync,
+            testRecurringTask.Action,
             nameof(RecurringTaskCountInvocations));
 
         const int minimumInvokations = 5;
@@ -112,7 +112,7 @@ public class RecurringTaskTests
 
         RecurringTaskThrowsException testRecurringTask = new();
         RecurringTask recurringTask = new(
-            testRecurringTask.InvokeAsync,
+            testRecurringTask.Action,
             nameof(RecurringTaskCountInvocations));
 
         const int minimumInvokations = 5;
@@ -155,7 +155,7 @@ public class RecurringTaskTests
 
         RecurringTaskThrowsException testRecurringTask = new();
         RecurringTask recurringTask = new(
-            testRecurringTask.InvokeAsync,
+            testRecurringTask.Action,
             nameof(RecurringTaskCountInvocations));
 
         const int minimumInvokations = 5;
@@ -194,7 +194,7 @@ public class RecurringTaskTests
 
         RecurringTaskThrowsException testRecurringTask = new();
         RecurringTask recurringTask = new(
-            testRecurringTask.InvokeAsync,
+            testRecurringTask.Action,
             nameof(RecurringTaskCountInvocations));
 
         const int minimumInvokations = 5;
@@ -231,18 +231,16 @@ class RecurringTaskCountInvocations
 {
     public int TimesInvoked = 0;
 
-    public async Task InvokeAsync(CancellationToken ct)
+    public void Action(CancellationToken ct)
     {
-        await Task.Yield();
         Interlocked.Increment(ref TimesInvoked);
     }
 }
 
 class RecurringTaskThrowsException
 {
-    public async Task InvokeAsync(CancellationToken ct)
+    public void Action(CancellationToken ct)
     {
-        await Task.Yield();
         throw new InvalidOperationException(
             "The InvokeAsync operation is not supported");
     }

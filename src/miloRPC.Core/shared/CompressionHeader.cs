@@ -2,26 +2,26 @@ using System;
 
 namespace miloRPC.Core.Shared;
 
-public static class CompressionHeader
+internal static class CompressionHeader
 {
-    public const int TinyHeaderSize = 1;
-    public const int SmallHeaderSize = 2;
-    public const int RegularHeaderSize = 5;
+    internal const int TinyHeaderSize = 1;
+    internal const int SmallHeaderSize = 2;
+    internal const int RegularHeaderSize = 5;
 
-    public enum SizeFlag : byte
+    internal enum SizeFlag : byte
     {
         Tiny = 0x20,
         Small = 0x40,
         Regular = 0x60
     }
 
-    public enum CompressionFlag : byte
+    internal enum CompressionFlag : byte
     {
         Uncompressed = 0x00,
         Compressed = 0x80
     }
 
-    public static void Decode(
+    internal static void Decode(
         ReadOnlySpan<byte> header, out CompressionFlag compressed, out SizeFlag sizeFlag)
     {
         byte zero = header[0];
@@ -29,7 +29,7 @@ public static class CompressionHeader
         sizeFlag = (SizeFlag)(zero & 0x60);
     }
 
-    public static int GetSize(ReadOnlySpan<byte> header, SizeFlag sizeFlag) =>
+    internal static int GetSize(ReadOnlySpan<byte> header, SizeFlag sizeFlag) =>
         sizeFlag switch
         {
             SizeFlag.Tiny => header[0] & 0x1F,
@@ -38,7 +38,7 @@ public static class CompressionHeader
             _ => throw new ArgumentOutOfRangeException(nameof(sizeFlag))
         };
 
-    public static ReadOnlySpan<byte> Create(CompressionFlag compressed, int count)
+    internal static ReadOnlySpan<byte> Create(CompressionFlag compressed, int count)
     {
         byte[] result;
         switch (count)

@@ -83,7 +83,7 @@ internal class QuicRpcChannel : IRpcChannel
         }
 
         Contract.Assert(mMeteredStream is not null);
-        await mMeteredStream.ReadAsync(Memory<byte>.Empty, ct);
+        int _ = await mMeteredStream.ReadAsync(Memory<byte>.Empty, ct);
     }
 
     public bool IsConnected() => !mDisposed && mConnection.Connected;
