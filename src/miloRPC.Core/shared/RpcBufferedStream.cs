@@ -44,6 +44,7 @@ public class RpcBufferedStream : Stream
 
     public override int Read(byte[] buffer, int offset, int count)
     {
+        #warning Reads with 0 count might return immediately when done against the BufferedStream.
         return mInputStream.Read(buffer, offset, count);
     }
 
