@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 using Moq;
 using NUnit.Framework;
+using NUnit.Framework.Interfaces;
 
 using miloRPC.Core.Client;
 using miloRPC.Core.Server;
@@ -22,346 +23,275 @@ namespace miloRPC.Tests;
 public class TcpEndToEndTests
 {
     [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
-    public async Task Remote_Procedure_Call_Works_Ok_End_To_End(RpcCapabilities capabilities)
+    public async Task Remote_Procedure_Call_Works_Ok_End_To_End(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
     {
-        int acceptLoopStartEvents = 0;
-        EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
+        try
         {
-            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
-            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStartEvents));
-            Assert.That(args.CancelRequested, Is.False);
-            acceptLoopStartEvents++;
-        };
 
-        int acceptLoopStopEvents = 0;
-        EventHandler<AcceptLoopStopEventArgs> acceptLoopStopEventHandler = (sender, args) =>
-        {
-            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
-            acceptLoopStopEvents++;
-            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStopEvents));
-        };
-
-        int connAcceptEvents = 0;
-        EventHandler<ConnectionAcceptEventArgs<IPEndPoint>> connAcceptEventHandler = (sender, args) =>
-        {
-            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
-            connAcceptEvents++;
-            Assert.That(args.CancelRequested, Is.False);
-        };
-
-        Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
-        serverFuncMock.Setup(
-                mock => mock.CallAsync(It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        CancellationTokenSource cts = new();
-        cts.CancelAfter(TestingConstants.Timeout);
-
-        ConnectionSettings serverConnectionSettings = new()
-        {
-            Ssl = new ConnectionSettings.SslSettings
+            int acceptLoopStartEvents = 0;
+            EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
             {
-                CertificatePath = mCertificatePath,
-                CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
-            },
-            Buffering = new ConnectionSettings.BufferingSettings
+                Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+                Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStartEvents));
+                Assert.That(args.CancelRequested, Is.False);
+                acceptLoopStartEvents++;
+            };
+
+            int acceptLoopStopEvents = 0;
+            EventHandler<AcceptLoopStopEventArgs> acceptLoopStopEventHandler = (sender, args) =>
             {
-                Enable = false
-            }
-        };
+                Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+                acceptLoopStopEvents++;
+                Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStopEvents));
+            };
 
-        INegotiateRpcProtocol negotiateServerProtocol =
-            new DefaultServerProtocolNegotiation(
-                capabilities,
-                capabilities,
-                serverConnectionSettings,
-                ArrayPool<byte>.Shared);
+            int connAcceptEvents = 0;
+            EventHandler<ConnectionAcceptEventArgs<IPEndPoint>> connAcceptEventHandler = (sender, args) =>
+            {
+                Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+                connAcceptEvents++;
+                Assert.That(args.CancelRequested, Is.False);
+            };
 
-        ConnectionSettings clientConnectionSettings = new()
+            Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
+            serverFuncMock.Setup(
+                    mock => mock.CallAsync(It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            CancellationTokenSource cts = new();
+            cts.CancelAfter(TestingConstants.Timeout);
+
+            INegotiateRpcProtocol negotiateServerProtocol =
+                new DefaultServerProtocolNegotiation(serverSettings);
+
+            INegotiateRpcProtocol negotiateClientProtocol =
+                new DefaultClientProtocolNegotiation(clientSettings);
+
+            IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+            StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
+            IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+            tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
+            tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
+            tcpServer.ConnectionAccept += connAcceptEventHandler;
+
+            Task serverTask = tcpServer.ListenAsync(cts.Token);
+
+            Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+            ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
+            ConnectionToServer connectionToServer = await connectToTcpServer.ConnectAsync(cts.Token);
+            IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
+
+            Assert.That(
+                () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+                Is.EqualTo(1).After(1000, 10));
+
+            await serverFuncProxy.CallAsync(cts.Token);
+
+            serverFuncMock.Verify(
+                mock => mock.CallAsync(It.IsAny<CancellationToken>()),
+                Times.Once);
+
+            connectionToServer.Dispose();
+            cts.Cancel();
+
+            await serverTask;
+
+            Assert.That(acceptLoopStartEvents, Is.EqualTo(1));
+            Assert.That(acceptLoopStopEvents, Is.EqualTo(1));
+            Assert.That(connAcceptEvents, Is.EqualTo(1));
+        }
+        finally
         {
-            Ssl = new ConnectionSettings.SslSettings
-            {
-                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
-            },
-            Buffering = new ConnectionSettings.BufferingSettings
-            {
-                Enable = false
-            }
-        };
-
-        INegotiateRpcProtocol negotiateClientProtocol =
-            new DefaultClientProtocolNegotiation(
-                capabilities,
-                RpcCapabilities.None,
-                clientConnectionSettings,
-                ArrayPool<byte>.Shared);
-
-        IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
-
-        StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
-        IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
-        tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
-        tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
-        tcpServer.ConnectionAccept += connAcceptEventHandler;
-
-        Task serverTask = tcpServer.ListenAsync(cts.Token);
-
-        Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
-
-        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
-        ConnectionToServer connectionToServer = await connectToTcpServer.ConnectAsync(cts.Token);
-        IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
-
-        Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
-            Is.EqualTo(1).After(1000, 10));
-
-        await serverFuncProxy.CallAsync(cts.Token);
-
-        serverFuncMock.Verify(
-            mock => mock.CallAsync(It.IsAny<CancellationToken>()),
-            Times.Once);
-
-        connectionToServer.Dispose();
-        cts.Cancel();
-
-        await serverTask;
-
-        Assert.That(acceptLoopStartEvents, Is.EqualTo(1));
-        Assert.That(acceptLoopStopEvents, Is.EqualTo(1));
-        Assert.That(connAcceptEvents, Is.EqualTo(1));
+            if (File.Exists(serverSettings.Ssl.CertificatePath))
+                File.Delete(serverSettings.Ssl.CertificatePath);
+        }
     }
 
     [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
-    public async Task Failed_Remote_Procedure_Call_Propagates_Exception(RpcCapabilities capabilities)
+    public async Task Failed_Remote_Procedure_Call_Propagates_Exception(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
     {
-        int acceptLoopStartEvents = 0;
-        EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
+        try
         {
-            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
-            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStartEvents));
-            Assert.That(args.CancelRequested, Is.False);
-            acceptLoopStartEvents++;
-        };
-
-        int acceptLoopStopEvents = 0;
-        EventHandler<AcceptLoopStopEventArgs> acceptLoopStopEventHandler = (sender, args) =>
-        {
-            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
-            acceptLoopStopEvents++;
-            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStopEvents));
-        };
-
-        int connAcceptEvents = 0;
-        EventHandler<ConnectionAcceptEventArgs<IPEndPoint>> connAcceptEventHandler = (sender, args) =>
-        {
-            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
-            connAcceptEvents++;
-            Assert.That(args.CancelRequested, Is.False);
-        };
-
-        const string exceptionMsg = "This method will be implemented on v3.1";
-
-        Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
-        serverFuncMock.Setup(
-                mock => mock.CallAsync(It.IsAny<CancellationToken>()))
-            .Throws(new NotImplementedException(exceptionMsg));
-
-        CancellationTokenSource cts = new();
-        cts.CancelAfter(TestingConstants.Timeout);
-        
-        ConnectionSettings serverConnectionSettings = new()
-        {
-            Ssl = new ConnectionSettings.SslSettings
+            int acceptLoopStartEvents = 0;
+            EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
             {
-                CertificatePath = mCertificatePath,
-                CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
-            },
-            Buffering = new ConnectionSettings.BufferingSettings
-            {
-                Enable = false
-            }
-        };
+                Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+                Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStartEvents));
+                Assert.That(args.CancelRequested, Is.False);
+                acceptLoopStartEvents++;
+            };
 
-        INegotiateRpcProtocol negotiateServerProtocol =
-            new DefaultServerProtocolNegotiation(
-                capabilities,
-                capabilities,
-                serverConnectionSettings,
-                ArrayPool<byte>.Shared);
-        
-        ConnectionSettings clientConnectionSettings = new()
+            int acceptLoopStopEvents = 0;
+            EventHandler<AcceptLoopStopEventArgs> acceptLoopStopEventHandler = (sender, args) =>
+            {
+                Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+                acceptLoopStopEvents++;
+                Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStopEvents));
+            };
+
+            int connAcceptEvents = 0;
+            EventHandler<ConnectionAcceptEventArgs<IPEndPoint>> connAcceptEventHandler = (sender, args) =>
+            {
+                Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+                connAcceptEvents++;
+                Assert.That(args.CancelRequested, Is.False);
+            };
+
+            const string exceptionMsg = "This method will be implemented on v3.1";
+
+            Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
+            serverFuncMock.Setup(
+                    mock => mock.CallAsync(It.IsAny<CancellationToken>()))
+                .Throws(new NotImplementedException(exceptionMsg));
+
+            CancellationTokenSource cts = new();
+            cts.CancelAfter(TestingConstants.Timeout);
+
+            INegotiateRpcProtocol negotiateServerProtocol =
+                new DefaultServerProtocolNegotiation(serverSettings);
+
+            INegotiateRpcProtocol negotiateClientProtocol =
+                new DefaultClientProtocolNegotiation(clientSettings);
+
+            IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+            StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
+            IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+            tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
+            tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
+            tcpServer.ConnectionAccept += connAcceptEventHandler;
+
+            Task serverTask = tcpServer.ListenAsync(cts.Token);
+
+            Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+            ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
+            ConnectionToServer connectionToServer = await connectToTcpServer.ConnectAsync(cts.Token);
+            IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
+
+            Assert.That(
+                () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+                Is.EqualTo(1).After(1000, 10));
+
+            Assert.That(
+                async () => await serverFuncProxy.CallAsync(cts.Token),
+                Throws.TypeOf<RpcException>()
+                    .And.Property("Message").Contains(exceptionMsg)
+                    .And.Property("ExceptionType").Contains(nameof(NotImplementedException))
+                    .And.Property("StackTrace").Contains(nameof(ServerFunctionalityStub)));
+
+            Assert.That(
+                () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+                Is.EqualTo(1).After(1000, 10));
+
+            serverFuncMock.Verify(
+                mock => mock.CallAsync(It.IsAny<CancellationToken>()),
+                Times.Once);
+
+            connectionToServer.Dispose();
+            cts.Cancel();
+
+            await serverTask;
+
+            Assert.That(acceptLoopStartEvents, Is.EqualTo(1));
+            Assert.That(acceptLoopStopEvents, Is.EqualTo(1));
+            Assert.That(connAcceptEvents, Is.EqualTo(1));
+        }
+        finally
         {
-            Ssl = new ConnectionSettings.SslSettings
-            {
-                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
-            },
-            Buffering = new ConnectionSettings.BufferingSettings
-            {
-                Enable = false
-            }
-        };
-
-        INegotiateRpcProtocol negotiateClientProtocol =
-            new DefaultClientProtocolNegotiation(
-                capabilities,
-                RpcCapabilities.None,
-                clientConnectionSettings,
-                ArrayPool<byte>.Shared);
-
-        IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
-
-        StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
-        IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
-        tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
-        tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
-        tcpServer.ConnectionAccept += connAcceptEventHandler;
-
-        Task serverTask = tcpServer.ListenAsync(cts.Token);
-
-        Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
-
-        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
-        ConnectionToServer connectionToServer = await connectToTcpServer.ConnectAsync(cts.Token);
-        IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
-
-        Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
-            Is.EqualTo(1).After(1000, 10));
-
-        Assert.That(
-            async () => await serverFuncProxy.CallAsync(cts.Token),
-            Throws.TypeOf<RpcException>()
-                .And.Property("Message").Contains(exceptionMsg)
-                .And.Property("ExceptionType").Contains(nameof(NotImplementedException))
-                .And.Property("StackTrace").Contains(nameof(ServerFunctionalityStub)));
-
-        Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
-            Is.EqualTo(1).After(1000, 10));
-
-        serverFuncMock.Verify(
-            mock => mock.CallAsync(It.IsAny<CancellationToken>()),
-            Times.Once);
-
-        connectionToServer.Dispose();
-        cts.Cancel();
-
-        await serverTask;
-
-        Assert.That(acceptLoopStartEvents, Is.EqualTo(1));
-        Assert.That(acceptLoopStopEvents, Is.EqualTo(1));
-        Assert.That(connAcceptEvents, Is.EqualTo(1));
+            if (File.Exists(serverSettings.Ssl.CertificatePath))
+                File.Delete(serverSettings.Ssl.CertificatePath);
+        }
     }
 
     [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
-    public async Task Not_Supported_Remote_Procedure_Call_Does_Not_Close_Connection(RpcCapabilities capabilities)
+    public async Task Not_Supported_Remote_Procedure_Call_Does_Not_Close_Connection(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
     {
-        int acceptLoopStartEvents = 0;
-        EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
+        try
         {
-            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
-            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStartEvents));
-            Assert.That(args.CancelRequested, Is.False);
-            acceptLoopStartEvents++;
-        };
-
-        int acceptLoopStopEvents = 0;
-        EventHandler<AcceptLoopStopEventArgs> acceptLoopStopEventHandler = (sender, args) =>
-        {
-            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
-            acceptLoopStopEvents++;
-            Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStopEvents));
-        };
-
-        int connAcceptEvents = 0;
-        EventHandler<ConnectionAcceptEventArgs<IPEndPoint>> connAcceptEventHandler = (sender, args) =>
-        {
-            Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
-            connAcceptEvents++;
-            Assert.That(args.CancelRequested, Is.False);
-        };
-
-        Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
-
-        CancellationTokenSource cts = new();
-        cts.CancelAfter(TestingConstants.Timeout);
-        
-        ConnectionSettings serverConnectionSettings = new()
-        {
-            Ssl = new ConnectionSettings.SslSettings
+            int acceptLoopStartEvents = 0;
+            EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
             {
-                CertificatePath = mCertificatePath,
-                CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
-            },
-            Buffering = new ConnectionSettings.BufferingSettings
-            {
-                Enable = false
-            }
-        };
+                Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+                Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStartEvents));
+                Assert.That(args.CancelRequested, Is.False);
+                acceptLoopStartEvents++;
+            };
 
-        INegotiateRpcProtocol negotiateServerProtocol =
-            new DefaultServerProtocolNegotiation(
-                capabilities,
-                capabilities,
-                serverConnectionSettings,
-                ArrayPool<byte>.Shared);
-        
-        ConnectionSettings clientConnectionSettings = new()
+            int acceptLoopStopEvents = 0;
+            EventHandler<AcceptLoopStopEventArgs> acceptLoopStopEventHandler = (sender, args) =>
+            {
+                Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+                acceptLoopStopEvents++;
+                Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStopEvents));
+            };
+
+            int connAcceptEvents = 0;
+            EventHandler<ConnectionAcceptEventArgs<IPEndPoint>> connAcceptEventHandler = (sender, args) =>
+            {
+                Assert.That(sender, Is.Not.Null.And.InstanceOf<TcpServer>());
+                connAcceptEvents++;
+                Assert.That(args.CancelRequested, Is.False);
+            };
+
+            Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
+
+            CancellationTokenSource cts = new();
+            cts.CancelAfter(TestingConstants.Timeout);
+
+            INegotiateRpcProtocol negotiateServerProtocol =
+                new DefaultServerProtocolNegotiation(serverSettings);
+
+            INegotiateRpcProtocol negotiateClientProtocol =
+                new DefaultClientProtocolNegotiation(clientSettings);
+
+            IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+            StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
+            IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+            tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
+            tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
+            tcpServer.ConnectionAccept += connAcceptEventHandler;
+
+            Task serverTask = tcpServer.ListenAsync(cts.Token);
+
+            Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+            ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
+            ConnectionToServer connectionToServer = await connectToTcpServer.ConnectAsync(cts.Token);
+            IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
+
+            Assert.That(
+                () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+                Is.EqualTo(1).After(1000, 10));
+
+            Assert.That(
+                async () => await serverFuncProxy.CallUnsupportedAsync(cts.Token),
+                Throws.TypeOf<NotSupportedException>().And.Message.Contains("is not supported by the server"));
+
+            Assert.That(
+                () => connectionToServer.IsConnected(),
+                Is.True.After(1000, 10));
+
+            connectionToServer.Dispose();
+            cts.Cancel();
+
+            await serverTask;
+
+            Assert.That(acceptLoopStartEvents, Is.EqualTo(1));
+            Assert.That(acceptLoopStopEvents, Is.EqualTo(1));
+            Assert.That(connAcceptEvents, Is.EqualTo(1));
+        }
+        finally
         {
-            Ssl = new ConnectionSettings.SslSettings
-            {
-                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
-            },
-            Buffering = new ConnectionSettings.BufferingSettings
-            {
-                Enable = false
-            }
-        };
-
-        INegotiateRpcProtocol negotiateClientProtocol =
-            new DefaultClientProtocolNegotiation(
-                capabilities,
-                RpcCapabilities.None,
-                clientConnectionSettings,
-                ArrayPool<byte>.Shared);
-
-        IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
-
-        StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
-        IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
-        tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
-        tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
-        tcpServer.ConnectionAccept += connAcceptEventHandler;
-
-        Task serverTask = tcpServer.ListenAsync(cts.Token);
-
-        Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
-
-        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
-        ConnectionToServer connectionToServer = await connectToTcpServer.ConnectAsync(cts.Token);
-        IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
-
-        Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
-            Is.EqualTo(1).After(1000, 10));
-
-        Assert.That(
-            async () => await serverFuncProxy.CallUnsupportedAsync(cts.Token),
-            Throws.TypeOf<NotSupportedException>().And.Message.Contains("is not supported by the server"));
-
-        Assert.That(
-            () => connectionToServer.IsConnected(),
-            Is.True.After(1000, 10));
-
-        connectionToServer.Dispose();
-        cts.Cancel();
-
-        await serverTask;
-
-        Assert.That(acceptLoopStartEvents, Is.EqualTo(1));
-        Assert.That(acceptLoopStopEvents, Is.EqualTo(1));
-        Assert.That(connAcceptEvents, Is.EqualTo(1));
+            if (File.Exists(serverSettings.Ssl.CertificatePath))
+                File.Delete(serverSettings.Ssl.CertificatePath);
+        }
     }
 
     [Test, Timeout(TestingConstants.Timeout)]
@@ -389,31 +319,11 @@ public class TcpEndToEndTests
 
         CancellationTokenSource cts = new();
         cts.CancelAfter(TestingConstants.Timeout);
-        
-        ConnectionSettings serverConnectionSettings = new()
-        {
-            Ssl = new ConnectionSettings.SslSettings
-            {
-                CertificatePath = string.Empty,
-                CertificatePassword = string.Empty
-            },
-            Buffering = new ConnectionSettings.BufferingSettings
-            {
-                Enable = false
-            }
-        };
-
-        INegotiateRpcProtocol negotiateServerProtocol =
-            new DefaultServerProtocolNegotiation(
-                RpcCapabilities.None,
-                RpcCapabilities.None,
-                serverConnectionSettings,
-                ArrayPool<byte>.Shared);
 
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
-        IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection);
         tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
         tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
 
@@ -464,50 +374,11 @@ public class TcpEndToEndTests
 
         CancellationTokenSource cts = new();
         cts.CancelAfter(TestingConstants.Timeout);
-        
-        ConnectionSettings serverConnectionSettings = new()
-        {
-            Ssl = new ConnectionSettings.SslSettings
-            {
-                CertificatePath = mCertificatePath,
-                CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
-            },
-            Buffering = new ConnectionSettings.BufferingSettings
-            {
-                Enable = false
-            }
-        };
-
-        INegotiateRpcProtocol negotiateServerProtocol =
-            new DefaultServerProtocolNegotiation(
-                RpcCapabilities.None,
-                RpcCapabilities.None,
-                serverConnectionSettings,
-                ArrayPool<byte>.Shared);
-        
-        ConnectionSettings clientConnectionSettings = new()
-        {
-            Ssl = new ConnectionSettings.SslSettings
-            {
-                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
-            },
-            Buffering = new ConnectionSettings.BufferingSettings
-            {
-                Enable = false
-            }
-        };
-
-        INegotiateRpcProtocol negotiateClientProtocol =
-            new DefaultClientProtocolNegotiation(
-                RpcCapabilities.None,
-                RpcCapabilities.None,
-                clientConnectionSettings,
-                ArrayPool<byte>.Shared);
 
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
         StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
-        IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+        IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection);
         tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
         tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
         tcpServer.ConnectionAccept += connAcceptEventHandler;
@@ -516,7 +387,7 @@ public class TcpEndToEndTests
 
         Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
 
-        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
+        ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
         ConnectionToServer firstConnection = await connectToTcpServer.ConnectAsync(cts.Token);
 
         Assert.That(
@@ -558,32 +429,101 @@ public class TcpEndToEndTests
         Assert.That(connAcceptEvents, Is.EqualTo(2));
     }
 
-    [SetUp]
-    public void Setup()
-    {
-        mCertificatePath = Path.GetTempFileName();
-        File.Delete(mCertificatePath);
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
-        if (File.Exists(mCertificatePath))
-            File.Delete(mCertificatePath);
-    }
-
-    string mCertificatePath = string.Empty;
-
     #region Proxy and stub implementations
 
-    static IEnumerable<RpcCapabilities> RpcCapabilitiesCombinations() =>
-        new[]
+    static IEnumerable<ITestCaseData> RpcCapabilitiesCombinations()
+    {
+        ConnectionSettings serverSettings = ConnectionSettings.None;
+        ConnectionSettings clientSettings = ConnectionSettings.None;
+
+        yield return new TestCaseData(serverSettings, clientSettings);
+
+        string certificatePath = Path.GetTempFileName();
+        if (File.Exists(certificatePath))
+            File.Delete(certificatePath);
+
+        serverSettings = new ConnectionSettings
         {
-            RpcCapabilities.None,
-            RpcCapabilities.Compression,
-            RpcCapabilities.Ssl,
-            RpcCapabilities.Compression | RpcCapabilities.Ssl
+            Ssl = ConnectionSettings.SslSettings.Disabled,
+            Compression = new ConnectionSettings.CompressionSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                ArrayPool = ArrayPool<byte>.Shared
+            },
+            Buffering = ConnectionSettings.BufferingSettings.Disabled
         };
+        
+        clientSettings = new ConnectionSettings
+        {
+            Ssl = ConnectionSettings.SslSettings.Disabled,
+            Compression = new ConnectionSettings.CompressionSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                ArrayPool = ArrayPool<byte>.Shared
+            },
+            Buffering = ConnectionSettings.BufferingSettings.Disabled
+        };
+
+        yield return new TestCaseData(serverSettings, clientSettings);
+
+        serverSettings = new ConnectionSettings
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                CertificatePath = certificatePath,
+                CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
+            },
+            Compression = ConnectionSettings.CompressionSettings.Disabled,
+            Buffering = ConnectionSettings.BufferingSettings.Disabled
+        };
+
+        clientSettings = new ConnectionSettings
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
+            },
+            Compression = ConnectionSettings.CompressionSettings.Disabled,
+            Buffering = ConnectionSettings.BufferingSettings.Disabled
+        };
+
+        yield return new TestCaseData(serverSettings, clientSettings);
+        
+        serverSettings = new ConnectionSettings
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                CertificatePath = certificatePath,
+                CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
+            },
+            Compression = new ConnectionSettings.CompressionSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                ArrayPool = ArrayPool<byte>.Shared
+            },
+            Buffering = ConnectionSettings.BufferingSettings.Disabled
+        };
+
+        clientSettings = new ConnectionSettings
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
+            },
+            Compression = new ConnectionSettings.CompressionSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                ArrayPool = ArrayPool<byte>.Shared
+            },
+            Buffering = ConnectionSettings.BufferingSettings.Disabled
+        };
+
+        yield return new TestCaseData(serverSettings, clientSettings);
+    }
 
     class ServerFunctionalityStub : IStub
     {
