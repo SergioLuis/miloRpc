@@ -433,34 +433,45 @@ public class TcpEndToEndTests
 
     static IEnumerable<ITestCaseData> RpcCapabilitiesCombinations()
     {
+        string certificatePath = Path.GetTempFileName();
+        if (File.Exists(certificatePath))
+            File.Delete(certificatePath);
+
+        ConnectionSettings.SslSettings serverSslSettings = new()
+        {
+            Status = SharedCapabilityEnablement.EnabledMandatory,
+            CertificatePath = certificatePath,
+            CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
+        };
+
+        ConnectionSettings.SslSettings clientSslSettings = new()
+        {
+            Status = SharedCapabilityEnablement.EnabledMandatory,
+            CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
+        };
+
+        ConnectionSettings.CompressionSettings compressionSettings = new()
+        {
+            Status = SharedCapabilityEnablement.EnabledMandatory,
+            ArrayPool = ArrayPool<byte>.Shared
+        };
+        
         ConnectionSettings serverSettings = ConnectionSettings.None;
         ConnectionSettings clientSettings = ConnectionSettings.None;
 
         yield return new TestCaseData(serverSettings, clientSettings);
 
-        string certificatePath = Path.GetTempFileName();
-        if (File.Exists(certificatePath))
-            File.Delete(certificatePath);
-
         serverSettings = new ConnectionSettings
         {
             Ssl = ConnectionSettings.SslSettings.Disabled,
-            Compression = new ConnectionSettings.CompressionSettings
-            {
-                Status = SharedCapabilityEnablement.EnabledMandatory,
-                ArrayPool = ArrayPool<byte>.Shared
-            },
+            Compression = compressionSettings,
             Buffering = ConnectionSettings.BufferingSettings.Disabled
         };
         
         clientSettings = new ConnectionSettings
         {
             Ssl = ConnectionSettings.SslSettings.Disabled,
-            Compression = new ConnectionSettings.CompressionSettings
-            {
-                Status = SharedCapabilityEnablement.EnabledMandatory,
-                ArrayPool = ArrayPool<byte>.Shared
-            },
+            Compression = compressionSettings,
             Buffering = ConnectionSettings.BufferingSettings.Disabled
         };
 
@@ -468,23 +479,14 @@ public class TcpEndToEndTests
 
         serverSettings = new ConnectionSettings
         {
-            Ssl = new ConnectionSettings.SslSettings
-            {
-                Status = SharedCapabilityEnablement.EnabledMandatory,
-                CertificatePath = certificatePath,
-                CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
-            },
+            Ssl = serverSslSettings,
             Compression = ConnectionSettings.CompressionSettings.Disabled,
             Buffering = ConnectionSettings.BufferingSettings.Disabled
         };
 
         clientSettings = new ConnectionSettings
         {
-            Ssl = new ConnectionSettings.SslSettings
-            {
-                Status = SharedCapabilityEnablement.EnabledMandatory,
-                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
-            },
+            Ssl = clientSslSettings,
             Compression = ConnectionSettings.CompressionSettings.Disabled,
             Buffering = ConnectionSettings.BufferingSettings.Disabled
         };
@@ -493,33 +495,80 @@ public class TcpEndToEndTests
         
         serverSettings = new ConnectionSettings
         {
-            Ssl = new ConnectionSettings.SslSettings
-            {
-                Status = SharedCapabilityEnablement.EnabledMandatory,
-                CertificatePath = certificatePath,
-                CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
-            },
-            Compression = new ConnectionSettings.CompressionSettings
-            {
-                Status = SharedCapabilityEnablement.EnabledMandatory,
-                ArrayPool = ArrayPool<byte>.Shared
-            },
+            Ssl = serverSslSettings,
+            Compression = compressionSettings,
             Buffering = ConnectionSettings.BufferingSettings.Disabled
         };
 
         clientSettings = new ConnectionSettings
         {
-            Ssl = new ConnectionSettings.SslSettings
-            {
-                Status = SharedCapabilityEnablement.EnabledMandatory,
-                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
-            },
-            Compression = new ConnectionSettings.CompressionSettings
-            {
-                Status = SharedCapabilityEnablement.EnabledMandatory,
-                ArrayPool = ArrayPool<byte>.Shared
-            },
+            Ssl = clientSslSettings,
+            Compression = compressionSettings,
             Buffering = ConnectionSettings.BufferingSettings.Disabled
+        };
+
+        yield return new TestCaseData(serverSettings, clientSettings);
+
+        serverSettings = new ConnectionSettings
+        {
+            Ssl = ConnectionSettings.SslSettings.Disabled,
+            Compression = ConnectionSettings.CompressionSettings.Disabled,
+            Buffering = ConnectionSettings.BufferingSettings.EnabledRecommended
+        };
+        
+        clientSettings = new ConnectionSettings
+        {
+            Ssl = ConnectionSettings.SslSettings.Disabled,
+            Compression = ConnectionSettings.CompressionSettings.Disabled,
+            Buffering = ConnectionSettings.BufferingSettings.EnabledRecommended
+        };
+
+        yield return new TestCaseData(serverSettings, clientSettings);
+        
+        serverSettings = new ConnectionSettings
+        {
+            Ssl = serverSslSettings,
+            Compression = ConnectionSettings.CompressionSettings.Disabled,
+            Buffering = ConnectionSettings.BufferingSettings.EnabledRecommended
+        };
+
+        clientSettings = new ConnectionSettings
+        {
+            Ssl = clientSslSettings,
+            Compression = ConnectionSettings.CompressionSettings.Disabled,
+            Buffering = ConnectionSettings.BufferingSettings.EnabledRecommended
+        };
+
+        yield return new TestCaseData(serverSettings, clientSettings);
+
+        serverSettings = new ConnectionSettings
+        {
+            Ssl = ConnectionSettings.SslSettings.Disabled,
+            Compression = compressionSettings,
+            Buffering = ConnectionSettings.BufferingSettings.EnabledRecommended
+        };
+
+        clientSettings = new ConnectionSettings
+        {
+            Ssl = ConnectionSettings.SslSettings.Disabled,
+            Compression = compressionSettings,
+            Buffering = ConnectionSettings.BufferingSettings.EnabledRecommended
+        };
+        
+        yield return new TestCaseData(serverSettings, clientSettings);
+
+        serverSettings = new ConnectionSettings
+        {
+            Ssl = serverSslSettings,
+            Compression = compressionSettings,
+            Buffering = ConnectionSettings.BufferingSettings.EnabledRecommended
+        };
+
+        clientSettings = new ConnectionSettings
+        {
+            Ssl = clientSslSettings,
+            Compression = compressionSettings,
+            Buffering = ConnectionSettings.BufferingSettings.EnabledRecommended
         };
 
         yield return new TestCaseData(serverSettings, clientSettings);
