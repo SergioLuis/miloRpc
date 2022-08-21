@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -12,25 +11,9 @@ namespace miloRPC.Core.Client;
 
 public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
 {
-    public DefaultClientProtocolNegotiation(
-        RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities) : this(
-            mandatoryCapabilities,
-            optionalCapabilities,
-            ConnectionSettings.None,
-            ArrayPool<byte>.Shared) { }
-
-    public DefaultClientProtocolNegotiation(
-        RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities,
-        ConnectionSettings connectionSettings,
-        ArrayPool<byte> arrayPool)
+    public DefaultClientProtocolNegotiation(ConnectionSettings connectionSettings)
     {
-        mMandatoryCapabilities = mandatoryCapabilities;
-        mOptionalCapabilities = optionalCapabilities;
         mConnectionSettings = connectionSettings;
-        mArrayPool = arrayPool;
-
         mLog = RpcLoggerFactory.CreateLogger("DefaultClientProtocolNegotiation");
     }
 
@@ -74,8 +57,14 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         BinaryReader resultReader = tempReader;
         BinaryWriter resultWriter = tempWriter;
 
-        tempWriter.Write((byte)mMandatoryCapabilities);
-        tempWriter.Write((byte)mOptionalCapabilities);
+        RpcCapabilities mandatoryCapabilities =
+            GetRpcCapabilitiesFromSettings.GetMandatory(mConnectionSettings);
+
+        RpcCapabilities optionalCapabilities =
+            GetRpcCapabilitiesFromSettings.GetOptional(mConnectionSettings);
+
+        tempWriter.Write((byte)mandatoryCapabilities);
+        tempWriter.Write((byte)optionalCapabilities);
         tempWriter.Flush();
 
         RpcCapabilities serverMandatory = (RpcCapabilities)tempReader.ReadByte();
@@ -83,8 +72,8 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
 
         RpcCapabilitiesNegotiationResult negotiationResult =
             RpcCapabilitiesNegotiationResult.Build(
-                mMandatoryCapabilities,
-                mOptionalCapabilities,
+                mandatoryCapabilities,
+                optionalCapabilities,
                 serverMandatory,
                 serverOptional);
 
@@ -111,13 +100,15 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
 
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
         {
-            RpcBrotliStream brotliStream = new(resultStream, mArrayPool);
+            RpcBrotliStream brotliStream = new(
+                resultStream, mConnectionSettings.Compression.ArrayPool);
+
             resultStream = brotliStream;
             resultReader = new BinaryReader(resultStream);
             resultWriter = new BinaryWriter(resultStream);
         }
 
-        if (mConnectionSettings.Buffering.Enable)
+        if (mConnectionSettings.Buffering.Status is PrivateCapabilityEnablement.Enabled)
         {
             RpcBufferedStream bufferedStream = new(
                 resultStream, mConnectionSettings.Buffering.BufferSize);
@@ -136,16 +127,11 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         return new RpcProtocolNegotiationResult(resultStream, resultReader, resultWriter);
     }
 
-    readonly RpcCapabilities mMandatoryCapabilities;
-    readonly RpcCapabilities mOptionalCapabilities;
     readonly ConnectionSettings mConnectionSettings;
-    readonly ArrayPool<byte> mArrayPool;
     readonly ILogger mLog;
 
     const byte CURRENT_VERSION = 1;
 
     public static readonly INegotiateRpcProtocol Instance =
-        new DefaultClientProtocolNegotiation(
-            mandatoryCapabilities: RpcCapabilities.None,
-            optionalCapabilities: RpcCapabilities.None);
+        new DefaultClientProtocolNegotiation(ConnectionSettings.None);
 }
