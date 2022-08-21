@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -63,6 +64,7 @@ public class ConnectionSettings
         public SharedCapabilityEnablement Status { get; init; } = SharedCapabilityEnablement.Disabled;
         public string? CertificatePath { get; init; } = string.Empty;
         public string? CertificatePassword { get; init; } = string.Empty;
+        public IEnumerable<SslApplicationProtocol> ApplicationProtocols { get; init; } = Array.Empty<SslApplicationProtocol>();
         public Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? CertificateValidationCallback { get; init; } = null;
 
         public static readonly SslSettings Disabled = new();
