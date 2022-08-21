@@ -68,7 +68,6 @@ public class ConnectionSettings
         public Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? CertificateValidationCallback { get; init; } = null;
 
         public static readonly SslSettings Disabled = new();
-
         public static readonly Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool> AcceptAllCertificates = (_, _, _, _) => true;
     }
 
@@ -86,7 +85,6 @@ public class ConnectionSettings
         public int BufferSize { get; init; } = -1;
 
         public static readonly BufferingSettings Disabled = new();
-
         public static readonly BufferingSettings EnabledRecommended = new()
         {
             Status = PrivateCapabilityEnablement.Enabled,

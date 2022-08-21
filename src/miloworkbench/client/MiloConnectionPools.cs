@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Security;
-using System.Runtime.Versioning;
 
 using miloRPC.Channels.Quic;
 using miloRPC.Channels.Tcp;
@@ -13,8 +12,15 @@ namespace miloRpc.TestWorkBench.Client;
 
 public class MiloConnectionPools
 {
-    private MiloConnectionPools()
+    public MiloConnectionPools(
+        ConnectionSettings tcpConnectionSettings,
+        ConnectionSettings sslConnectionSettings,
+        ConnectionSettings quicConnectionSettings)
     {
+        mTcpConnectionSettings = tcpConnectionSettings;
+        mSslConnectionSettings = sslConnectionSettings;
+        mQuicConnectionSettings = quicConnectionSettings;
+
         mPools = new Dictionary<string, Dictionary<IPEndPoint, ConnectionPool>>(
             StringComparer.InvariantCultureIgnoreCase);
         mSyncLock = new object();
@@ -43,61 +49,43 @@ public class MiloConnectionPools
         }
     }
 
-    static ConnectionPool BuildPool(string protocol, IPEndPoint endPoint)
+    ConnectionPool BuildPool(string protocol, IPEndPoint endPoint)
         => new(BuildConnectToServer(protocol, endPoint));
 
-    static IConnectToServer BuildConnectToServer(string protocol, IPEndPoint endPoint)
+    IConnectToServer BuildConnectToServer(string protocol, IPEndPoint endPoint)
         => protocol switch
         {
-            "tcp" => BuildConnectToTcpServer(endPoint),
-            "ssl" => BuildConnectToTcpSslServer(endPoint),
-            "quic" => BuildConnectToQuicServer(endPoint),
+            "tcp" => BuildConnectToTcpServer(endPoint, mTcpConnectionSettings),
+            "ssl" => BuildConnectToTcpSslServer(endPoint, mSslConnectionSettings),
+            "quic" => BuildConnectToQuicServer(endPoint, mQuicConnectionSettings),
             _ => throw new NotSupportedException($"Unknown protocol {protocol}")
         };
 
-    static ConnectToTcpServer BuildConnectToTcpServer(IPEndPoint endPoint)
-        => new(endPoint, new DefaultClientProtocolNegotiation(ConnectionSettings.None));
-
-    static ConnectToTcpServer BuildConnectToTcpSslServer(IPEndPoint endPoint)
+    static ConnectToTcpServer BuildConnectToTcpServer(
+        IPEndPoint endPoint, ConnectionSettings connectionSettings)
     {
-        ConnectionSettings connectionSettings = new()
-        {
-            Ssl = new ConnectionSettings.SslSettings
-            {
-                Status = SharedCapabilityEnablement.EnabledMandatory,
-                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
-            },
-            Compression = ConnectionSettings.CompressionSettings.Disabled,
-            Buffering = ConnectionSettings.BufferingSettings.Disabled
-        };
-
         return new ConnectToTcpServer(
             endPoint, new DefaultClientProtocolNegotiation(connectionSettings));
     }
 
-    static ConnectToQuicServer BuildConnectToQuicServer(IPEndPoint endPoint)
+    static ConnectToTcpServer BuildConnectToTcpSslServer(
+        IPEndPoint endPoint, ConnectionSettings connectionSettings)
     {
-        ConnectionSettings connectionSettings = new()
-        {
-            Ssl = new ConnectionSettings.SslSettings
-            {
-                Status = SharedCapabilityEnablement.EnabledMandatory,
-                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates,
-                ApplicationProtocols = new []
-                {
-                    new SslApplicationProtocol("miloworkbench")
-                }
-            },
-            Compression = ConnectionSettings.CompressionSettings.Disabled,
-            Buffering = ConnectionSettings.BufferingSettings.Disabled
-        };
+        return new ConnectToTcpServer(
+            endPoint, new DefaultClientProtocolNegotiation(connectionSettings));
+    }
 
+    static ConnectToQuicServer BuildConnectToQuicServer(
+        IPEndPoint endPoint, ConnectionSettings connectionSettings)
+    {
         return new ConnectToQuicServer(
             endPoint, new DefaultQuicClientProtocolNegotiation(connectionSettings));
     }
 
+    readonly ConnectionSettings mTcpConnectionSettings;
+    readonly ConnectionSettings mSslConnectionSettings;
+    readonly ConnectionSettings mQuicConnectionSettings;
+
     readonly Dictionary<string, Dictionary<IPEndPoint, ConnectionPool>> mPools;
     readonly object mSyncLock;
-
-    public static readonly MiloConnectionPools Instance = new();
 }

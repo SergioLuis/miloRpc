@@ -4,12 +4,14 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Net.Security;
 using System.Threading.Tasks;
 
 using Spectre.Console;
 using Spectre.Console.Cli;
 
 using miloRPC.Core.Client;
+using miloRPC.Core.Shared;
 using miloRpc.TestWorkBench.Rpc.Client;
 
 namespace miloRpc.TestWorkBench.Client.Commands;
@@ -33,6 +35,10 @@ public class SpeedTestCommand : AsyncCommand<SpeedTestCommand.Settings>
         [CommandOption("--roundtrips <ROUNDTRIPS>")]
         [Description("The number of roundtrips. A higher number of roundtrips yields more stable results when using protocols with congestion control. Default value is 3")]
         public int Roundtrips { get; set; } = 3;
+        
+        [CommandOption("--buffersize <BYTES>")]
+        [Description("Read/write buffer size, in bytes. If zero, then buffering is disabled. Default is '0'")]
+        public int BufferSize { get; set; } = 0;
     }
 
     public override ValidationResult Validate(CommandContext context, Settings settings)
@@ -70,7 +76,9 @@ public class SpeedTestCommand : AsyncCommand<SpeedTestCommand.Settings>
         // FIXME: We shouldn't rely on 'serverUri.Host' being a IP address
         IPEndPoint serverIp = IPEndPoint.Parse($"{serverUri.Host}:{serverUri.Port}");
 
-        ConnectionPool connectionPool = MiloConnectionPools.Instance.Get(serverUri.Scheme, serverIp);
+        MiloConnectionPools connectionPools = BuildConnectionPools(settings);
+
+        ConnectionPool connectionPool = connectionPools.Get(serverUri.Scheme, serverIp);
         await connectionPool.WarmupPool();
 
         return await RunRoundtrips(
@@ -79,6 +87,51 @@ public class SpeedTestCommand : AsyncCommand<SpeedTestCommand.Settings>
             settings.TotalSizeMb,
             settings.BlockSizeMb,
             settings.Roundtrips);
+    }
+
+    static MiloConnectionPools BuildConnectionPools(Settings settings)
+    {
+        ConnectionSettings.SslSettings sslSettings = new()
+        {
+            Status = SharedCapabilityEnablement.EnabledMandatory,
+            CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates,
+            ApplicationProtocols = new[]
+            {
+                new SslApplicationProtocol("miloworkbench")
+            }
+        };
+
+        ConnectionSettings.BufferingSettings bufferingSettings = settings.BufferSize <= 0
+            ? ConnectionSettings.BufferingSettings.Disabled
+            : new ConnectionSettings.BufferingSettings
+            {
+                Status = PrivateCapabilityEnablement.Enabled,
+                BufferSize = settings.BufferSize
+            };
+
+        ConnectionSettings tcpConnectionSettings = new()
+        {
+            Ssl = ConnectionSettings.SslSettings.Disabled,
+            Buffering = bufferingSettings,
+            Compression = ConnectionSettings.CompressionSettings.Disabled
+        };
+
+        ConnectionSettings sslConnectionSettings = new()
+        {
+            Ssl = sslSettings,
+            Buffering = bufferingSettings,
+            Compression = ConnectionSettings.CompressionSettings.Disabled
+        };
+
+        ConnectionSettings quicConnectionSettings = new()
+        {
+            Ssl = sslSettings,
+            Buffering = bufferingSettings,
+            Compression = ConnectionSettings.CompressionSettings.Disabled
+        };
+
+        return new MiloConnectionPools(
+            tcpConnectionSettings, sslConnectionSettings, quicConnectionSettings);
     }
 
     static async Task<int> RunRoundtrips(
