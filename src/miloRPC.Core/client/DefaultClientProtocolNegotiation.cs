@@ -4,7 +4,6 @@ using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 using System.Net.Security;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 
 using miloRPC.Core.Shared;
@@ -18,18 +17,19 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         RpcCapabilities optionalCapabilities) : this(
             mandatoryCapabilities,
             optionalCapabilities,
+            ConnectionSettings.None,
             ArrayPool<byte>.Shared) { }
 
     public DefaultClientProtocolNegotiation(
         RpcCapabilities mandatoryCapabilities,
         RpcCapabilities optionalCapabilities,
-        ArrayPool<byte> arrayPool,
-        Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? validateServerCertificate = null)
+        ConnectionSettings connectionSettings,
+        ArrayPool<byte> arrayPool)
     {
         mMandatoryCapabilities = mandatoryCapabilities;
         mOptionalCapabilities = optionalCapabilities;
+        mConnectionSettings = connectionSettings;
         mArrayPool = arrayPool;
-        mValidateServerCertificate = validateServerCertificate;
 
         mLog = RpcLoggerFactory.CreateLogger("DefaultClientProtocolNegotiation");
     }
@@ -68,8 +68,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         IPEndPoint remoteEndPoint,
         Stream baseStream,
         BinaryReader tempReader,
-        BinaryWriter tempWriter,
-        bool enableBuffering = false)
+        BinaryWriter tempWriter)
     {
         Stream resultStream = baseStream;
         BinaryReader resultReader = tempReader;
@@ -98,8 +97,8 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         }
 
         RemoteCertificateValidationCallback? validationCallback = null;
-        if (mValidateServerCertificate != null)
-            validationCallback = new(mValidateServerCertificate);
+        if (mConnectionSettings.Ssl.CertificateValidationCallback != null)
+            validationCallback = new(mConnectionSettings.Ssl.CertificateValidationCallback);
 
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Ssl))
         {
@@ -118,9 +117,11 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
             resultWriter = new BinaryWriter(resultStream);
         }
 
-        if (enableBuffering)
+        if (mConnectionSettings.Buffering.Enable)
         {
-            RpcBufferedStream bufferedStream = new(resultStream);
+            RpcBufferedStream bufferedStream = new(
+                resultStream, mConnectionSettings.Buffering.BufferSize);
+
             resultStream = bufferedStream;
             resultReader = new BinaryReader(resultStream);
             resultWriter = new BinaryWriter(resultStream);
@@ -137,8 +138,8 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
 
     readonly RpcCapabilities mMandatoryCapabilities;
     readonly RpcCapabilities mOptionalCapabilities;
+    readonly ConnectionSettings mConnectionSettings;
     readonly ArrayPool<byte> mArrayPool;
-    readonly Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? mValidateServerCertificate;
     readonly ILogger mLog;
 
     const byte CURRENT_VERSION = 1;
@@ -147,6 +148,4 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         new DefaultClientProtocolNegotiation(
             mandatoryCapabilities: RpcCapabilities.None,
             optionalCapabilities: RpcCapabilities.None);
-
-    public static readonly Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool> AcceptAllCertificates = (_, _, _, _) => true;
 }
