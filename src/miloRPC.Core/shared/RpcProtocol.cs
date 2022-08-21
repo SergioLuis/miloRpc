@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -36,34 +37,57 @@ public interface IMethodId
     void SetSolvedMethodName(string? name);
 }
 
+public enum SharedCapabilityEnablement : byte
+{
+    Disabled,
+    EnabledOptional,
+    EnabledMandatory
+}
+
+public enum PrivateCapabilityEnablement : byte
+{
+    Disabled,
+    Enabled
+}
+
 public class ConnectionSettings
 {
-    public SslSettings Ssl { get; init; } = SslSettings.None;
-    public BufferingSettings Buffering { get; init; } = BufferingSettings.None;
+    public SslSettings Ssl { get; init; } = SslSettings.Disabled;
+    public CompressionSettings Compression { get; init; } = CompressionSettings.Disabled;
+    public BufferingSettings Buffering { get; init; } = BufferingSettings.Disabled;
 
     public static readonly ConnectionSettings None = new();
 
     public class SslSettings
     {
+        public SharedCapabilityEnablement Status { get; init; } = SharedCapabilityEnablement.Disabled;
         public string? CertificatePath { get; init; } = string.Empty;
         public string? CertificatePassword { get; init; } = string.Empty;
         public Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? CertificateValidationCallback { get; init; } = null;
 
-        public static readonly SslSettings None = new();
+        public static readonly SslSettings Disabled = new();
 
         public static readonly Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool> AcceptAllCertificates = (_, _, _, _) => true;
     }
 
+    public class CompressionSettings
+    {
+        public SharedCapabilityEnablement Status { get; init; } = SharedCapabilityEnablement.Disabled;
+        public ArrayPool<byte> ArrayPool { get; init; } = ArrayPool<byte>.Shared;
+        
+        public static readonly CompressionSettings Disabled = new();
+    }
+
     public class BufferingSettings
     {
-        public bool Enable { get; init; } = false;
+        public PrivateCapabilityEnablement Status { get; init; } = PrivateCapabilityEnablement.Disabled;
         public int BufferSize { get; init; } = -1;
 
-        public static readonly BufferingSettings None = new();
+        public static readonly BufferingSettings Disabled = new();
 
-        public static readonly BufferingSettings Recommended = new()
+        public static readonly BufferingSettings EnabledRecommended = new()
         {
-            Enable = true,
+            Status = PrivateCapabilityEnablement.Enabled,
             BufferSize = 4096
         };
     }
