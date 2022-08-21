@@ -57,20 +57,44 @@ public class TcpEndToEndTests
         CancellationTokenSource cts = new();
         cts.CancelAfter(TestingConstants.Timeout);
 
+        ConnectionSettings serverConnectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                CertificatePath = mCertificatePath,
+                CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
+            },
+            Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Enable = false
+            }
+        };
+
         INegotiateRpcProtocol negotiateServerProtocol =
             new DefaultServerProtocolNegotiation(
                 capabilities,
                 capabilities,
-                ArrayPool<byte>.Shared,
-                mCertificatePath,
-                "c3rt1f1c4t3p4ssw0rd");
+                serverConnectionSettings,
+                ArrayPool<byte>.Shared);
+
+        ConnectionSettings clientConnectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
+            },
+            Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Enable = false
+            }
+        };
 
         INegotiateRpcProtocol negotiateClientProtocol =
             new DefaultClientProtocolNegotiation(
                 capabilities,
                 RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                DefaultClientProtocolNegotiation.AcceptAllCertificates);
+                clientConnectionSettings,
+                ArrayPool<byte>.Shared);
 
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
@@ -145,21 +169,45 @@ public class TcpEndToEndTests
 
         CancellationTokenSource cts = new();
         cts.CancelAfter(TestingConstants.Timeout);
+        
+        ConnectionSettings serverConnectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                CertificatePath = mCertificatePath,
+                CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
+            },
+            Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Enable = false
+            }
+        };
 
         INegotiateRpcProtocol negotiateServerProtocol =
             new DefaultServerProtocolNegotiation(
                 capabilities,
                 capabilities,
-                ArrayPool<byte>.Shared,
-                mCertificatePath,
-                "c3rt1f1c4t3p4ssw0rd");
+                serverConnectionSettings,
+                ArrayPool<byte>.Shared);
+        
+        ConnectionSettings clientConnectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
+            },
+            Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Enable = false
+            }
+        };
 
         INegotiateRpcProtocol negotiateClientProtocol =
             new DefaultClientProtocolNegotiation(
                 capabilities,
                 RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                DefaultClientProtocolNegotiation.AcceptAllCertificates);
+                clientConnectionSettings,
+                ArrayPool<byte>.Shared);
 
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
@@ -238,21 +286,45 @@ public class TcpEndToEndTests
 
         CancellationTokenSource cts = new();
         cts.CancelAfter(TestingConstants.Timeout);
+        
+        ConnectionSettings serverConnectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                CertificatePath = mCertificatePath,
+                CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
+            },
+            Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Enable = false
+            }
+        };
 
         INegotiateRpcProtocol negotiateServerProtocol =
             new DefaultServerProtocolNegotiation(
                 capabilities,
                 capabilities,
-                ArrayPool<byte>.Shared,
-                mCertificatePath,
-                "c3rt1f1c4t3p4ssw0rd");
+                serverConnectionSettings,
+                ArrayPool<byte>.Shared);
+        
+        ConnectionSettings clientConnectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
+            },
+            Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Enable = false
+            }
+        };
 
         INegotiateRpcProtocol negotiateClientProtocol =
             new DefaultClientProtocolNegotiation(
                 capabilities,
                 RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                DefaultClientProtocolNegotiation.AcceptAllCertificates);
+                clientConnectionSettings,
+                ArrayPool<byte>.Shared);
 
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
@@ -317,14 +389,26 @@ public class TcpEndToEndTests
 
         CancellationTokenSource cts = new();
         cts.CancelAfter(TestingConstants.Timeout);
+        
+        ConnectionSettings serverConnectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                CertificatePath = string.Empty,
+                CertificatePassword = string.Empty
+            },
+            Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Enable = false
+            }
+        };
 
         INegotiateRpcProtocol negotiateServerProtocol =
             new DefaultServerProtocolNegotiation(
                 RpcCapabilities.None,
                 RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                string.Empty,
-                string.Empty);
+                serverConnectionSettings,
+                ArrayPool<byte>.Shared);
 
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
@@ -380,21 +464,45 @@ public class TcpEndToEndTests
 
         CancellationTokenSource cts = new();
         cts.CancelAfter(TestingConstants.Timeout);
+        
+        ConnectionSettings serverConnectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                CertificatePath = mCertificatePath,
+                CertificatePassword = "c3rt1f1c4t3p4ssw0rd"
+            },
+            Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Enable = false
+            }
+        };
 
         INegotiateRpcProtocol negotiateServerProtocol =
             new DefaultServerProtocolNegotiation(
                 RpcCapabilities.None,
                 RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                mCertificatePath,
-                "c3rt1f1c4t3p4ssw0rd");
+                serverConnectionSettings,
+                ArrayPool<byte>.Shared);
+        
+        ConnectionSettings clientConnectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
+            },
+            Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Enable = false
+            }
+        };
 
         INegotiateRpcProtocol negotiateClientProtocol =
             new DefaultClientProtocolNegotiation(
                 RpcCapabilities.None,
                 RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                DefaultClientProtocolNegotiation.AcceptAllCertificates);
+                clientConnectionSettings,
+                ArrayPool<byte>.Shared);
 
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
