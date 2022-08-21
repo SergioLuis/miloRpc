@@ -3,16 +3,16 @@ using System;
 namespace miloRPC.Core.Shared;
 
 [Flags]
-internal enum RpcCapabilities : byte
+public enum RpcCapabilities : byte
 {
     None = 0,
     Ssl = 1 << 0,
     Compression = 1 << 1
 }
 
-internal static class GetRpcCapabilitiesFromSettings
+public static class GetRpcCapabilitiesFromSettings
 {
-    internal static RpcCapabilities GetMandatory(ConnectionSettings settings)
+    public static RpcCapabilities GetMandatory(ConnectionSettings settings)
     {
         RpcCapabilities result = RpcCapabilities.None;
         if (settings.Ssl.Status is SharedCapabilityEnablement.EnabledMandatory)
@@ -24,7 +24,7 @@ internal static class GetRpcCapabilitiesFromSettings
         return result;
     }
 
-    internal static RpcCapabilities GetOptional(ConnectionSettings settings)
+    public static RpcCapabilities GetOptional(ConnectionSettings settings)
     {
         RpcCapabilities result = RpcCapabilities.None;
         if (settings.Ssl.Status is SharedCapabilityEnablement.EnabledOptional)
@@ -37,12 +37,12 @@ internal static class GetRpcCapabilitiesFromSettings
     }
 }
 
-internal class RpcCapabilitiesNegotiationResult
+public class RpcCapabilitiesNegotiationResult
 {
-    internal bool NegotiatedOk => RequiredMissingCapabilities == RpcCapabilities.None;
-    internal RpcCapabilities CommonCapabilities { get; }
-    internal RpcCapabilities OptionalMissingCapabilities { get; }
-    internal RpcCapabilities RequiredMissingCapabilities { get; }
+    public bool NegotiatedOk => RequiredMissingCapabilities == RpcCapabilities.None;
+    public RpcCapabilities CommonCapabilities { get; }
+    public RpcCapabilities OptionalMissingCapabilities { get; }
+    public RpcCapabilities RequiredMissingCapabilities { get; }
 
     private RpcCapabilitiesNegotiationResult(
         RpcCapabilities common,
@@ -54,7 +54,7 @@ internal class RpcCapabilitiesNegotiationResult
         RequiredMissingCapabilities = requiredMissing;
     }
 
-    internal static RpcCapabilitiesNegotiationResult Build(
+    public static RpcCapabilitiesNegotiationResult Build(
         RpcCapabilities mandatorySelf,
         RpcCapabilities optionalSelf,
         RpcCapabilities mandatoryOther,
