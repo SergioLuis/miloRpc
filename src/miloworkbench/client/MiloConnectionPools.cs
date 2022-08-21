@@ -60,17 +60,30 @@ public class MiloConnectionPools
             endPoint,
             new DefaultClientProtocolNegotiation(
                 RpcCapabilities.None,
-                RpcCapabilities.None,
-                ArrayPool<byte>.Shared));
+                RpcCapabilities.None));
 
     static ConnectToTcpServer BuildConnectToTcpSslServer(IPEndPoint endPoint)
-        => new(
+    {
+        ConnectionSettings connectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
+            },
+            Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Enable = false
+            }
+        };
+
+        return new ConnectToTcpServer(
             endPoint,
             new DefaultClientProtocolNegotiation(
                 RpcCapabilities.Ssl,
                 RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                DefaultClientProtocolNegotiation.AcceptAllCertificates));
+                connectionSettings,
+                ArrayPool<byte>.Shared));
+    }
 
     static ConnectToQuicServer BuildConnectToQuicServer(IPEndPoint endPoint)
         => new(

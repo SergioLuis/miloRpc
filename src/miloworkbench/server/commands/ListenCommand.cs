@@ -120,8 +120,7 @@ public class ListenCommand : AsyncCommand<ListenCommand.Settings>
             stubCollection,
             new DefaultServerProtocolNegotiation(
                 RpcCapabilities.None,
-                RpcCapabilities.None,
-                ArrayPool<byte>.Shared));
+                RpcCapabilities.None));
 
         return tcpServer.ListenAsync(ct);
     }
@@ -130,15 +129,27 @@ public class ListenCommand : AsyncCommand<ListenCommand.Settings>
     {
         ct.Register(() => Console.WriteLine("Stopping SSL over TCP server"));
 
+        ConnectionSettings connectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                CertificatePath = string.Empty,
+                CertificatePassword = "c3rtp4ssw0rd"
+            },
+            Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Enable = false
+            }
+        };
+
         IServer<IPEndPoint> sslServer = new TcpServer(
             bindEndPoint,
             stubCollection,
             new DefaultServerProtocolNegotiation(
                 RpcCapabilities.Ssl,
                 RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                string.Empty,
-                "c3rtp4ssw0rd"));
+                connectionSettings,
+                ArrayPool<byte>.Shared));
 
         return sslServer.ListenAsync(ct);
     }
