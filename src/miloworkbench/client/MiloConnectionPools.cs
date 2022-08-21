@@ -1,8 +1,8 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Security;
+using System.Runtime.Versioning;
 
 using miloRPC.Channels.Quic;
 using miloRPC.Channels.Tcp;
@@ -56,11 +56,7 @@ public class MiloConnectionPools
         };
 
     static ConnectToTcpServer BuildConnectToTcpServer(IPEndPoint endPoint)
-        => new(
-            endPoint,
-            new DefaultClientProtocolNegotiation(
-                RpcCapabilities.None,
-                RpcCapabilities.None));
+        => new(endPoint, new DefaultClientProtocolNegotiation(ConnectionSettings.None));
 
     static ConnectToTcpServer BuildConnectToTcpSslServer(IPEndPoint endPoint)
     {
@@ -68,32 +64,37 @@ public class MiloConnectionPools
         {
             Ssl = new ConnectionSettings.SslSettings
             {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
                 CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
             },
-            Buffering = new ConnectionSettings.BufferingSettings
-            {
-                Enable = false
-            }
+            Compression = ConnectionSettings.CompressionSettings.Disabled,
+            Buffering = ConnectionSettings.BufferingSettings.Disabled
         };
 
         return new ConnectToTcpServer(
-            endPoint,
-            new DefaultClientProtocolNegotiation(
-                RpcCapabilities.Ssl,
-                RpcCapabilities.None,
-                connectionSettings,
-                ArrayPool<byte>.Shared));
+            endPoint, new DefaultClientProtocolNegotiation(connectionSettings));
     }
 
     static ConnectToQuicServer BuildConnectToQuicServer(IPEndPoint endPoint)
-        => new(
-            endPoint,
-            new DefaultQuicClientProtocolNegotiation(
-                RpcCapabilities.None,
-                RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                new List<SslApplicationProtocol> {new("miloworkbench")},
-                DefaultQuicClientProtocolNegotiation.AcceptAllCertificates));
+    {
+        ConnectionSettings connectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates,
+                ApplicationProtocols = new []
+                {
+                    new SslApplicationProtocol("miloworkbench")
+                }
+            },
+            Compression = ConnectionSettings.CompressionSettings.Disabled,
+            Buffering = ConnectionSettings.BufferingSettings.Disabled
+        };
+
+        return new ConnectToQuicServer(
+            endPoint, new DefaultQuicClientProtocolNegotiation(connectionSettings));
+    }
 
     readonly Dictionary<string, Dictionary<IPEndPoint, ConnectionPool>> mPools;
     readonly object mSyncLock;

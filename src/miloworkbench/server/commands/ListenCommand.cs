@@ -118,9 +118,7 @@ public class ListenCommand : AsyncCommand<ListenCommand.Settings>
         IServer<IPEndPoint> tcpServer = new TcpServer(
             bindEndPoint,
             stubCollection,
-            new DefaultServerProtocolNegotiation(
-                RpcCapabilities.None,
-                RpcCapabilities.None));
+            new DefaultServerProtocolNegotiation(ConnectionSettings.None));
 
         return tcpServer.ListenAsync(ct);
     }
@@ -133,23 +131,18 @@ public class ListenCommand : AsyncCommand<ListenCommand.Settings>
         {
             Ssl = new ConnectionSettings.SslSettings
             {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
                 CertificatePath = string.Empty,
                 CertificatePassword = "c3rtp4ssw0rd"
             },
-            Buffering = new ConnectionSettings.BufferingSettings
-            {
-                Enable = false
-            }
+            Buffering = ConnectionSettings.BufferingSettings.Disabled,
+            Compression = ConnectionSettings.CompressionSettings.Disabled
         };
 
         IServer<IPEndPoint> sslServer = new TcpServer(
             bindEndPoint,
             stubCollection,
-            new DefaultServerProtocolNegotiation(
-                RpcCapabilities.Ssl,
-                RpcCapabilities.None,
-                connectionSettings,
-                ArrayPool<byte>.Shared));
+            new DefaultServerProtocolNegotiation(connectionSettings));
 
         return sslServer.ListenAsync(ct);
     }
@@ -157,17 +150,27 @@ public class ListenCommand : AsyncCommand<ListenCommand.Settings>
     static Task StartQuic(StubCollection stubCollection, IPEndPoint bindEndPoint, CancellationToken ct)
     {
         ct.Register(() => Console.WriteLine("Stopping QUIC server"));
+        
+        ConnectionSettings connectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                CertificatePath = string.Empty,
+                CertificatePassword = "c3rtp4ssw0rd",
+                ApplicationProtocols = new []
+                {
+                    new SslApplicationProtocol("miloworkbench")
+                }
+            },
+            Buffering = ConnectionSettings.BufferingSettings.Disabled,
+            Compression = ConnectionSettings.CompressionSettings.Disabled
+        };
 
         IServer<IPEndPoint> quicServer = new QuicServer(
             bindEndPoint,
             stubCollection,
-            new DefaultQuicServerProtocolNegotiation(
-                RpcCapabilities.None,
-                RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                new List<SslApplicationProtocol> {new("miloworkbench")},
-                string.Empty,
-                "c3rtp4ssw0rd"));
+            new DefaultQuicServerProtocolNegotiation(connectionSettings));
 
         return quicServer.ListenAsync(ct);
     }
