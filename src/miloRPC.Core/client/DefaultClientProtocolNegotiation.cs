@@ -68,7 +68,8 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         IPEndPoint remoteEndPoint,
         Stream baseStream,
         BinaryReader tempReader,
-        BinaryWriter tempWriter)
+        BinaryWriter tempWriter,
+        bool enableBuffering = false)
     {
         Stream resultStream = baseStream;
         BinaryReader resultReader = tempReader;
@@ -113,6 +114,14 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         {
             RpcBrotliStream brotliStream = new(resultStream, mArrayPool);
             resultStream = brotliStream;
+            resultReader = new BinaryReader(resultStream);
+            resultWriter = new BinaryWriter(resultStream);
+        }
+
+        if (enableBuffering)
+        {
+            RpcBufferedStream bufferedStream = new(resultStream);
+            resultStream = bufferedStream;
             resultReader = new BinaryReader(resultStream);
             resultWriter = new BinaryWriter(resultStream);
         }

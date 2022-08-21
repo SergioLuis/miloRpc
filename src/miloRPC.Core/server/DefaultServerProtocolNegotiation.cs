@@ -86,17 +86,18 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         IPEndPoint remoteEndPoint,
         Stream baseStream,
         BinaryReader tempReader,
-        BinaryWriter tempWriter)
+        BinaryWriter tempWriter,
+        bool enableBuffering = false)
     {
         Stream resultStream = baseStream;
         BinaryReader resultReader = tempReader;
         BinaryWriter resultWriter = tempWriter;
 
-        RpcCapabilities clientMandatory = (RpcCapabilities)tempReader.ReadByte();
-        RpcCapabilities clientOptional = (RpcCapabilities)tempReader.ReadByte();
+        RpcCapabilities clientMandatory = (RpcCapabilities) tempReader.ReadByte();
+        RpcCapabilities clientOptional = (RpcCapabilities) tempReader.ReadByte();
 
-        tempWriter.Write((byte)mMandatoryCapabilities);
-        tempWriter.Write((byte)mOptionalCapabilities);
+        tempWriter.Write((byte) mMandatoryCapabilities);
+        tempWriter.Write((byte) mOptionalCapabilities);
         tempWriter.Flush();
 
         RpcCapabilitiesNegotiationResult negotiationResult =
@@ -126,6 +127,14 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         {
             RpcBrotliStream brotliStream = new(resultStream, mArrayPool);
             resultStream = brotliStream;
+            resultReader = new BinaryReader(resultStream);
+            resultWriter = new BinaryWriter(resultStream);
+        }
+
+        if (enableBuffering)
+        {
+            RpcBufferedStream bufferedStream = new(resultStream);
+            resultStream = bufferedStream;
             resultReader = new BinaryReader(resultStream);
             resultWriter = new BinaryWriter(resultStream);
         }
