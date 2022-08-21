@@ -53,9 +53,9 @@ public enum PrivateCapabilityEnablement : byte
 
 public class ConnectionSettings
 {
-    public SslSettings Ssl { get; init; } = SslSettings.Disabled;
-    public CompressionSettings Compression { get; init; } = CompressionSettings.Disabled;
-    public BufferingSettings Buffering { get; init; } = BufferingSettings.Disabled;
+    public SslSettings Ssl { get; set; } = SslSettings.Disabled;
+    public CompressionSettings Compression { get; set; } = CompressionSettings.Disabled;
+    public BufferingSettings Buffering { get; set; } = BufferingSettings.Disabled;
 
     public static readonly ConnectionSettings None = new();
 
