@@ -16,11 +16,11 @@ namespace miloRPC.Core.Shared;
  */
 public class RpcBufferedStream : Stream
 {
-    public override bool CanRead => throw new System.NotImplementedException();
+    public override bool CanRead => mInputStream.CanRead;
 
-    public override bool CanSeek => throw new System.NotImplementedException();
+    public override bool CanSeek => false;
 
-    public override bool CanWrite => throw new System.NotImplementedException();
+    public override bool CanWrite => mOutputStream.CanWrite;
 
     public override long Length => throw new System.NotImplementedException();
 
@@ -39,12 +39,12 @@ public class RpcBufferedStream : Stream
 
     public override void Flush()
     {
-        throw new System.NotImplementedException();
+        mOutputStream.Flush();
     }
 
     public override int Read(byte[] buffer, int offset, int count)
     {
-        throw new System.NotImplementedException();
+        return mInputStream.Read(buffer, offset, count);
     }
 
     public override long Seek(long offset, SeekOrigin origin)
@@ -59,7 +59,7 @@ public class RpcBufferedStream : Stream
 
     public override void Write(byte[] buffer, int offset, int count)
     {
-        throw new System.NotImplementedException();
+        mOutputStream.Write(buffer, offset, count);
     }
 
     readonly Stream mUnderlyingStream;
