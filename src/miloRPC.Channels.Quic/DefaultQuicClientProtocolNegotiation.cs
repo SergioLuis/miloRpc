@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -26,42 +25,17 @@ public interface INegotiateClientQuicRpcProtocol : INegotiateRpcProtocol
 [SupportedOSPlatform("macOS")]
 public class DefaultQuicClientProtocolNegotiation : INegotiateClientQuicRpcProtocol
 {
-    public Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? ValidateServerCertificate { get; }
-    public IEnumerable<SslApplicationProtocol> ApplicationProtocols { get; }
+    public Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? ValidateServerCertificate
+        => mConnectionSettings.Ssl.CertificateValidationCallback;
 
-    public DefaultQuicClientProtocolNegotiation(
-        RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities) : this(
-            mandatoryCapabilities,
-            optionalCapabilities,
-            ArrayPool<byte>.Shared,
-            new List<SslApplicationProtocol> { new("miloRPC-default") }) { }
+    public IEnumerable<SslApplicationProtocol> ApplicationProtocols
+        => mConnectionSettings.Ssl.ApplicationProtocols;
 
-    public DefaultQuicClientProtocolNegotiation(
-        RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities,
-        ArrayPool<byte> arrayPool) : this(
-            mandatoryCapabilities,
-            optionalCapabilities,
-            arrayPool,
-            new List<SslApplicationProtocol> { new("miloRPC-default") }) { }
-
-    public DefaultQuicClientProtocolNegotiation(
-        RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities,
-        ArrayPool<byte> arrayPool,
-        IEnumerable<SslApplicationProtocol> applicationProtocols,
-        Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool>? validateServerCertificate = null)
+    public DefaultQuicClientProtocolNegotiation(ConnectionSettings connectionSettings)
     {
-        mMandatoryCapabilities = mandatoryCapabilities | RpcCapabilities.Ssl;
-        mOptionalCapabilities = optionalCapabilities;
-        mArrayPool = arrayPool;
-        ValidateServerCertificate = validateServerCertificate;
-        ApplicationProtocols = applicationProtocols;
-
+        mConnectionSettings = connectionSettings;
         mLog = RpcLoggerFactory.CreateLogger("DefaultQuicClientProtocolNegotiation");
     }
-
 
     public async Task<RpcProtocolNegotiationResult> NegotiateProtocolAsync(
         uint connId,
@@ -103,8 +77,13 @@ public class DefaultQuicClientProtocolNegotiation : INegotiateClientQuicRpcProto
         BinaryReader resultReader = tempReader;
         BinaryWriter resultWriter = tempWriter;
 
-        tempWriter.Write((byte)mMandatoryCapabilities);
-        tempWriter.Write((byte)mOptionalCapabilities);
+        RpcCapabilities mandatoryCapabilities =
+            GetRpcCapabilitiesFromSettings.GetMandatory(mConnectionSettings);
+        RpcCapabilities optionalCapabilities =
+            GetRpcCapabilitiesFromSettings.GetOptional(mConnectionSettings);
+
+        tempWriter.Write((byte)mandatoryCapabilities);
+        tempWriter.Write((byte)optionalCapabilities);
         tempWriter.Flush();
 
         RpcCapabilities serverMandatory = (RpcCapabilities) tempReader.ReadByte();
@@ -112,8 +91,8 @@ public class DefaultQuicClientProtocolNegotiation : INegotiateClientQuicRpcProto
 
         RpcCapabilitiesNegotiationResult negotiationResult =
             RpcCapabilitiesNegotiationResult.Build(
-                mMandatoryCapabilities,
-                mOptionalCapabilities,
+                mandatoryCapabilities,
+                optionalCapabilities,
                 serverMandatory,
                 serverOptional);
 
@@ -127,8 +106,20 @@ public class DefaultQuicClientProtocolNegotiation : INegotiateClientQuicRpcProto
 
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
         {
-            RpcBrotliStream brotliStream = new(baseStream, mArrayPool);
+            RpcBrotliStream brotliStream = new(
+                baseStream, mConnectionSettings.Compression.ArrayPool);
+
             resultStream = brotliStream;
+            resultReader = new BinaryReader(resultStream);
+            resultWriter = new BinaryWriter(resultStream);
+        }
+        
+        if (mConnectionSettings.Buffering.Status is PrivateCapabilityEnablement.Enabled)
+        {
+            RpcBufferedStream bufferedStream = new(
+                resultStream, mConnectionSettings.Buffering.BufferSize);
+
+            resultStream = bufferedStream;
             resultReader = new BinaryReader(resultStream);
             resultWriter = new BinaryWriter(resultStream);
         }
@@ -143,17 +134,24 @@ public class DefaultQuicClientProtocolNegotiation : INegotiateClientQuicRpcProto
             new RpcProtocolNegotiationResult(resultStream, resultReader, resultWriter));
     }
 
-    readonly RpcCapabilities mMandatoryCapabilities;
-    readonly RpcCapabilities mOptionalCapabilities;
-    readonly ArrayPool<byte> mArrayPool;
+    readonly ConnectionSettings mConnectionSettings;
     readonly ILogger mLog;
 
     const byte CURRENT_VERSION = 1;
 
     public static readonly INegotiateClientQuicRpcProtocol Instance =
         new DefaultQuicClientProtocolNegotiation(
-            mandatoryCapabilities: RpcCapabilities.None,
-            optionalCapabilities: RpcCapabilities.None);
-
-    public static readonly Func<object, X509Certificate?, X509Chain?, SslPolicyErrors, bool> AcceptAllCertificates = (_, _, _, _) => true;
+            new ConnectionSettings
+            {
+                Ssl = new ConnectionSettings.SslSettings
+                {
+                    Status = SharedCapabilityEnablement.EnabledMandatory,
+                    ApplicationProtocols = new []
+                    {
+                        new SslApplicationProtocol("miloRpc-quic")
+                    }
+                },
+                Compression = ConnectionSettings.CompressionSettings.Disabled,
+                Buffering = ConnectionSettings.BufferingSettings.Disabled
+            });
 }

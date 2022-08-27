@@ -202,6 +202,7 @@ public class ConnectionFromClient
                             "a failed method call result");
                         mWriteMethodCallResult.Write(
                             mRpc.Writer, MethodCallResult.Failed, RpcException.FromException(ex));
+                        mRpc.Writer.Flush();
                     }
                 }
                 finally

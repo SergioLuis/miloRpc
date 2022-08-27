@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Net;
@@ -33,6 +32,10 @@ public class ListenCommand : AsyncCommand<ListenCommand.Settings>
         [CommandOption("--quic <IPEndPoint>")]
         [Description("The endpoint where the QUIC port will be binded. Use 'none' to skip this port. Default is '0.0.0.0:8090'")]
         public string QuicBindEndPoint { get; set; } = "0.0.0.0:8090";
+
+        [CommandOption("--buffersize <BYTES>")]
+        [Description("Read/write buffer size, in bytes. If zero, then buffering is disabled. Default is '0'")]
+        public int BufferSize { get; set; } = 0;
     }
 
     public override ValidationResult Validate(CommandContext context, Settings settings)
@@ -79,6 +82,7 @@ public class ListenCommand : AsyncCommand<ListenCommand.Settings>
                 StartTcp(
                     stubCollection,
                     tcpEndPoint,
+                    settings.BufferSize,
                     CancellationTokenSource.CreateLinkedTokenSource(cts.Token).Token));
             Console.WriteLine($"Listening on tcp://{tcpEndPoint}");
         }
@@ -90,6 +94,7 @@ public class ListenCommand : AsyncCommand<ListenCommand.Settings>
                 StartSslOverTcp(
                     stubCollection,
                     sslEndPoint,
+                    settings.BufferSize,
                     CancellationTokenSource.CreateLinkedTokenSource(cts.Token).Token));
             Console.WriteLine($"Listening on ssl://{sslEndPoint}");
         }
@@ -101,6 +106,7 @@ public class ListenCommand : AsyncCommand<ListenCommand.Settings>
                 StartQuic(
                     stubCollection,
                     quicEndPoint,
+                    settings.BufferSize,
                     CancellationTokenSource.CreateLinkedTokenSource(cts.Token).Token));
             Console.WriteLine($"Listening on quic://{quicEndPoint}");
         }
@@ -111,52 +117,106 @@ public class ListenCommand : AsyncCommand<ListenCommand.Settings>
         return 0;
     }
 
-    static Task StartTcp(StubCollection stubCollection, IPEndPoint bindEndPoint, CancellationToken ct)
+    static Task StartTcp(
+        StubCollection stubCollection,
+        IPEndPoint bindEndPoint,
+        int bufferSize,
+        CancellationToken ct)
     {
         ct.Register(() => Console.WriteLine("Stopping TCP server"));
+        
+        ConnectionSettings connectionSettings = ConnectionSettings.None;
+        if (bufferSize > 0)
+        {
+            connectionSettings.Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Status = PrivateCapabilityEnablement.Enabled,
+                BufferSize = bufferSize
+            };
+        }
 
         IServer<IPEndPoint> tcpServer = new TcpServer(
             bindEndPoint,
             stubCollection,
-            new DefaultServerProtocolNegotiation(
-                RpcCapabilities.None,
-                RpcCapabilities.None,
-                ArrayPool<byte>.Shared));
+            new DefaultServerProtocolNegotiation(connectionSettings));
 
         return tcpServer.ListenAsync(ct);
     }
 
-    static Task StartSslOverTcp(StubCollection stubCollection, IPEndPoint bindEndPoint, CancellationToken ct)
+    static Task StartSslOverTcp(
+        StubCollection stubCollection,
+        IPEndPoint bindEndPoint,
+        int bufferSize,
+        CancellationToken ct)
     {
         ct.Register(() => Console.WriteLine("Stopping SSL over TCP server"));
+
+        ConnectionSettings connectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                CertificatePath = string.Empty,
+                CertificatePassword = "c3rtp4ssw0rd"
+            },
+            Buffering = ConnectionSettings.BufferingSettings.Disabled,
+            Compression = ConnectionSettings.CompressionSettings.Disabled
+        };
+
+        if (bufferSize > 0)
+        {
+            connectionSettings.Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Status = PrivateCapabilityEnablement.Enabled,
+                BufferSize = bufferSize
+            };
+        }
 
         IServer<IPEndPoint> sslServer = new TcpServer(
             bindEndPoint,
             stubCollection,
-            new DefaultServerProtocolNegotiation(
-                RpcCapabilities.Ssl,
-                RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                string.Empty,
-                "c3rtp4ssw0rd"));
+            new DefaultServerProtocolNegotiation(connectionSettings));
 
         return sslServer.ListenAsync(ct);
     }
 
-    static Task StartQuic(StubCollection stubCollection, IPEndPoint bindEndPoint, CancellationToken ct)
+    static Task StartQuic(
+        StubCollection stubCollection,
+        IPEndPoint bindEndPoint,
+        int bufferSize,
+        CancellationToken ct)
     {
         ct.Register(() => Console.WriteLine("Stopping QUIC server"));
+        
+        ConnectionSettings connectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                CertificatePath = string.Empty,
+                CertificatePassword = "c3rtp4ssw0rd",
+                ApplicationProtocols = new []
+                {
+                    new SslApplicationProtocol("miloworkbench")
+                }
+            },
+            Buffering = ConnectionSettings.BufferingSettings.Disabled,
+            Compression = ConnectionSettings.CompressionSettings.Disabled
+        };
+
+        if (bufferSize > 0)
+        {
+            connectionSettings.Buffering = new ConnectionSettings.BufferingSettings
+            {
+                Status = PrivateCapabilityEnablement.Enabled,
+                BufferSize = bufferSize
+            };
+        }
 
         IServer<IPEndPoint> quicServer = new QuicServer(
             bindEndPoint,
             stubCollection,
-            new DefaultQuicServerProtocolNegotiation(
-                RpcCapabilities.None,
-                RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                new List<SslApplicationProtocol> {new("miloworkbench")},
-                string.Empty,
-                "c3rtp4ssw0rd"));
+            new DefaultQuicServerProtocolNegotiation(connectionSettings));
 
         return quicServer.ListenAsync(ct);
     }

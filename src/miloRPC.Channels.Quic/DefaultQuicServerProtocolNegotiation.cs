@@ -1,7 +1,5 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -19,7 +17,7 @@ namespace miloRPC.Channels.Quic;
 public interface INegotiateServerQuicRpcProtocol : INegotiateRpcProtocol
 {
     IEnumerable<SslApplicationProtocol> ApplicationProtocols { get; }
-    X509Certificate GetServerCertificate();
+    X509Certificate ServerCertificate { get; }
 }
 
 [SupportedOSPlatform("linux")]
@@ -27,41 +25,17 @@ public interface INegotiateServerQuicRpcProtocol : INegotiateRpcProtocol
 [SupportedOSPlatform("macOS")]
 public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProtocol
 {
-    public IEnumerable<SslApplicationProtocol> ApplicationProtocols { get; }
+    public IEnumerable<SslApplicationProtocol> ApplicationProtocols
+        => mConnectionSettings.Ssl.ApplicationProtocols;
 
-    public DefaultQuicServerProtocolNegotiation(
-        RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities,
-        string certificatePath,
-        string certificatePassword) : this(
-            mandatoryCapabilities,
-            optionalCapabilities,
-            ArrayPool<byte>.Shared,
-            new List<SslApplicationProtocol> { new("miloRPC-default") },
-            certificatePath,
-            certificatePassword) { }
+    public X509Certificate ServerCertificate => mServerCertificate;
 
-    public DefaultQuicServerProtocolNegotiation(
-        RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities,
-        ArrayPool<byte> arrayPool,
-        IEnumerable<SslApplicationProtocol> applicationProtocols,
-        string certificatePath,
-        string certificatePassword)
+    public DefaultQuicServerProtocolNegotiation(ConnectionSettings connectionSettings)
     {
-        mMandatoryCapabilities = mandatoryCapabilities | RpcCapabilities.Ssl;
-        mOptionalCapabilities = optionalCapabilities;
-        mArrayPool = arrayPool;
-        ApplicationProtocols = applicationProtocols;
+        mConnectionSettings = connectionSettings;
         mLog = RpcLoggerFactory.CreateLogger("DefaultQuicServerProtocolNegotiation");
 
-        mServerCertificate = ProcessCertificateSettings(certificatePath, certificatePassword);
-    }
-
-    public X509Certificate GetServerCertificate()
-    {
-        Contract.Assert(mServerCertificate is not null);
-        return mServerCertificate;
+        mServerCertificate = ProcessCertificateSettings(mConnectionSettings.Ssl);
     }
 
     public async Task<RpcProtocolNegotiationResult> NegotiateProtocolAsync(
@@ -105,15 +79,22 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
 
         RpcCapabilities clientMandatory = (RpcCapabilities)tempReader.ReadByte();
         RpcCapabilities clientOptional = (RpcCapabilities)tempReader.ReadByte();
+        
+        RpcCapabilities mandatoryCapabilities =
+            GetRpcCapabilitiesFromSettings.GetMandatory(mConnectionSettings);
+        RpcCapabilities optionalCapabilities =
+            GetRpcCapabilitiesFromSettings.GetOptional(mConnectionSettings);
 
-        tempWriter.Write((byte)mMandatoryCapabilities);
-        tempWriter.Write((byte)mOptionalCapabilities);
+        mandatoryCapabilities |= RpcCapabilities.Ssl;
+
+        tempWriter.Write((byte)mandatoryCapabilities);
+        tempWriter.Write((byte)optionalCapabilities);
         tempWriter.Flush();
 
         RpcCapabilitiesNegotiationResult negotiationResult =
             RpcCapabilitiesNegotiationResult.Build(
-                mMandatoryCapabilities,
-                mOptionalCapabilities,
+                mandatoryCapabilities,
+                optionalCapabilities,
                 clientMandatory,
                 clientOptional);
 
@@ -123,10 +104,23 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
                 $"Protocol was not correctly negotiated for conn {connId}. "
                 + $"Required missing capabilities: {negotiationResult.RequiredMissingCapabilities}.");
         }
+
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
         {
-            RpcBrotliStream brotliStream = new(resultStream, mArrayPool);
+            RpcBrotliStream brotliStream = new(
+                resultStream, mConnectionSettings.Compression.ArrayPool);
+
             resultStream = brotliStream;
+            resultReader = new BinaryReader(resultStream);
+            resultWriter = new BinaryWriter(resultStream);
+        }
+
+        if (mConnectionSettings.Buffering.Status is PrivateCapabilityEnablement.Enabled)
+        {
+            RpcBufferedStream bufferedStream = new(
+                resultStream, mConnectionSettings.Buffering.BufferSize);
+
+            resultStream = bufferedStream;
             resultReader = new BinaryReader(resultStream);
             resultWriter = new BinaryWriter(resultStream);
         }
@@ -140,11 +134,15 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
             new RpcProtocolNegotiationResult(resultStream, resultReader, resultWriter));
     }
 
-    X509Certificate? ProcessCertificateSettings(string certificatePath, string certificatePassword)
+    X509Certificate ProcessCertificateSettings(ConnectionSettings.SslSettings sslSettings)
     {
-        if (string.IsNullOrEmpty(certificatePassword))
+        if (sslSettings.Status is not SharedCapabilityEnablement.EnabledMandatory)
+            throw new ArgumentException("SslSettings.Status must be EnabledMandatory when using QUIC");
+
+        if (string.IsNullOrEmpty(sslSettings.CertificatePassword))
             throw new ArgumentException("SSL is necessary but no cert. password is set");
 
+        string? certificatePath = sslSettings.CertificatePath;
         if (string.IsNullOrEmpty(certificatePath))
         {
             certificatePath = Path.Combine(
@@ -164,26 +162,26 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
 
             if (!TryGenerateCertificate(
                     certificatePath,
-                    certificatePassword,
+                    sslSettings.CertificatePassword,
                     out X509Certificate2? certificate))
             {
                 throw new InvalidOperationException(
                     "Could not generate a self-signed certificate");
             }
 
-            return certificate;
+            return certificate!;
         }
 
         if (!TryReadCertificate(
                 certificatePath,
-                certificatePassword,
+                sslSettings.CertificatePassword,
                 out X509Certificate2? result))
         {
             throw new InvalidOperationException(
                 "Could not load the specified certificate");
         }
 
-        return result;
+        return result!;
     }
 
     bool TryGenerateCertificate(
@@ -220,10 +218,10 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
                 "There was an error generating self-signed certificate '{CertPath}': {ExMessage}",
                 certificatePath, ex.Message);
             mLog.LogDebug("StackTrace: {ExStackTrace}", ex.StackTrace);
-        }
 
-        certificate = null;
-        return false;
+            certificate = null;
+            return false;
+        }
     }
 
     bool TryReadCertificate(
@@ -250,18 +248,28 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
         return false;
     }
 
-    readonly RpcCapabilities mMandatoryCapabilities;
-    readonly RpcCapabilities mOptionalCapabilities;
-    readonly ArrayPool<byte> mArrayPool;
-    readonly X509Certificate? mServerCertificate;
+    readonly ConnectionSettings mConnectionSettings;
+    readonly X509Certificate mServerCertificate;
     readonly ILogger mLog;
 
     const byte CURRENT_VERSION = 1;
 
     public static readonly INegotiateServerQuicRpcProtocol Instance =
         new DefaultQuicServerProtocolNegotiation(
-            mandatoryCapabilities: RpcCapabilities.None,
-            optionalCapabilities: RpcCapabilities.None,
-            Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "miloRpc-autogen.pfx"),
-            "079b5ef9-dc5e-4a48-a2e3-403d7456c495");
+            new ConnectionSettings
+            {
+                Ssl = new ConnectionSettings.SslSettings
+                {
+                    Status = SharedCapabilityEnablement.EnabledMandatory,
+                    CertificatePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
+                        "miloRpc-autogen.pfx"),
+                    CertificatePassword = "079b5ef9-dc5e-4a48-a2e3-403d7456c495",
+                    ApplicationProtocols = new []
+                    {
+                        new SslApplicationProtocol("miloRpc-quic")
+                    }
+                },
+                Compression = ConnectionSettings.CompressionSettings.Disabled,
+                Buffering = ConnectionSettings.BufferingSettings.Disabled
+            });
 }

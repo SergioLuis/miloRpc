@@ -41,22 +41,42 @@ static class Program
             Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
             "demo.pfx");
 
+        ConnectionSettings serverConnectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                CertificatePath = certificatePath,
+                CertificatePassword = "th1s_c3rt_1s_s3lf_s1gn3d",
+                ApplicationProtocols = new[]
+                {
+                    new SslApplicationProtocol(applicationProtocol)
+                }
+            },
+            Compression = ConnectionSettings.CompressionSettings.Disabled,
+            Buffering = ConnectionSettings.BufferingSettings.Disabled
+        };
+
         INegotiateServerQuicRpcProtocol negotiateServerProtocol =
-            new DefaultQuicServerProtocolNegotiation(
-                RpcCapabilities.None,
-                RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                new []{ new SslApplicationProtocol(applicationProtocol)},
-                certificatePath,
-                "th1s_c3rt_1s_s3lf_s1gn3d");
+            new DefaultQuicServerProtocolNegotiation(serverConnectionSettings);
+
+        ConnectionSettings clientConnectionSettings = new()
+        {
+            Ssl = new ConnectionSettings.SslSettings
+            {
+                Status = SharedCapabilityEnablement.EnabledMandatory,
+                ApplicationProtocols = new[]
+                {
+                    new SslApplicationProtocol(applicationProtocol)
+                },
+                CertificateValidationCallback = ConnectionSettings.SslSettings.AcceptAllCertificates
+            },
+            Compression = ConnectionSettings.CompressionSettings.Disabled,
+            Buffering = ConnectionSettings.BufferingSettings.Disabled
+        };
 
         INegotiateClientQuicRpcProtocol negotiateClientProtocol =
-            new DefaultQuicClientProtocolNegotiation(
-                RpcCapabilities.None,
-                RpcCapabilities.None,
-                ArrayPool<byte>.Shared,
-                new[] {new SslApplicationProtocol(applicationProtocol)},
-                DefaultQuicClientProtocolNegotiation.AcceptAllCertificates);
+            new DefaultQuicClientProtocolNegotiation(clientConnectionSettings);
 
         CancellationTokenSource cts = new();
 

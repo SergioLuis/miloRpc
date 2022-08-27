@@ -10,6 +10,33 @@ public enum RpcCapabilities : byte
     Compression = 1 << 1
 }
 
+public static class GetRpcCapabilitiesFromSettings
+{
+    public static RpcCapabilities GetMandatory(ConnectionSettings settings)
+    {
+        RpcCapabilities result = RpcCapabilities.None;
+        if (settings.Ssl.Status is SharedCapabilityEnablement.EnabledMandatory)
+            result |= RpcCapabilities.Ssl;
+
+        if (settings.Compression.Status is SharedCapabilityEnablement.EnabledMandatory)
+            result |= RpcCapabilities.Compression;
+
+        return result;
+    }
+
+    public static RpcCapabilities GetOptional(ConnectionSettings settings)
+    {
+        RpcCapabilities result = RpcCapabilities.None;
+        if (settings.Ssl.Status is SharedCapabilityEnablement.EnabledOptional)
+            result |= RpcCapabilities.Ssl;
+
+        if (settings.Compression.Status is SharedCapabilityEnablement.EnabledOptional)
+            result |= RpcCapabilities.Compression;
+
+        return result;
+    }
+}
+
 public class RpcCapabilitiesNegotiationResult
 {
     public bool NegotiatedOk => RequiredMissingCapabilities == RpcCapabilities.None;

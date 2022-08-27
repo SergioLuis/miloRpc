@@ -91,7 +91,7 @@ public class QuicServer : IServer<IPEndPoint>
             AllowRenegotiation = true,
             ApplicationProtocols = new List<SslApplicationProtocol>(
                 mNegotiateProtocol.ApplicationProtocols),
-            ServerCertificate = mNegotiateProtocol.GetServerCertificate()
+            ServerCertificate = mNegotiateProtocol.ServerCertificate
         };
 
         QuicListener quicListener = new(mBindEndpoint, sslOptions);

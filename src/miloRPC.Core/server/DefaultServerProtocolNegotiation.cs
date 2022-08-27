@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -14,43 +13,12 @@ namespace miloRPC.Core.Server;
 
 public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 {
-    public DefaultServerProtocolNegotiation(
-        RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities) : this(
-            mandatoryCapabilities,
-            optionalCapabilities,
-            ArrayPool<byte>.Shared,
-            string.Empty,
-            string.Empty)
-    { }
-
-    public DefaultServerProtocolNegotiation(
-        RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities,
-        ArrayPool<byte> arrayPool) : this(
-            mandatoryCapabilities,
-            optionalCapabilities,
-            arrayPool,
-            string.Empty,
-            string.Empty) { }
-
-    public DefaultServerProtocolNegotiation(
-        RpcCapabilities mandatoryCapabilities,
-        RpcCapabilities optionalCapabilities,
-        ArrayPool<byte> arrayPool,
-        string certificatePath,
-        string certificatePassword)
+    public DefaultServerProtocolNegotiation(ConnectionSettings connectionSettings)
     {
-        mMandatoryCapabilities = mandatoryCapabilities;
-        mOptionalCapabilities = optionalCapabilities;
-        mArrayPool = arrayPool;
+        mConnectionSettings = connectionSettings;
         mLog = RpcLoggerFactory.CreateLogger("DefaultServerProtocolNegotiation");
 
-        mServerCertificate = ProcessCertificateSettings(
-            mMandatoryCapabilities,
-            mOptionalCapabilities,
-            certificatePath,
-            certificatePassword);
+        mServerCertificate = ProcessCertificateSettings(connectionSettings.Ssl);
     }
 
     Task<RpcProtocolNegotiationResult> INegotiateRpcProtocol.NegotiateProtocolAsync(
@@ -92,17 +60,23 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         BinaryReader resultReader = tempReader;
         BinaryWriter resultWriter = tempWriter;
 
-        RpcCapabilities clientMandatory = (RpcCapabilities)tempReader.ReadByte();
-        RpcCapabilities clientOptional = (RpcCapabilities)tempReader.ReadByte();
+        RpcCapabilities clientMandatory = (RpcCapabilities) tempReader.ReadByte();
+        RpcCapabilities clientOptional = (RpcCapabilities) tempReader.ReadByte();
 
-        tempWriter.Write((byte)mMandatoryCapabilities);
-        tempWriter.Write((byte)mOptionalCapabilities);
+        RpcCapabilities mandatoryCapabilities =
+            GetRpcCapabilitiesFromSettings.GetMandatory(mConnectionSettings);
+
+        RpcCapabilities optionalCapabilities =
+            GetRpcCapabilitiesFromSettings.GetOptional(mConnectionSettings);
+
+        tempWriter.Write((byte) mandatoryCapabilities);
+        tempWriter.Write((byte) optionalCapabilities);
         tempWriter.Flush();
 
         RpcCapabilitiesNegotiationResult negotiationResult =
             RpcCapabilitiesNegotiationResult.Build(
-                mMandatoryCapabilities,
-                mOptionalCapabilities,
+                mandatoryCapabilities,
+                optionalCapabilities,
                 clientMandatory,
                 clientOptional);
 
@@ -124,8 +98,20 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Compression))
         {
-            RpcBrotliStream brotliStream = new(resultStream, mArrayPool);
+            RpcBrotliStream brotliStream = new(
+                resultStream, mConnectionSettings.Compression.ArrayPool);
+
             resultStream = brotliStream;
+            resultReader = new BinaryReader(resultStream);
+            resultWriter = new BinaryWriter(resultStream);
+        }
+
+        if (mConnectionSettings.Buffering.Status is PrivateCapabilityEnablement.Enabled)
+        {
+            RpcBufferedStream bufferedStream = new(
+                resultStream, mConnectionSettings.Buffering.BufferSize);
+
+            resultStream = bufferedStream;
             resultReader = new BinaryReader(resultStream);
             resultWriter = new BinaryWriter(resultStream);
         }
@@ -138,21 +124,15 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         return new RpcProtocolNegotiationResult(resultStream, resultReader, resultWriter);
     }
 
-    X509Certificate? ProcessCertificateSettings(
-        RpcCapabilities mandatory,
-        RpcCapabilities optional,
-        string certificatePath,
-        string certificatePassword)
+    X509Certificate? ProcessCertificateSettings(ConnectionSettings.SslSettings sslSettings)
     {
-        bool isSslNecessary =
-            ((mandatory | optional) & RpcCapabilities.Ssl) == RpcCapabilities.Ssl;
-
-        if (!isSslNecessary)
+        if (sslSettings.Status is SharedCapabilityEnablement.Disabled)
             return null;
 
-        if (string.IsNullOrEmpty(certificatePassword))
+        if (string.IsNullOrEmpty(sslSettings.CertificatePassword))
             throw new ArgumentException("SSL is necessary but no cert. password is set");
 
+        string? certificatePath = sslSettings.CertificatePath;
         if (string.IsNullOrEmpty(certificatePath))
         {
             certificatePath = Path.Combine(
@@ -172,7 +152,7 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 
             if (!TryGenerateCertificate(
                 certificatePath,
-                certificatePassword,
+                sslSettings.CertificatePassword,
                 out X509Certificate2? certificate))
             {
                 throw new InvalidOperationException(
@@ -184,7 +164,7 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 
         if (!TryReadCertificate(
             certificatePath,
-            certificatePassword,
+            sslSettings.CertificatePassword,
             out X509Certificate2? result))
         {
             throw new InvalidOperationException(
@@ -255,16 +235,12 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         return false;
     }
 
-    readonly RpcCapabilities mMandatoryCapabilities;
-    readonly RpcCapabilities mOptionalCapabilities;
-    readonly ArrayPool<byte> mArrayPool;
+    readonly ConnectionSettings mConnectionSettings;
     readonly X509Certificate? mServerCertificate;
     readonly ILogger mLog;
 
     const byte CURRENT_VERSION = 1;
 
     public static readonly INegotiateRpcProtocol Instance =
-        new DefaultServerProtocolNegotiation(
-            mandatoryCapabilities: RpcCapabilities.None,
-            optionalCapabilities: RpcCapabilities.None);
+        new DefaultServerProtocolNegotiation(ConnectionSettings.None);
 }
