@@ -57,7 +57,7 @@ public class QuicServer : IServer<IPEndPoint>
             negotiateProtocol,
             readMethodId,
             writeMethodCallResult,
-            ConnectionTimeouts.AllInfinite) { }
+            ConnectionTimeouts.Default) { }
 
     public QuicServer(
         IPEndPoint bindTo,

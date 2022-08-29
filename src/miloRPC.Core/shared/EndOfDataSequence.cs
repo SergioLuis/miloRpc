@@ -1,11 +1,14 @@
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace miloRPC.Core.Shared;
 
 internal static class EndOfDataSequence
 {
-    internal static void ProcessFromServer(BinaryWriter writer, BinaryReader reader)
+    internal static async Task ProcessFromServerAsync(
+        BinaryWriter writer, BinaryReader reader, CancellationToken ct)
     {
         byte[] sendBuffer = new byte[SequenceLength];
         byte[] receiveBuffer = new byte[SequenceLength];
@@ -16,11 +19,15 @@ internal static class EndOfDataSequence
         writer.Write(sendBuffer);
         writer.Flush();
 
+        Stream inputStream = reader.BaseStream;
+
         int sendBufferIdx = 0;
         while (true)
         {
-            int read = reader.Read(receiveBuffer, 0, receiveBuffer.Length);
-            
+            ct.ThrowIfCancellationRequested();
+
+            int read = await inputStream.ReadAsync(receiveBuffer, ct);
+
             for (int i = 0; i < read; i++)
             {
                 if (sendBuffer[sendBufferIdx] == receiveBuffer[i])
@@ -43,7 +50,7 @@ internal static class EndOfDataSequence
         ReadUntilFull(buffer, reader);
         writer.Write(buffer);
         writer.Flush();
-        
+
         static void ReadUntilFull(byte[] dst, BinaryReader reader)
         {
             int read = 0;
