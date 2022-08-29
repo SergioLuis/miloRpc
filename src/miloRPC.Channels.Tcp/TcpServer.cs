@@ -53,7 +53,7 @@ public class TcpServer : IServer<IPEndPoint>
             negotiateProtocol,
             readMethodId,
             writeMethodCallResult,
-            ConnectionTimeouts.AllInfinite) { }
+            ConnectionTimeouts.Default) { }
 
     public TcpServer(
         IPEndPoint bindTo,

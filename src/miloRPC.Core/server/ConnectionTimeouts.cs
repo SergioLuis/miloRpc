@@ -17,18 +17,30 @@ public class ConnectionTimeouts
         set { lock (mRunningLock) mRunning = value; }
     }
 
-    public ConnectionTimeouts(TimeSpan idling, TimeSpan running)
+    public TimeSpan ProcessingEndOfDataSequence
+    {
+        get { lock (mProcessingEodLock) return mProcessingEndOfDataSequence; }
+        set { lock (mProcessingEodLock) mProcessingEndOfDataSequence = value; }
+    }
+
+    public ConnectionTimeouts(
+        TimeSpan idling, TimeSpan running, TimeSpan processingEndOfDataSequence)
     {
         mIdling = idling;
         mRunning = running;
+        mProcessingEndOfDataSequence = processingEndOfDataSequence;
     }
 
     TimeSpan mIdling;
     TimeSpan mRunning;
+    TimeSpan mProcessingEndOfDataSequence;
 
     readonly object mIdlingLock = new();
     readonly object mRunningLock = new();
+    readonly object mProcessingEodLock = new();
 
-    public static readonly ConnectionTimeouts AllInfinite =
-        new(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+    public static readonly ConnectionTimeouts Default = new(
+        idling: Timeout.InfiniteTimeSpan,
+        running: Timeout.InfiniteTimeSpan,
+        processingEndOfDataSequence: TimeSpan.FromSeconds(30));
 }
