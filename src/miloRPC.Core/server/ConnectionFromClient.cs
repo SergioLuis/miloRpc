@@ -117,9 +117,13 @@ public class ConnectionFromClient
                         mLog.LogWarning(
                             "Client tried to run an unsupported method (connId {ConnectionId}): {MethodId}",
                             mConnectionId, methodId);
-                        mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.NotSupported);
 
-                        EndOfDataSequence.ProcessFromServer(mRpc.Writer, mRpc.Reader);
+                        mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.NotSupported);
+                        await EndOfDataSequence.ProcessFromServerAsync(
+                            mRpc.Writer,
+                            mRpc.Reader,
+                            ct.CancelLinkedTokenAfter(mConnectionTimeouts.ProcessingEndOfDataSequence));
+
                         continue;
                     }
 
