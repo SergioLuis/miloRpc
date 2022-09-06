@@ -109,7 +109,7 @@ public class ConnectionToServer : IDisposable
             MethodCallResult result = mReadMethodCallResult.Read(
                 mRpc.Reader,
                 out bool isResultAvailable,
-                out RpcException? ex);
+                out SerializableException? ex);
 
             if (isResultAvailable)
                 messages.Response.Deserialize(mRpc.Reader);

@@ -3,16 +3,16 @@ using System.IO;
 
 namespace miloRPC.Core.Shared;
 
-public class RpcException : Exception
+public class SerializableException : Exception
 {
     public string? ExceptionType => mExceptionType;
     public override string Message => mExceptionMessage;
     public override string? StackTrace => mStackTrace;
 
-    public static RpcException FromException(Exception ex)
+    public static SerializableException FromException(Exception ex)
         => new(ex.GetType().FullName, ex.Message, ex.StackTrace);
 
-    private RpcException(
+    private SerializableException(
         string? originalExceptionType,
         string originalExceptionMessage,
         string? originalStackTrace)
@@ -22,21 +22,21 @@ public class RpcException : Exception
         mStackTrace = originalStackTrace;
     }
 
-    private RpcException()
+    private SerializableException()
     {
         mExceptionType = string.Empty;
         mExceptionMessage = string.Empty;
         mStackTrace = string.Empty;
     }
 
-    internal static RpcException FromReader(BinaryReader reader)
+    internal static SerializableException FromReader(BinaryReader reader)
     {
-        RpcException result = new();
+        SerializableException result = new();
         result.Deserialize(reader);
         return result;
     }
 
-    internal static void ToWriter(RpcException exception, BinaryWriter writer)
+    internal static void ToWriter(SerializableException exception, BinaryWriter writer)
         => exception.Serialize(writer);
 
     string? mExceptionType;
