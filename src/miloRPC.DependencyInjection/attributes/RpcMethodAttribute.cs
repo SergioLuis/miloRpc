@@ -11,13 +11,13 @@ namespace miloRPC.DependencyInjection.Attributes;
 [AttributeUsage(AttributeTargets.Method)]
 public class RpcMethodAttribute<T> : Attribute where T : struct
 {
+    public T MethodIdentifier { get; }
+
     public RpcMethodAttribute(T methodIdentifier)
     {
-        mMethodIdentifier = methodIdentifier;
+        MethodIdentifier = methodIdentifier;
     }
 
     public bool Handles(IMethodId<T> methodId)
-        => methodId.Id.Equals(mMethodIdentifier);
-
-    readonly T mMethodIdentifier;
+        => methodId.Id.Equals(MethodIdentifier);
 }
