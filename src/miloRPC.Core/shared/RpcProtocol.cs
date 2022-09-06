@@ -38,6 +38,11 @@ public interface IMethodId
     void SetSolvedMethodName(string? name);
 }
 
+public interface IMethodId<out T> : IMethodId where T : struct
+{
+    T Id { get; }
+}
+
 public enum SharedCapabilityEnablement : byte
 {
     Disabled,

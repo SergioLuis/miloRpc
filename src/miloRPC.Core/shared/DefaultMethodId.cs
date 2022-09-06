@@ -1,6 +1,6 @@
 namespace miloRPC.Core.Shared;
 
-public class DefaultMethodId : IMethodId
+public class DefaultMethodId : IMethodId<byte>
 {
     public string Name { get; private set; }
 
