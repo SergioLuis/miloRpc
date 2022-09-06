@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "miloRPC.Channels.Quic", "mi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "miloworkbench", "miloworkbench\miloworkbench.csproj", "{618EC909-09CC-400B-A237-154BD7F05BC2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "miloRPC.DependencyInjection", "miloRPC.DependencyInjection\miloRPC.DependencyInjection.csproj", "{8344E139-2B26-46E9-95E9-F5C50A2A287B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -54,5 +56,9 @@ Global
 		{618EC909-09CC-400B-A237-154BD7F05BC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{618EC909-09CC-400B-A237-154BD7F05BC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{618EC909-09CC-400B-A237-154BD7F05BC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8344E139-2B26-46E9-95E9-F5C50A2A287B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8344E139-2B26-46E9-95E9-F5C50A2A287B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8344E139-2B26-46E9-95E9-F5C50A2A287B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8344E139-2B26-46E9-95E9-F5C50A2A287B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
