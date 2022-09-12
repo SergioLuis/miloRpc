@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Net;
 
-namespace miloRPC.Core.Server;
+namespace miloRPC.Core.Shared;
 
 public interface IConnectionContext
 {
