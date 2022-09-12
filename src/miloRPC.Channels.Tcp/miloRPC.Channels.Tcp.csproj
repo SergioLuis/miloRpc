@@ -7,7 +7,7 @@
 
     <PropertyGroup>
       <PackageId>miloRpc.Tcp</PackageId>
-      <Version>0.2.0-beta</Version>
+      <Version>1.0.0-beta</Version>
       <Authors>Sergio Luis Para</Authors>
       <Company>Sergio Luis Para</Company>
     </PropertyGroup>
