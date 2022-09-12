@@ -25,7 +25,7 @@ public class ActiveConnections
 
         public override int GetHashCode()
         {
-            return (int)Connection.ConnectionId;
+            return (int)Connection.ConnectionContext.ConnectionId;
         }
 
         public override bool Equals(object? obj)
@@ -37,7 +37,8 @@ public class ActiveConnections
             if (other is null)
                 return false;
 
-            return other.Connection.ConnectionId == this.Connection.ConnectionId;
+            return other.Connection.ConnectionContext.ConnectionId
+                   == this.Connection.ConnectionContext.ConnectionId;
         }
     }
 
@@ -91,8 +92,8 @@ public class ActiveConnections
 
         mLog.LogTrace(
             "New connection established. Id: {0}. From {1}. IdlingTimeout: {2} ms. RunningTimeout: {3} ms.",
-            connFromClient.ConnectionId,
-            connFromClient.RemoteEndPoint,
+            connFromClient.ConnectionContext.ConnectionId,
+            connFromClient.ConnectionContext.RemoteEndPoint,
             mConnectionTimeouts.Idling,
             mConnectionTimeouts.Running);
 
@@ -137,7 +138,7 @@ public class ActiveConnections
             {
                 mLog.LogDebug(
                     "Connection {0} identified as exited and queued for removal",
-                    connFromClient.ConnectionId);
+                    connFromClient.ConnectionContext.ConnectionId);
 
                 activeConn.Cts.Cancel();
                 connsToRemove.Add(activeConn);
@@ -148,7 +149,7 @@ public class ActiveConnections
 
             mLog.LogDebug(
                 "Connection {ConnectionId} not identified as exited but its socket is disconnected",
-                connFromClient.ConnectionId);
+                connFromClient.ConnectionContext.ConnectionId);
 
             activeConn.Cts.Cancel();
         }

@@ -96,7 +96,5 @@ public class ConnectionSettings
 public interface INegotiateRpcProtocol
 {
     Task<RpcProtocolNegotiationResult> NegotiateProtocolAsync(
-        uint connId,
-        IPEndPoint remoteEndPoint,
-        Stream baseStream);
+        IConnectionContext ctx, Stream baseStream);
 }

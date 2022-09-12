@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -23,8 +22,7 @@ public class ConnectionFromClient
         Exited
     }
 
-    public uint ConnectionId => mConnectionId;
-    public IPEndPoint RemoteEndPoint => mRpcChannel.RemoteEndPoint;
+    public IConnectionContext ConnectionContext => mConnectionContext;
 
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
     public TimeSpan CurrentRunningTime => mRunStopwatch.Elapsed;
@@ -61,10 +59,9 @@ public class ConnectionFromClient
 
         mIdleStopwatch = new Stopwatch();
         mRunStopwatch = new Stopwatch();
-        mConnectionId = mServerMetrics.ConnectionStart();
 
         mConnectionContext = new ConnectionContext(
-            mConnectionId,
+            mServerMetrics.ConnectionStart(),
             mRpcChannel.ChannelProtocol,
             mRpcChannel.LocalEndPoint,
             mRpcChannel.RemoteEndPoint);
@@ -97,9 +94,7 @@ public class ConnectionFromClient
                     {
                         CurrentStatus = Status.NegotiatingProtocol;
                         mRpc = await mNegotiateProtocol.NegotiateProtocolAsync(
-                            mConnectionId,
-                            mRpcChannel.RemoteEndPoint,
-                            mRpcChannel.Stream);
+                            mConnectionContext, mRpcChannel.Stream);
 
                         mLastReadBytes = mRpcChannel.Stream.ReadBytes;
                         mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
@@ -116,7 +111,7 @@ public class ConnectionFromClient
                     {
                         mLog.LogWarning(
                             "Client tried to run an unsupported method (connId {ConnectionId}): {MethodId}",
-                            mConnectionId, methodId);
+                            mConnectionContext.ConnectionId, methodId);
 
                         mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.NotSupported);
                         await EndOfDataSequence.ProcessFromServerAsync(
@@ -276,7 +271,6 @@ public class ConnectionFromClient
     ulong mLastWrittenBytes;
     TimeSpan mLastWriteTime;
 
-    readonly uint mConnectionId;
     readonly StubCollection mStubCollection;
     readonly INegotiateRpcProtocol mNegotiateProtocol;
     readonly IReadMethodId mReadMethodId;

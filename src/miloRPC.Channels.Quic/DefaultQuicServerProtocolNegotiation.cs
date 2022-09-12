@@ -39,9 +39,9 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
     }
 
     public async Task<RpcProtocolNegotiationResult> NegotiateProtocolAsync(
-        uint connId, IPEndPoint remoteEndPoint, Stream baseStream)
+        IConnectionContext ctx, Stream baseStream)
     {
-        mLog.LogDebug("Negotiating protocol for connection {ConnId}", connId);
+        mLog.LogDebug("Negotiating protocol for connection {ConnId}", ctx.ConnectionId);
 
         BinaryReader tempReader = new(baseStream);
         BinaryWriter tempWriter = new(baseStream);
@@ -55,8 +55,7 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
         if (versionToUse == 1)
         {
             return await NegotiateProtocolV1Async(
-                connId,
-                remoteEndPoint,
+                ctx,
                 baseStream,
                 tempReader,
                 tempWriter);
@@ -67,8 +66,7 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
     }
 
     Task<RpcProtocolNegotiationResult> NegotiateProtocolV1Async(
-        uint connId,
-        IPEndPoint remoteEndPoint,
+        IConnectionContext ctx,
         Stream baseStream,
         BinaryReader tempReader,
         BinaryWriter tempWriter)
@@ -101,7 +99,7 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
         if (!negotiationResult.NegotiatedOk)
         {
             throw new NotSupportedException(
-                $"Protocol was not correctly negotiated for conn {connId}. "
+                $"Protocol was not correctly negotiated for conn {ctx.ConnectionId}. "
                 + $"Required missing capabilities: {negotiationResult.RequiredMissingCapabilities}.");
         }
 
@@ -128,7 +126,9 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
         mLog.LogInformation(
             "Protocol was correctly negotiated for conn {ConnectionId} from {RemoteEndPoint}. " +
             "Optional missing capabilities: {OptionalMissingCapabilities}",
-            connId, remoteEndPoint, negotiationResult.OptionalMissingCapabilities);
+            ctx.ConnectionId,
+            ctx.RemoteEndPoint,
+            negotiationResult.OptionalMissingCapabilities);
 
         return Task.FromResult(
             new RpcProtocolNegotiationResult(resultStream, resultReader, resultWriter));
