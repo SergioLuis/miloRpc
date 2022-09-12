@@ -7,10 +7,14 @@
     </PropertyGroup>
 
     <PropertyGroup>
-      <PackageId>miloRpc.Quic</PackageId>
+      <PackageId>miloRpc.Channels.Quic</PackageId>
       <Version>1.0.0-beta</Version>
       <Authors>Sergio Luis Para</Authors>
       <Company>Sergio Luis Para</Company>
+      <PackageLicenseExpression>MIT</PackageLicenseExpression>
+      <Copyright>Copyright (c) Sergio Luis Para 2022</Copyright>
+      <Description>QUIC-based channel for the miloRpc framework</Description>
+      <RepositoryUrl>https://github.com/SergioLuis/miloRpc</RepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>
