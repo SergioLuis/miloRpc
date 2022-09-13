@@ -53,10 +53,10 @@ internal class RecurringTask
 
         try
         {
-            if (mRecurringLoopTask == null || mRecurringLoopTask.IsCompleted)
+            if (mRecurringLoopTask is null || mRecurringLoopTask.IsCompleted)
                 return true;
 
-            if (mRecurringLoopCts == null)
+            if (mRecurringLoopCts is null)
                 return true;
 
             mRecurringLoopCts.Cancel();

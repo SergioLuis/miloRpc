@@ -107,7 +107,7 @@ public class ConnectionFromClient
                     methodId.SetSolvedMethodName(mStubCollection.SolveMethodName(methodId));
 
                     IStub? stub = mStubCollection.FindStub(methodId);
-                    if (stub == null)
+                    if (stub is null)
                     {
                         mLog.LogWarning(
                             "Client tried to run an unsupported method (connId {ConnectionId}): {MethodId}",
