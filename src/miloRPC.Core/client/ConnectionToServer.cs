@@ -21,7 +21,7 @@ public class ConnectionToServer : IDisposable
         Exited
     }
 
-    public IConnectionContext ConnectionContext => mConnectionContext;
+    public IConnectionContext Context => mContext;
 
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
     public TimeSpan CurrentWritingTime => mRpcChannel.Stream.WriteTime - mLastWriteTime;
@@ -56,7 +56,7 @@ public class ConnectionToServer : IDisposable
         mWaitStopwatch = new Stopwatch();
         mCallSemaphore = new SemaphoreSlim(1, 1);
 
-        mConnectionContext = new ConnectionContext(
+        mContext = new ConnectionContext(
             mClientMetrics.ConnectionStart(),
             mRpcChannel.ChannelProtocol,
             mRpcChannel.LocalEndPoint,
@@ -89,7 +89,7 @@ public class ConnectionToServer : IDisposable
             {
                 mCurrentStatus = Status.NegotiatingProtocol;
                 mRpc = await mNegotiateProtocol.NegotiateProtocolAsync(
-                    mConnectionContext, mRpcChannel.Stream);
+                    mContext, mRpcChannel.Stream);
 
                 mLastReadBytes = mRpcChannel.Stream.ReadBytes;
                 mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
@@ -194,7 +194,7 @@ public class ConnectionToServer : IDisposable
     readonly IReadMethodCallResult mReadMethodCallResult;
     readonly RpcMetrics mClientMetrics;
     readonly IRpcChannel mRpcChannel;
-    readonly ConnectionContext mConnectionContext;
+    readonly ConnectionContext mContext;
 
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mWaitStopwatch;
