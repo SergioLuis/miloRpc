@@ -8,7 +8,7 @@
 
     <PropertyGroup>
       <PackageId>miloRpc.Channels.Quic</PackageId>
-      <Version>1.0.0-beta</Version>
+      <Version>1.1.0-beta</Version>
       <Authors>Sergio Luis Para</Authors>
       <Company>Sergio Luis Para</Company>
       <PackageLicenseExpression>MIT</PackageLicenseExpression>
