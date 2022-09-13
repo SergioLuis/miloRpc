@@ -5,7 +5,7 @@ namespace miloRPC.Core.Shared;
 
 public interface IConnectionContext
 {
-    uint ConnectionId { get; }
+    uint Id { get; }
     string UnderlyingProtocol { get; }
     IPEndPoint LocalEndPoint { get; }
     IPEndPoint RemoteEndPoint { get; }
@@ -19,7 +19,7 @@ public interface IConnectionContext
 
 internal class ConnectionContext : IConnectionContext
 {
-    public uint ConnectionId { get; }
+    public uint Id { get; }
 
     string IConnectionContext.UnderlyingProtocol => mUnderlyingProtocolName;
     IPEndPoint IConnectionContext.LocalEndPoint => mLocalEndPoint;
@@ -31,7 +31,7 @@ internal class ConnectionContext : IConnectionContext
         IPEndPoint localEndPoint,
         IPEndPoint remoteEndPoint)
     {
-        ConnectionId = connectionId;
+        Id = connectionId;
         mUnderlyingProtocolName = underlyingProtocolName;
         mLocalEndPoint = localEndPoint;
         mRemoteEndPoint = remoteEndPoint;

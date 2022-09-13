@@ -22,7 +22,7 @@ public class ConnectionFromClient
         Exited
     }
 
-    public IConnectionContext ConnectionContext => mConnectionContext;
+    public IConnectionContext Context => mContext;
 
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
     public TimeSpan CurrentRunningTime => mRunStopwatch.Elapsed;
@@ -60,7 +60,7 @@ public class ConnectionFromClient
         mIdleStopwatch = new Stopwatch();
         mRunStopwatch = new Stopwatch();
 
-        mConnectionContext = new ConnectionContext(
+        mContext = new ConnectionContext(
             mServerMetrics.ConnectionStart(),
             mRpcChannel.ChannelProtocol,
             mRpcChannel.LocalEndPoint,
@@ -94,7 +94,7 @@ public class ConnectionFromClient
                     {
                         CurrentStatus = Status.NegotiatingProtocol;
                         mRpc = await mNegotiateProtocol.NegotiateProtocolAsync(
-                            mConnectionContext, mRpcChannel.Stream);
+                            mContext, mRpcChannel.Stream);
 
                         mLastReadBytes = mRpcChannel.Stream.ReadBytes;
                         mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
@@ -111,7 +111,7 @@ public class ConnectionFromClient
                     {
                         mLog.LogWarning(
                             "Client tried to run an unsupported method (connId {ConnectionId}): {MethodId}",
-                            mConnectionContext.ConnectionId, methodId);
+                            mContext.Id, methodId);
 
                         mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.NotSupported);
                         await EndOfDataSequence.ProcessFromServerAsync(
@@ -130,13 +130,13 @@ public class ConnectionFromClient
                         return runningCt;
                     };
 
-                    if (mConnectionContext.UpdateRemoteEndPoint(mRpcChannel.RemoteEndPoint))
+                    if (mContext.UpdateRemoteEndPoint(mRpcChannel.RemoteEndPoint))
                         mLog.LogDebug("Remote client changed its endpoint!");
 
                     RpcNetworkMessages messages = await stub.RunMethodCallAsync(
                         methodId,
                         mRpc.Reader,
-                        mConnectionContext,
+                        mContext,
                         beginMethodRunCallback);
 
                     runningCt = CancellationToken.None;
@@ -278,7 +278,7 @@ public class ConnectionFromClient
     readonly RpcMetrics mServerMetrics;
     readonly IRpcChannel mRpcChannel;
     readonly ConnectionTimeouts mConnectionTimeouts;
-    readonly ConnectionContext mConnectionContext;
+    readonly ConnectionContext mContext;
 
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mRunStopwatch;

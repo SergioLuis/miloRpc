@@ -19,7 +19,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
     Task<RpcProtocolNegotiationResult> INegotiateRpcProtocol.NegotiateProtocolAsync(
         IConnectionContext ctx, Stream baseStream)
     {
-        mLog.LogDebug("Negotiating protocol for connection {ConnId}", ctx.ConnectionId);
+        mLog.LogDebug("Negotiating protocol for connection {ConnId}", ctx.Id);
 
         BinaryReader tempReader = new(baseStream);
         BinaryWriter tempWriter = new(baseStream);
@@ -75,7 +75,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         if (!negotiationResult.NegotiatedOk)
         {
             string exMessage =
-                $"Protocol was not correctly negotiated for conn {connectionContext.ConnectionId}. " +
+                $"Protocol was not correctly negotiated for conn {connectionContext.Id}. " +
                 $"Required missing capabilities: {negotiationResult.RequiredMissingCapabilities}";
             throw new NotSupportedException(exMessage);
         }
@@ -116,7 +116,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         mLog.LogInformation(
             "Protocol was correctly negotiated for conn {ConnectionId}. " +
             "Optional missing capabilities: {OptionalMissingCapabilities}",
-            connectionContext.ConnectionId,
+            connectionContext.Id,
             negotiationResult.OptionalMissingCapabilities);
 
         return new RpcProtocolNegotiationResult(resultStream, resultReader, resultWriter);
