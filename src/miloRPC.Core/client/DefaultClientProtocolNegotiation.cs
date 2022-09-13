@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Net;
 using System.Threading.Tasks;
 using System.Net.Security;
 using Microsoft.Extensions.Logging;
@@ -18,11 +17,9 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
     }
 
     Task<RpcProtocolNegotiationResult> INegotiateRpcProtocol.NegotiateProtocolAsync(
-        uint connId,
-        IPEndPoint remoteEndpoint,
-        Stream baseStream)
+        IConnectionContext ctx, Stream baseStream)
     {
-        mLog.LogDebug("Negotiating protocol for connection {ConnId}", connId);
+        mLog.LogDebug("Negotiating protocol for connection {ConnId}", ctx.Id);
 
         BinaryReader tempReader = new(baseStream);
         BinaryWriter tempWriter = new(baseStream);
@@ -35,8 +32,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         if (versionToUse == 1)
         {
             return NegotiateProtocolV1Async(
-                connId,
-                remoteEndpoint,
+                ctx,
                 baseStream,
                 tempReader,
                 tempWriter);
@@ -47,8 +43,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
     }
 
     async Task<RpcProtocolNegotiationResult> NegotiateProtocolV1Async(
-        uint connId,
-        IPEndPoint remoteEndPoint,
+        IConnectionContext ctx,
         Stream baseStream,
         BinaryReader tempReader,
         BinaryWriter tempWriter)
@@ -80,7 +75,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         if (!negotiationResult.NegotiatedOk)
         {
             string exMessage =
-                $"Protocol was not correctly negotiated for conn {connId}. " +
+                $"Protocol was not correctly negotiated for conn {ctx.Id}. " +
                 $"Required missing capabilities: {negotiationResult.RequiredMissingCapabilities}";
             throw new NotSupportedException(exMessage);
         }
@@ -92,7 +87,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         if (negotiationResult.CommonCapabilities.HasFlag(RpcCapabilities.Ssl))
         {
             SslStream sslStream = new(resultStream, leaveInnerStreamOpen: false, validationCallback);
-            await sslStream.AuthenticateAsClientAsync(remoteEndPoint.ToString());
+            await sslStream.AuthenticateAsClientAsync(ctx.RemoteEndPoint.ToString());
             resultStream = sslStream;
             resultReader = new BinaryReader(resultStream);
             resultWriter = new BinaryWriter(resultStream);
@@ -121,7 +116,7 @@ public class DefaultClientProtocolNegotiation : INegotiateRpcProtocol
         mLog.LogInformation(
             "Protocol was correctly negotiated for conn {ConnectionId}. " +
             "Optional missing capabilities: {OptionalMissingCapabilities}",
-            connId,
+            ctx.Id,
             negotiationResult.OptionalMissingCapabilities);
 
         return new RpcProtocolNegotiationResult(resultStream, resultReader, resultWriter);

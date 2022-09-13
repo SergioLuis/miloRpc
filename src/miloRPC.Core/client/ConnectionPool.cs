@@ -69,7 +69,7 @@ public class ConnectionPool
             result = DequeueNextValidConnection(mPooledConnections);
             if (result is not null)
             {
-                mRentedConnections.Add(result.ConnectionId);
+                mRentedConnections.Add(result.Context.Id);
                 mLog.LogTrace(
                     "Satisfied request in {SatisfyMs} ms (result was pooled)",
                     Environment.TickCount - reqIni);
@@ -111,7 +111,7 @@ public class ConnectionPool
                         if (result is not null)
                         {
                             mWaitingThreads--;
-                            mRentedConnections.Add(result.ConnectionId);
+                            mRentedConnections.Add(result.Context.Id);
                             mLog.LogTrace(
                                 "Satisfied request in {SatisfyMs} ms (result was pooled after some time)",
                                 Environment.TickCount - reqIni);
@@ -125,7 +125,7 @@ public class ConnectionPool
                         if (result is not null)
                         {
                             mWaitingThreads--;
-                            mRentedConnections.Add(result.ConnectionId);
+                            mRentedConnections.Add(result.Context.Id);
                             mLog.LogTrace(
                                 "Satisfied request in {SatisfyMs} ms (result was pooled after some time)",
                                 Environment.TickCount - reqIni);
@@ -165,7 +165,7 @@ public class ConnectionPool
                 result = DequeueNextValidConnection(mPooledConnections);
                 if (result is not null)
                 {
-                    mRentedConnections.Add(result.ConnectionId);
+                    mRentedConnections.Add(result.Context.Id);
                     mLog.LogTrace(
                         "Satisfied request in {SatisfyMs} ms (result was pooled after some time)",
                         Environment.TickCount - reqIni);
@@ -203,7 +203,7 @@ public class ConnectionPool
                     mPooledConnections.Enqueue(newConnections[i]);
 
                 result = newConnections[connectionsToCreate - 1];
-                mRentedConnections.Add(result.ConnectionId);
+                mRentedConnections.Add(result.Context.Id);
 
                 Monitor.PulseAll(mRentLock);
             }
@@ -240,16 +240,17 @@ public class ConnectionPool
 
     public void ReturnConnection(ConnectionToServer connection)
     {
+        uint connId = connection.Context.Id;
         Monitor.Enter(mRentLock);
         try
         {
-            if (!mRentedConnections.Contains(connection.ConnectionId))
+            if (!mRentedConnections.Contains(connId))
             {
                 connection.Dispose();
                 return;
             }
 
-            mRentedConnections.Remove(connection.ConnectionId);
+            mRentedConnections.Remove(connId);
             if (!connection.IsConnected())
             {
                 connection.Dispose();

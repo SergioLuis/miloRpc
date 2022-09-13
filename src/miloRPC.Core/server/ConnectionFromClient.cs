@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -23,8 +22,7 @@ public class ConnectionFromClient
         Exited
     }
 
-    public uint ConnectionId => mConnectionId;
-    public IPEndPoint RemoteEndPoint => mRpcChannel.RemoteEndPoint;
+    public IConnectionContext Context => mContext;
 
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
     public TimeSpan CurrentRunningTime => mRunStopwatch.Elapsed;
@@ -61,10 +59,9 @@ public class ConnectionFromClient
 
         mIdleStopwatch = new Stopwatch();
         mRunStopwatch = new Stopwatch();
-        mConnectionId = mServerMetrics.ConnectionStart();
 
-        mConnectionContext = new ConnectionContext(
-            mConnectionId,
+        mContext = new ConnectionContext(
+            mServerMetrics.ConnectionStart(),
             mRpcChannel.ChannelProtocol,
             mRpcChannel.LocalEndPoint,
             mRpcChannel.RemoteEndPoint);
@@ -97,9 +94,7 @@ public class ConnectionFromClient
                     {
                         CurrentStatus = Status.NegotiatingProtocol;
                         mRpc = await mNegotiateProtocol.NegotiateProtocolAsync(
-                            mConnectionId,
-                            mRpcChannel.RemoteEndPoint,
-                            mRpcChannel.Stream);
+                            mContext, mRpcChannel.Stream);
 
                         mLastReadBytes = mRpcChannel.Stream.ReadBytes;
                         mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
@@ -112,11 +107,11 @@ public class ConnectionFromClient
                     methodId.SetSolvedMethodName(mStubCollection.SolveMethodName(methodId));
 
                     IStub? stub = mStubCollection.FindStub(methodId);
-                    if (stub == null)
+                    if (stub is null)
                     {
                         mLog.LogWarning(
                             "Client tried to run an unsupported method (connId {ConnectionId}): {MethodId}",
-                            mConnectionId, methodId);
+                            mContext.Id, methodId);
 
                         mWriteMethodCallResult.Write(mRpc.Writer, MethodCallResult.NotSupported);
                         await EndOfDataSequence.ProcessFromServerAsync(
@@ -135,13 +130,13 @@ public class ConnectionFromClient
                         return runningCt;
                     };
 
-                    if (mConnectionContext.UpdateRemoteEndPoint(mRpcChannel.RemoteEndPoint))
+                    if (mContext.UpdateRemoteEndPoint(mRpcChannel.RemoteEndPoint))
                         mLog.LogDebug("Remote client changed its endpoint!");
 
                     RpcNetworkMessages messages = await stub.RunMethodCallAsync(
                         methodId,
                         mRpc.Reader,
-                        mConnectionContext,
+                        mContext,
                         beginMethodRunCallback);
 
                     runningCt = CancellationToken.None;
@@ -276,7 +271,6 @@ public class ConnectionFromClient
     ulong mLastWrittenBytes;
     TimeSpan mLastWriteTime;
 
-    readonly uint mConnectionId;
     readonly StubCollection mStubCollection;
     readonly INegotiateRpcProtocol mNegotiateProtocol;
     readonly IReadMethodId mReadMethodId;
@@ -284,7 +278,7 @@ public class ConnectionFromClient
     readonly RpcMetrics mServerMetrics;
     readonly IRpcChannel mRpcChannel;
     readonly ConnectionTimeouts mConnectionTimeouts;
-    readonly ConnectionContext mConnectionContext;
+    readonly ConnectionContext mContext;
 
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mRunStopwatch;

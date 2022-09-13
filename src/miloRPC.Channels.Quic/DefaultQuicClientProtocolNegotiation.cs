@@ -38,11 +38,9 @@ public class DefaultQuicClientProtocolNegotiation : INegotiateClientQuicRpcProto
     }
 
     public async Task<RpcProtocolNegotiationResult> NegotiateProtocolAsync(
-        uint connId,
-        IPEndPoint remoteEndPoint,
-        Stream baseStream)
+        IConnectionContext ctx, Stream baseStream)
     {
-        mLog.LogDebug("Negotiating protocol for connection {ConnId}", connId);
+        mLog.LogDebug("Negotiating protocol for connection {ConnId}", ctx.Id);
 
         BinaryReader tempReader = new(baseStream);
         BinaryWriter tempWriter = new(baseStream);
@@ -55,8 +53,7 @@ public class DefaultQuicClientProtocolNegotiation : INegotiateClientQuicRpcProto
         if (versionToUse == 1)
         {
             return await NegotiateProtocolV1Async(
-                connId,
-                remoteEndPoint,
+                ctx,
                 Unsafe.As<QuicStream>(baseStream),
                 tempReader,
                 tempWriter);
@@ -67,8 +64,7 @@ public class DefaultQuicClientProtocolNegotiation : INegotiateClientQuicRpcProto
     }
 
     Task<RpcProtocolNegotiationResult> NegotiateProtocolV1Async(
-        uint connId,
-        IPEndPoint remoteEndPoint,
+        IConnectionContext ctx,
         QuicStream baseStream,
         BinaryReader tempReader,
         BinaryWriter tempWriter)
@@ -99,7 +95,7 @@ public class DefaultQuicClientProtocolNegotiation : INegotiateClientQuicRpcProto
         if (!negotiationResult.NegotiatedOk)
         {
             string exMessage =
-                $"Protocol was not correctly negotiated for conn {connId}. " +
+                $"Protocol was not correctly negotiated for conn {ctx.Id}. " +
                 $"Required missing capabilities: {negotiationResult.RequiredMissingCapabilities}";
             throw new NotSupportedException(exMessage);
         }
@@ -127,7 +123,7 @@ public class DefaultQuicClientProtocolNegotiation : INegotiateClientQuicRpcProto
         mLog.LogInformation(
             "Protocol was correctly negotiated for conn {ConnectionId}. " +
             "Optional missing capabilities: {OptionalMissingCapabilities}",
-            connId,
+            ctx.Id,
             negotiationResult.OptionalMissingCapabilities);
 
         return Task.FromResult(

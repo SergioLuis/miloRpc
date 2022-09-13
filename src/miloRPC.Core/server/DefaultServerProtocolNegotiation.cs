@@ -22,9 +22,7 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
     }
 
     Task<RpcProtocolNegotiationResult> INegotiateRpcProtocol.NegotiateProtocolAsync(
-        uint connId,
-        IPEndPoint remoteEndPoint,
-        Stream baseStream)
+        IConnectionContext ctx, Stream baseStream)
     {
         BinaryReader tempReader = new(baseStream);
         BinaryWriter tempWriter = new(baseStream);
@@ -38,8 +36,7 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         if (versionToUse == 1)
         {
             return NegotiateProtocolV1Async(
-                connId,
-                remoteEndPoint,
+                ctx,
                 baseStream,
                 tempReader,
                 tempWriter);
@@ -50,8 +47,7 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
     }
 
     async Task<RpcProtocolNegotiationResult> NegotiateProtocolV1Async(
-        uint connId,
-        IPEndPoint remoteEndPoint,
+        IConnectionContext ctx,
         Stream baseStream,
         BinaryReader tempReader,
         BinaryWriter tempWriter)
@@ -83,7 +79,7 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         if (!negotiationResult.NegotiatedOk)
         {
             throw new NotSupportedException(
-                $"Protocol was not correctly negotiated for conn {connId}. "
+                $"Protocol was not correctly negotiated for conn {ctx.Id}. "
                 + $"Required missing capabilities: {negotiationResult.RequiredMissingCapabilities}.");
         }
 
@@ -119,7 +115,9 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         mLog.LogInformation(
             "Protocol was correctly negotiated for conn {ConnectionId} from {RemoteEndPoint}. " +
             "Optional missing capabilities: {OptionalMissingCapabilities}",
-            connId, remoteEndPoint, negotiationResult.OptionalMissingCapabilities);
+            ctx.Id,
+            ctx.RemoteEndPoint,
+            negotiationResult.OptionalMissingCapabilities);
 
         return new RpcProtocolNegotiationResult(resultStream, resultReader, resultWriter);
     }

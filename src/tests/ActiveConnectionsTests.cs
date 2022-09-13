@@ -43,19 +43,19 @@ public class ActiveConnectionsTests
 
         ActiveConnections.ActiveConnection? firstConnFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Connection.ConnectionId == 1);
+                activeConn => activeConn.Connection.Context.Id == 1);
 
         Assert.That(firstConnFromClient, Is.Not.Null);
 
         ActiveConnections.ActiveConnection? secondConnFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Connection.ConnectionId == 2);
+                activeConn => activeConn.Connection.Context.Id == 2);
 
         Assert.That(secondConnFromClient, Is.Not.Null);
 
         ActiveConnections.ActiveConnection? thirdConnFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Connection.ConnectionId == 3);
+                activeConn => activeConn.Connection.Context.Id == 3);
 
         Assert.That(thirdConnFromClient, Is.Not.Null);
 
@@ -137,19 +137,19 @@ public class ActiveConnectionsTests
 
         ActiveConnections.ActiveConnection? firstConnFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Connection.ConnectionId == 1);
+                activeConn => activeConn.Connection.Context.Id == 1);
 
         Assert.That(firstConnFromClient, Is.Not.Null);
 
         ActiveConnections.ActiveConnection? secondConnFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Connection.ConnectionId == 2);
+                activeConn => activeConn.Connection.Context.Id == 2);
 
         Assert.That(secondConnFromClient, Is.Not.Null);
 
         ActiveConnections.ActiveConnection? thirdConnFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Connection.ConnectionId == 3);
+                activeConn => activeConn.Connection.Context.Id == 3);
 
         Assert.That(thirdConnFromClient, Is.Not.Null);
 
@@ -232,7 +232,7 @@ public class ActiveConnectionsTests
 
         ActiveConnections.ActiveConnection? connFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Connection.ConnectionId == 1);
+                activeConn => activeConn.Connection.Context.Id == 1);
 
         Assert.That(connFromClient, Is.Not.Null);
 
@@ -307,7 +307,7 @@ public class ActiveConnectionsTests
 
         ActiveConnections.ActiveConnection? connFromClient =
             tcpServer.ActiveConnections.Connections.FirstOrDefault(
-                activeConn => activeConn.Connection.ConnectionId == 1);
+                activeConn => activeConn.Connection.Context.Id == 1);
 
         Assert.That(connFromClient, Is.Not.Null);
 

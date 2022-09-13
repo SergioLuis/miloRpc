@@ -1,7 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Net;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -23,8 +21,7 @@ public class ConnectionToServer : IDisposable
         Exited
     }
 
-    public uint ConnectionId => mConnectionId;
-    public IPEndPoint RemoteEndPoint => mRpcChannel.RemoteEndPoint;
+    public IConnectionContext Context => mContext;
 
     public TimeSpan CurrentIdlingTime => mIdleStopwatch.Elapsed;
     public TimeSpan CurrentWritingTime => mRpcChannel.Stream.WriteTime - mLastWriteTime;
@@ -55,10 +52,15 @@ public class ConnectionToServer : IDisposable
         mClientMetrics = clientMetrics;
         mRpcChannel = rpcChannel;
 
-        mConnectionId = mClientMetrics.ConnectionStart();
         mIdleStopwatch = new Stopwatch();
         mWaitStopwatch = new Stopwatch();
         mCallSemaphore = new SemaphoreSlim(1, 1);
+
+        mContext = new ConnectionContext(
+            mClientMetrics.ConnectionStart(),
+            mRpcChannel.ChannelProtocol,
+            mRpcChannel.LocalEndPoint,
+            mRpcChannel.RemoteEndPoint);
 
         mIdleStopwatch.Start();
         mLog = RpcLoggerFactory.CreateLogger("ConnectionToServer");
@@ -87,9 +89,7 @@ public class ConnectionToServer : IDisposable
             {
                 mCurrentStatus = Status.NegotiatingProtocol;
                 mRpc = await mNegotiateProtocol.NegotiateProtocolAsync(
-                    mConnectionId,
-                    Unsafe.As<IPEndPoint>(mRpcChannel.RemoteEndPoint),
-                    mRpcChannel.Stream);
+                    mContext, mRpcChannel.Stream);
 
                 mLastReadBytes = mRpcChannel.Stream.ReadBytes;
                 mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
@@ -189,12 +189,12 @@ public class ConnectionToServer : IDisposable
     TimeSpan mLastWriteTime;
     bool mDisposed;
 
-    readonly uint mConnectionId;
     readonly INegotiateRpcProtocol mNegotiateProtocol;
     readonly IWriteMethodId mWriteMethodId;
     readonly IReadMethodCallResult mReadMethodCallResult;
     readonly RpcMetrics mClientMetrics;
     readonly IRpcChannel mRpcChannel;
+    readonly ConnectionContext mContext;
 
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mWaitStopwatch;

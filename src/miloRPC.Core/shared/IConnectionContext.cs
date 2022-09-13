@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using System.Net;
 
-namespace miloRPC.Core.Server;
+namespace miloRPC.Core.Shared;
 
 public interface IConnectionContext
 {
-    uint ConnectionId { get; }
+    uint Id { get; }
     string UnderlyingProtocol { get; }
     IPEndPoint LocalEndPoint { get; }
     IPEndPoint RemoteEndPoint { get; }
@@ -19,7 +19,8 @@ public interface IConnectionContext
 
 internal class ConnectionContext : IConnectionContext
 {
-    uint IConnectionContext.ConnectionId => mConnectionId;
+    public uint Id { get; }
+
     string IConnectionContext.UnderlyingProtocol => mUnderlyingProtocolName;
     IPEndPoint IConnectionContext.LocalEndPoint => mLocalEndPoint;
     IPEndPoint IConnectionContext.RemoteEndPoint => mRemoteEndPoint;
@@ -30,7 +31,7 @@ internal class ConnectionContext : IConnectionContext
         IPEndPoint localEndPoint,
         IPEndPoint remoteEndPoint)
     {
-        mConnectionId = connectionId;
+        Id = connectionId;
         mUnderlyingProtocolName = underlyingProtocolName;
         mLocalEndPoint = localEndPoint;
         mRemoteEndPoint = remoteEndPoint;
@@ -87,7 +88,6 @@ internal class ConnectionContext : IConnectionContext
         return true;
     }
 
-    readonly uint mConnectionId;
     readonly string mUnderlyingProtocolName;
     readonly IPEndPoint mLocalEndPoint;
     IPEndPoint mRemoteEndPoint;
