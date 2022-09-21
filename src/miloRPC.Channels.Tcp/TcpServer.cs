@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 using miloRPC.Core.Channels;
-using miloRPC.Core.Extensions;
 using miloRPC.Core.Server;
 using miloRPC.Core.Shared;
 
