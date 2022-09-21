@@ -177,8 +177,12 @@ class NewRpcBufferedStream : Stream
 
     public override async Task FlushAsync(CancellationToken ct)
     {
-        if (mWriteBufferPos == 0) // Nothing left to write
+        Contract.Assert(mWriteBuffer is not null == mBufferingEnabled);
+        if (mWriteBuffer is null || mWriteBufferPos == 0) // Nothing left to write
+        {
+            await mInnerStream.FlushAsync(ct);
             return;
+        }
 
         await mInnerStream.WriteAsync(mWriteBuffer.AsMemory(0, mWriteBufferPos), ct);
         await mInnerStream.FlushAsync(ct);
