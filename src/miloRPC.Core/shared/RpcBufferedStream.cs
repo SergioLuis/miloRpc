@@ -145,6 +145,8 @@ class NewRpcBufferedStream : Stream
 
     protected override void Dispose(bool disposing)
     {
+        Flush();
+
         if (disposing)
         {
             if (mReadBuffer is not null)
@@ -161,8 +163,12 @@ class NewRpcBufferedStream : Stream
 
     public override void Flush()
     {
-        if (mWriteBufferPos == 0) // Nothing left to write
+        Contract.Assert(mWriteBuffer is not null == mBufferingEnabled);
+        if (mWriteBuffer is null || mWriteBufferPos == 0) // Nothing left to write
+        {
+            mInnerStream.Flush();
             return;
+        }
 
         mInnerStream.Write(mWriteBuffer.AsSpan(0, mWriteBufferPos));
         mInnerStream.Flush();
