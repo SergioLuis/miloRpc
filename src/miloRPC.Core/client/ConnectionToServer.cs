@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -125,11 +126,30 @@ public class ConnectionToServer : IDisposable
                 throw new NotSupportedException(
                     $"Method {methodId} is not supported by the server");
             }
-            
-            if (messages.Response is DestinationStreamMessage st)
-                return;
 
-            methodCallFinished = true;
+            if (messages.Response is not DestinationStreamMessage m)
+            {
+                methodCallFinished = true;
+                return;
+            }
+
+            mLog.LogWarning(
+                "Connection is processing stream-oriented method call {MethodId}, " +
+                "setting up disposing actions...",
+                methodId);
+
+            var cappedNetworkStream =
+                Unsafe.As<DestinationStreamMessage.CappedNetworkStream>(m.Stream);
+
+            // Ours is the most important dispose action and must be run first,
+            // despite of what the user might've set up
+            cappedNetworkStream.DisposeActions.Insert(0, () =>
+            {
+                mLog.LogDebug(
+                    "Stream-oriented method call {MethodId} finished!",
+                    methodId);
+                UpdateMetricsAfterMethodCall(methodCallId);
+            });
         }
         finally
         {
