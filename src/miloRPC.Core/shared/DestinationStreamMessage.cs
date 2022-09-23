@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
 
+using miloRPC.Core.Client;
+
 namespace miloRPC.Core.Shared;
 
 public class DestinationStreamMessage : INetworkMessage
@@ -14,6 +16,15 @@ public class DestinationStreamMessage : INetworkMessage
             Contract.Assert(mStream is not null);
             return mStream;
         }
+    }
+
+    public static DestinationStreamMessage BuildForPoolUsage(
+        ConnectionToServer connection, ConnectionPool pool)
+    {
+        return new DestinationStreamMessage(() =>
+        {
+            pool.ReturnConnection(connection);
+        });
     }
 
     public DestinationStreamMessage(Action? disposeAction = null)
