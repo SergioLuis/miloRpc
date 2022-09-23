@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
 
@@ -34,7 +35,7 @@ public class DestinationStreamMessage : INetworkMessage
     Stream? mStream;
     readonly Action? mDisposeAction;
 
-    class CappedNetworkStream : Stream
+    internal class CappedNetworkStream : Stream
     {
         public override bool CanRead => true;
 
@@ -49,6 +50,8 @@ public class DestinationStreamMessage : INetworkMessage
             get => mPosition;
             set => throw new NotSupportedException();
         }
+        
+        internal List<Action> DisposeActions { get; }
 
         internal CappedNetworkStream(
             Stream networkStream, long cappedLength, Action? disposeAction)
@@ -56,14 +59,18 @@ public class DestinationStreamMessage : INetworkMessage
             mPosition = 0;
             mNetworkStream = networkStream;
             mLength = cappedLength;
-            mDisposeAction = disposeAction;
+
+            DisposeActions = new List<Action>();
+            if (disposeAction is not null)
+                DisposeActions.Add(disposeAction);
         }
 
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                mDisposeAction?.Invoke();
+                foreach (Action disposeAction in DisposeActions)
+                    disposeAction();
             }
 
             base.Dispose(disposing);
@@ -91,6 +98,5 @@ public class DestinationStreamMessage : INetworkMessage
         int mPosition;
         readonly Stream mNetworkStream;
         readonly long mLength;
-        readonly Action? mDisposeAction;
     }
 }
