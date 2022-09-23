@@ -62,7 +62,7 @@ public class SpeedTestCommand : AsyncCommand<SpeedTestCommand.Settings>
 
         MiloConnectionPools connectionPools = BuildConnectionPools.Build(settings);
 
-        ConnectionPool connectionPool = connectionPools.Get(serverUri.Scheme, serverIp);
+        ConnectionPool connectionPool = connectionPools.Get(serverUri);
         await connectionPool.WarmupPool();
 
         return await RunRoundtrips(
