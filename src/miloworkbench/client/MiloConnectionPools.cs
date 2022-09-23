@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Net.Security;
 
 using miloRPC.Channels.Quic;
 using miloRPC.Channels.Tcp;
@@ -26,8 +25,11 @@ public class MiloConnectionPools
         mSyncLock = new object();
     }
     
-    public ConnectionPool Get(string protocol, IPEndPoint endpoint)
+    public ConnectionPool Get(Uri uri)
     {
+        string protocol = uri.Scheme;
+        IPEndPoint endpoint = IPEndPoint.Parse($"{uri.Host}:{uri.Port}");
+
         lock (mSyncLock)
         {
             ConnectionPool? result;
