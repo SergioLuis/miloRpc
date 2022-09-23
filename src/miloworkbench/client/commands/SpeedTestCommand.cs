@@ -2,16 +2,12 @@ using System;
 using System.Buffers;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Linq;
-using System.Net;
-using System.Net.Security;
 using System.Threading.Tasks;
 
 using Spectre.Console;
 using Spectre.Console.Cli;
 
 using miloRPC.Core.Client;
-using miloRPC.Core.Shared;
 using miloRpc.TestWorkBench.Rpc.Client;
 
 namespace miloRpc.TestWorkBench.Client.Commands;
@@ -48,17 +44,8 @@ public class SpeedTestCommand : AsyncCommand<SpeedTestCommand.Settings>
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         Uri serverUri = new(settings.Uri!);
-
-        string[] acceptedSchemes = new[] {"tcp", "ssl", "quic"};
-        if (!acceptedSchemes.Contains(serverUri.Scheme, StringComparer.InvariantCultureIgnoreCase))
-        {
-            Console.Error.WriteLine($"Invalid scheme '{serverUri.Scheme}'");
-            Console.Error.WriteLine($"Accepted schemes are {string.Join(", ", acceptedSchemes)}.");
+        if (!CheckServerUri.Check(serverUri))
             return 1;
-        }
-        
-        // FIXME: We shouldn't rely on 'serverUri.Host' being a IP address
-        IPEndPoint serverIp = IPEndPoint.Parse($"{serverUri.Host}:{serverUri.Port}");
 
         MiloConnectionPools connectionPools = BuildConnectionPools.Build(settings);
 
