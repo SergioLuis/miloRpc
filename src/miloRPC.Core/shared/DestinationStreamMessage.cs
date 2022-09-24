@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
 
-using miloRPC.Core.Client;
-
 namespace miloRPC.Core.Shared;
 
 public class DestinationStreamMessage : INetworkMessage
@@ -18,15 +16,6 @@ public class DestinationStreamMessage : INetworkMessage
         }
     }
 
-    public static DestinationStreamMessage BuildForPoolUsage(
-        ConnectionToServer connection, ConnectionPool pool)
-    {
-        return new DestinationStreamMessage(() =>
-        {
-            pool.ReturnConnection(connection);
-        });
-    }
-
     public DestinationStreamMessage(Action? disposeAction = null)
     {
         mDisposeAction = disposeAction;
@@ -37,9 +26,10 @@ public class DestinationStreamMessage : INetworkMessage
             "DestinationStreamMessage is only supposed to be used " +
             "to deserialize streams from the network");
 
-    public void Deserialize(BinaryReader reader)
+    public virtual void Deserialize(BinaryReader reader)
     {
-        long length = reader.ReadInt64();
+        long length = reader.Read7BitEncodedInt64();
+        Contract.Assert(length > 0);
         mStream = new CappedNetworkStream(reader.BaseStream, length, mDisposeAction);
     }
 

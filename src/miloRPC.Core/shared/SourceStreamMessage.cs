@@ -1,23 +1,23 @@
 using System;
+using System.Diagnostics.Contracts;
 using System.IO;
 
 namespace miloRPC.Core.Shared;
 
 public class SourceStreamMessage : INetworkMessage, IDisposable
 {
-    public SourceStreamMessage(Stream stream, Action? disposeAction = null)
+    public Stream? Stream { get; set; }
+
+    public SourceStreamMessage(Action? disposeAction = null)
     {
-        mStream = stream;
         mDisposeAction = disposeAction;
     }
 
-    readonly Stream mStream;
-    readonly Action? mDisposeAction;
-
     public virtual void Serialize(BinaryWriter writer)
     {
-        writer.Write((long)mStream.Length);
-        mStream.CopyTo(writer.BaseStream);
+        Contract.Assert(Stream is not null);
+        writer.Write7BitEncodedInt64((long)Stream.Length);
+        Stream.CopyTo(writer.BaseStream);
     }
 
     public void Deserialize(BinaryReader reader)
@@ -30,8 +30,10 @@ public class SourceStreamMessage : INetworkMessage, IDisposable
         if (mDisposeAction is not null)
             mDisposeAction.Invoke();
         else
-            mStream.Dispose();
+            Stream?.Dispose();
 
         GC.SuppressFinalize(this);
     }
+
+    readonly Action? mDisposeAction;
 }
