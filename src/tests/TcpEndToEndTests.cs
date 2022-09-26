@@ -429,7 +429,7 @@ public class TcpEndToEndTests
     }
 
     [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
-    public async Task Stream_Based_Call_Does_Not_End_Until_Stream_Is_Consumed(
+    public async Task Stream_Based_Download_Call_Does_Not_End_Until_Stream_Is_Consumed(
         ConnectionSettings serverSettings, ConnectionSettings clientSettings)
     {
         byte[] streamContent = ArrayPool<byte>.Shared.Rent(4 * 1024);
@@ -501,6 +501,22 @@ public class TcpEndToEndTests
             if (File.Exists(serverSettings.Ssl.CertificatePath))
                 File.Delete(serverSettings.Ssl.CertificatePath);
         }
+    }
+
+    [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
+    public async Task Stream_Based_Upload_Call_Does_Not_End_Until_Stream_Is_Consumed(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
+    {
+        await Task.CompletedTask;
+        Assert.Ignore("Test not implemented yet");
+    }
+    
+    [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
+    public async Task Stream_Based_Call_Fails_Closing_Connection_If_Stream_Is_Disposed_But_Not_Consumed(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
+    {
+        await Task.CompletedTask;
+        Assert.Ignore("Test not implemented yet");
     }
 
     static bool StreamContentEquals(Stream st, byte[] buffer)
