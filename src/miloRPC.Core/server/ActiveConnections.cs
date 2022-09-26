@@ -44,7 +44,7 @@ public class ActiveConnections
 
     public RpcMetrics.RpcCounters Counters => mMetrics.Counters;
 
-    public IReadOnlyCollection<ActiveConnection> Connections
+    public IReadOnlyList<ActiveConnection> Connections
     {
         get
         {
