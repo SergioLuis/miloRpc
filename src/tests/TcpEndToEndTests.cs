@@ -512,6 +512,20 @@ public class TcpEndToEndTests
         {
             Random.Shared.NextBytes(streamContent);
 
+            SemaphoreSlim semaphore = new(0, 1);
+
+            Mock<IStreamService> serverFuncMock = new(MockBehavior.Strict);
+            serverFuncMock.Setup(
+                    mock => mock.UploadStreamAsync(
+                        It.IsAny<Stream>(),
+                        It.IsAny<CancellationToken>()))
+                .Returns(async (Stream st, CancellationToken ct) =>
+                {
+                    await semaphore.WaitAsync(ct);
+                    StreamContentEquals(st, streamContent);
+                    await st.DisposeAsync();
+                });
+
             CancellationTokenSource cts = new();
             cts.CancelAfter(TestingConstants.Timeout);
             
@@ -523,10 +537,7 @@ public class TcpEndToEndTests
 
             IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
-            StreamServiceImplementation impl = new(streamContent);
-            impl.Set();
-
-            StubCollection stubCollection = new(new StreamServiceStub(impl));
+            StubCollection stubCollection = new(new StreamServiceStub(serverFuncMock.Object));
             
             IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
             Task serverTask = tcpServer.ListenAsync(cts.Token);
@@ -549,8 +560,8 @@ public class TcpEndToEndTests
             
             Assert.That(() => conn.Connection.CurrentStatus,
                 Is.EqualTo(ConnectionFromClient.Status.Running).After(1000).PollEvery(10));
-            
-            impl.Reset();
+
+            semaphore.Release(1);
             await uploadTask;
             
             Assert.That(() => conn.Connection.CurrentStatus,
@@ -568,7 +579,15 @@ public class TcpEndToEndTests
     }
     
     [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
-    public async Task Stream_Based_Call_Fails_Closing_Connection_If_Stream_Is_Disposed_But_Not_Consumed(
+    public async Task Stream_Based_Download_Call_Fails_Closing_Connection_If_Stream_Is_Disposed_But_Not_Consumed(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
+    {
+        await Task.CompletedTask;
+        Assert.Ignore("Test not implemented yet");
+    }
+    
+    [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
+    public async Task Stream_Based_Upload_Call_Fails_Closing_Connection_If_Stream_Is_Disposed_But_Not_Consumed(
         ConnectionSettings serverSettings, ConnectionSettings clientSettings)
     {
         await Task.CompletedTask;
@@ -795,32 +814,6 @@ public class TcpEndToEndTests
         }
 
         readonly IDummyService mChained;
-    }
-
-    class StreamServiceImplementation : IStreamService
-    {
-        public void Set() => mSemaphore.Wait();
-        public void Reset() => mSemaphore.Release(1);
-
-        public StreamServiceImplementation(byte[] expectedStreamContent)
-        {
-            mExpectedStreamContent = expectedStreamContent;
-        }
-        
-        Task<Stream> IStreamService.DownloadStreamAsync(CancellationToken ct)
-        {
-            throw new NotImplementedException();
-        }
-
-        async Task IStreamService.UploadStreamAsync(Stream st, CancellationToken ct)
-        {
-            await mSemaphore.WaitAsync(ct);
-            StreamContentEquals(st, mExpectedStreamContent);
-            await st.DisposeAsync();
-        }
-
-        readonly SemaphoreSlim mSemaphore = new(1, 1);
-        readonly byte[] mExpectedStreamContent;
     }
 
     class StreamServiceStub : IStub
