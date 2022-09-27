@@ -178,7 +178,7 @@ public class TcpEndToEndTests
 
             Assert.That(
                 async () => await serverFuncProxy.CallAsync(cts.Token),
-                Throws.TypeOf<RpcException>()
+                Throws.TypeOf<SerializableException>()
                     .And.Property("Message").Contains(exceptionMsg)
                     .And.Property("ExceptionType").Contains(nameof(NotImplementedException))
                     .And.Property("StackTrace").Contains(nameof(DummyServiceStub)));

@@ -9,19 +9,19 @@ public interface IReadMethodCallResult
     MethodCallResult Read(
         BinaryReader reader,
         out bool isResultAvailable,
-        out RpcException? ex);
+        out SerializableException? ex);
 }
 
 public class DefaultReadMethodCallResult : IReadMethodCallResult
 {
     MethodCallResult IReadMethodCallResult.Read(
-        BinaryReader reader, out bool isResultAvailable, out RpcException? ex)
+        BinaryReader reader, out bool isResultAvailable, out SerializableException? ex)
     {
         MethodCallResult methodResult = (MethodCallResult)(reader.ReadByte());
         bool isExceptionAvailable = reader.ReadBoolean();
 
         isResultAvailable = methodResult == MethodCallResult.Ok;
-        ex = isExceptionAvailable ? RpcException.FromReader(reader) : null;
+        ex = isExceptionAvailable ? SerializableException.FromReader(reader) : null;
 
         return methodResult;
     }

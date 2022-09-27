@@ -200,7 +200,7 @@ public class ConnectionFromClient
                             "client is still connected, sending the exception as " +
                             "a failed method call result");
                         mWriteMethodCallResult.Write(
-                            mRpc.Writer, MethodCallResult.Failed, RpcException.FromException(ex));
+                            mRpc.Writer, MethodCallResult.Failed, SerializableException.FromException(ex));
                         mRpc.Writer.Flush();
                     }
                 }

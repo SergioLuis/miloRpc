@@ -29,7 +29,7 @@ public class DefaultMethodCallResultTests
         ms.Position = 0;
 
         MethodCallResult result = readMethodCallResult.Read(
-            reader, out bool isResultAvailable, out RpcException? ex);
+            reader, out bool isResultAvailable, out SerializableException? ex);
 
         Assert.That(result, Is.EqualTo(MethodCallResult.Ok));
         Assert.That(isResultAvailable, Is.True);
@@ -53,7 +53,7 @@ public class DefaultMethodCallResultTests
         ms.Position = 0;
 
         MethodCallResult result = readMethodCallResult.Read(
-            reader, out bool isResultAvailable, out RpcException? ex);
+            reader, out bool isResultAvailable, out SerializableException? ex);
 
         Assert.That(result, Is.EqualTo(MethodCallResult.NotSupported));
         Assert.That(isResultAvailable, Is.False);
@@ -75,12 +75,12 @@ public class DefaultMethodCallResultTests
         writeMethodCallResult.Write(
             writer,
             MethodCallResult.Failed,
-            RpcException.FromException(ex));
+            SerializableException.FromException(ex));
 
         ms.Position = 0;
 
         MethodCallResult result = readMethodCallResult.Read(
-            reader, out bool isResultAvailable, out RpcException? propagatedEx);
+            reader, out bool isResultAvailable, out SerializableException? propagatedEx);
 
         Assert.That(result, Is.EqualTo(MethodCallResult.Failed));
         Assert.That(isResultAvailable, Is.False);
