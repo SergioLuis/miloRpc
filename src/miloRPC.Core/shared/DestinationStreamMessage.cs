@@ -69,18 +69,22 @@ public class DestinationStreamMessage : INetworkMessage
 
         protected override void Dispose(bool disposing)
         {
+            if (!disposing || mDisposed)
+            {
+                base.Dispose(disposing);
+                return;
+            }
+
             if (mPosition != Length)
             {
                 FailedDisposeAction?.Invoke();
                 throw new RpcException("Stream is disposed but not completely consumed!");
             }
 
-            if (disposing)
-            {
-                foreach (Action disposeAction in SuccessfulDisposeActions)
-                    disposeAction();
-            }
+            foreach (Action disposeAction in SuccessfulDisposeActions)
+                disposeAction();
 
+            mDisposed = true;
             base.Dispose(disposing);
         }
 
@@ -106,5 +110,7 @@ public class DestinationStreamMessage : INetworkMessage
         int mPosition;
         readonly Stream mNetworkStream;
         readonly long mLength;
+
+        bool mDisposed;
     }
 }
