@@ -131,7 +131,7 @@ public class ConnectionToServer : IDisposable
             {
                 methodCallFinished = true;
                 return;
-        }
+            }
 
             mLog.LogWarning(
                 "Connection is processing stream-oriented method call {MethodId}, " +
@@ -160,42 +160,42 @@ public class ConnectionToServer : IDisposable
 
     void UpdateMetricsAfterMethodCall(uint methodCallId)
     {
-            TimeSpan callIdlingTime = mIdleStopwatch.Elapsed;
-            TimeSpan callWritingTime = mRpcChannel.Stream.WriteTime - mLastWriteTime;
-            TimeSpan callWaitingTime = mWaitStopwatch.Elapsed;
-            TimeSpan callReadingTime = mRpcChannel.Stream.ReadTime - mLastReadTime;
+        TimeSpan callIdlingTime = mIdleStopwatch.Elapsed;
+        TimeSpan callWritingTime = mRpcChannel.Stream.WriteTime - mLastWriteTime;
+        TimeSpan callWaitingTime = mWaitStopwatch.Elapsed;
+        TimeSpan callReadingTime = mRpcChannel.Stream.ReadTime - mLastReadTime;
 
-            ulong callWrittenBytes = mRpcChannel.Stream.WrittenBytes - mLastWrittenBytes;
-            ulong callReadBytes = mRpcChannel.Stream.ReadBytes - mLastReadBytes;
+        ulong callWrittenBytes = mRpcChannel.Stream.WrittenBytes - mLastWrittenBytes;
+        ulong callReadBytes = mRpcChannel.Stream.ReadBytes - mLastReadBytes;
 
-            mLog.LogTrace(
-                "T {MethodCallId} > Idling: {IdlingTimeMs}ms | Writing: {WritingTimeMs}ms " +
-                "| Waiting: {WaitingTimeMs}ms | Reading: {ReadingTimeMs}ms ",
-                methodCallId,
-                callIdlingTime.TotalMilliseconds,
-                callWritingTime.TotalMilliseconds,
-                callWaitingTime.TotalMilliseconds,
-                callReadingTime.TotalMilliseconds);
-            mLog.LogTrace(
-                "B {MethodCallId} > Written: {WrittenBytes} | Read: {ReadBytes}",
-                methodCallId, callWrittenBytes, callReadBytes);
+        mLog.LogTrace(
+            "T {MethodCallId} > Idling: {IdlingTimeMs}ms | Writing: {WritingTimeMs}ms " +
+            "| Waiting: {WaitingTimeMs}ms | Reading: {ReadingTimeMs}ms ",
+            methodCallId,
+            callIdlingTime.TotalMilliseconds,
+            callWritingTime.TotalMilliseconds,
+            callWaitingTime.TotalMilliseconds,
+            callReadingTime.TotalMilliseconds);
+        mLog.LogTrace(
+            "B {MethodCallId} > Written: {WrittenBytes} | Read: {ReadBytes}",
+            methodCallId, callWrittenBytes, callReadBytes);
 
-            mTotalIdlingTime += callIdlingTime;
-            mTotalWaitingTime += callWaitingTime;
+        mTotalIdlingTime += callIdlingTime;
+        mTotalWaitingTime += callWaitingTime;
 
-            mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
-            mLastReadBytes = mRpcChannel.Stream.ReadBytes;
-            mLastWriteTime = mRpcChannel.Stream.WriteTime;
-            mLastReadTime = mRpcChannel.Stream.ReadTime;
+        mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
+        mLastReadBytes = mRpcChannel.Stream.ReadBytes;
+        mLastWriteTime = mRpcChannel.Stream.WriteTime;
+        mLastReadTime = mRpcChannel.Stream.ReadTime;
 
-            mWaitStopwatch.Reset();
+        mWaitStopwatch.Reset();
 
-            mClientMetrics.MethodCallEnd(callReadBytes, callWrittenBytes);
-            mIdleStopwatch.Restart();
+        mClientMetrics.MethodCallEnd(callReadBytes, callWrittenBytes);
+        mIdleStopwatch.Restart();
 
-            mCurrentStatus = Status.Idling;
-            mCallSemaphore.Release();
-        }
+        mCurrentStatus = Status.Idling;
+        mCallSemaphore.Release();
+    }
 
     void Dispose(bool disposing)
     {
