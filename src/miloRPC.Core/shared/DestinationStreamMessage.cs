@@ -52,7 +52,8 @@ public class DestinationStreamMessage : INetworkMessage
             set => throw new NotSupportedException();
         }
         
-        internal List<Action> DisposeActions { get; }
+        internal List<Action> SuccessfulDisposeActions { get; }
+        internal Action? FailedDisposeAction { get; set; }
 
         internal CappedNetworkStream(
             Stream networkStream, long cappedLength, Action? disposeAction)
@@ -61,16 +62,22 @@ public class DestinationStreamMessage : INetworkMessage
             mNetworkStream = networkStream;
             mLength = cappedLength;
 
-            DisposeActions = new List<Action>();
+            SuccessfulDisposeActions = new List<Action>();
             if (disposeAction is not null)
-                DisposeActions.Add(disposeAction);
+                SuccessfulDisposeActions.Add(disposeAction);
         }
 
         protected override void Dispose(bool disposing)
         {
+            if (mPosition != Length)
+            {
+                FailedDisposeAction?.Invoke();
+                throw new RpcException("Stream is disposed but not completely consumed!");
+            }
+
             if (disposing)
             {
-                foreach (Action disposeAction in DisposeActions)
+                foreach (Action disposeAction in SuccessfulDisposeActions)
                     disposeAction();
             }
 

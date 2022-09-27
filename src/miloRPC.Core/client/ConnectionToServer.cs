@@ -143,13 +143,23 @@ public class ConnectionToServer : IDisposable
 
             // Ours is the most important dispose action and must be run first,
             // despite of what the user might've set up
-            cappedNetworkStream.DisposeActions.Insert(0, () =>
+            cappedNetworkStream.SuccessfulDisposeActions.Insert(0, () =>
             {
                 mLog.LogDebug(
                     "Stream-oriented method call {MethodId} finished!",
                     methodId);
                 UpdateMetricsAfterMethodCall(methodCallId);
             });
+
+            ConnectionToServer thisConn = this;
+            cappedNetworkStream.FailedDisposeAction = () =>
+            {
+                mLog.LogCritical(
+                    "Stream-oriented method call {MethodId} disposed the stream " +
+                    "without consuming it!",
+                    methodId);
+                thisConn.Dispose();
+            };
         }
         finally
         {
