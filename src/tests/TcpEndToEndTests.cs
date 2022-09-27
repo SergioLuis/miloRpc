@@ -507,8 +507,64 @@ public class TcpEndToEndTests
     public async Task Stream_Based_Upload_Call_Does_Not_End_Until_Stream_Is_Consumed(
         ConnectionSettings serverSettings, ConnectionSettings clientSettings)
     {
-        await Task.CompletedTask;
-        Assert.Ignore("Test not implemented yet");
+        byte[] streamContent = ArrayPool<byte>.Shared.Rent(4 * 1024);
+        try
+        {
+            Random.Shared.NextBytes(streamContent);
+
+            CancellationTokenSource cts = new();
+            cts.CancelAfter(TestingConstants.Timeout);
+            
+            INegotiateRpcProtocol negotiateServerProtocol =
+                new DefaultServerProtocolNegotiation(serverSettings);
+
+            INegotiateRpcProtocol negotiateClientProtocol =
+                new DefaultClientProtocolNegotiation(clientSettings);
+
+            IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+            StreamServiceImplementation impl = new(streamContent);
+            impl.Set();
+
+            StubCollection stubCollection = new(new StreamServiceStub(impl));
+            
+            IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+            Task serverTask = tcpServer.ListenAsync(cts.Token);
+
+            Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+            
+            IConnectToServer connectToServer = new ConnectToTcpServer(tcpServer.BindAddress!, negotiateClientProtocol);
+            ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(cts.Token);
+            IStreamService serverFuncProxy = new StreamServiceProxy(connectionToServer);
+            
+            Assert.That(
+                () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+                Is.EqualTo(1).After(1000).PollEvery(10));
+            
+            ActiveConnections.ActiveConnection conn =
+                tcpServer.ActiveConnections.Connections[0];
+
+            Task uploadTask = serverFuncProxy.UploadStreamAsync(
+                new MemoryStream(streamContent), cts.Token);
+            
+            Assert.That(() => conn.Connection.CurrentStatus,
+                Is.EqualTo(ConnectionFromClient.Status.Running).After(1000).PollEvery(10));
+            
+            impl.Reset();
+            await uploadTask;
+            
+            Assert.That(() => conn.Connection.CurrentStatus,
+                Is.EqualTo(ConnectionFromClient.Status.Idling).After(1000).PollEvery(10));
+            
+            cts.Cancel();
+            await serverTask;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(streamContent);
+            if (File.Exists(serverSettings.Ssl.CertificatePath))
+                File.Delete(serverSettings.Ssl.CertificatePath);
+        }
     }
     
     [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
@@ -741,6 +797,32 @@ public class TcpEndToEndTests
         readonly IDummyService mChained;
     }
 
+    class StreamServiceImplementation : IStreamService
+    {
+        public void Set() => mSemaphore.Wait();
+        public void Reset() => mSemaphore.Release(1);
+
+        public StreamServiceImplementation(byte[] expectedStreamContent)
+        {
+            mExpectedStreamContent = expectedStreamContent;
+        }
+        
+        Task<Stream> IStreamService.DownloadStreamAsync(CancellationToken ct)
+        {
+            throw new NotImplementedException();
+        }
+
+        async Task IStreamService.UploadStreamAsync(Stream st, CancellationToken ct)
+        {
+            await mSemaphore.WaitAsync(ct);
+            StreamContentEquals(st, mExpectedStreamContent);
+            await st.DisposeAsync();
+        }
+
+        readonly SemaphoreSlim mSemaphore = new(1, 1);
+        readonly byte[] mExpectedStreamContent;
+    }
+
     class StreamServiceStub : IStub
     {
         public StreamServiceStub(IStreamService chained)
@@ -796,7 +878,7 @@ public class TcpEndToEndTests
         async Task<RpcNetworkMessages> RunUploadStreamAsync(
             BinaryReader reader, Func<CancellationToken> beginMethodRunCallback)
         {
-            SourceStreamMessage req = new();
+            DestinationStreamMessage req = new();
             req.Deserialize(reader);
 
             await mChained.UploadStreamAsync(req.Stream!, beginMethodRunCallback());
