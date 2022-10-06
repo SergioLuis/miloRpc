@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,11 +16,11 @@ namespace miloRPC.Tests;
 [TestFixture]
 public class EndOfDataSequenceTests
 {
-    [Test]
+    [Test, Timeout(TestingConstants.Timeout)]
     public async Task Server_Is_Able_To_Consume_Until_End_Of_Data()
     {
         CancellationTokenSource cts = new();
-        // cts.CancelAfter(TestingConstants.Timeout);
+        cts.CancelAfter(TestingConstants.Timeout);
 
         IPEndPoint endpoint = new(IPAddress.Loopback, port: 0);
 
@@ -33,12 +32,12 @@ public class EndOfDataSequenceTests
 
         IConnectToServer connectToServer = new ConnectToTcpServer(tcpServer.BindAddress!);
 
-        Assert.That(tcpServer.ActiveConnections.Connections, Is.Empty);
+        Assert.That(tcpServer.Connections.All, Is.Empty);
 
         ConnectionToServer conn = await connectToServer.ConnectAsync(cts.Token);
         
         Assert.That(
-            () => tcpServer.ActiveConnections.Connections,
+            () => tcpServer.Connections.All,
             Has.Count.EqualTo(1).After(1).Seconds.PollEvery(100).MilliSeconds);
 
         IVoidCall voidCallProxy = new VoidCallProxy(conn);
@@ -64,7 +63,7 @@ public class EndOfDataSequenceTests
             Is.True.After(1).Seconds.PollEvery(100).MilliSeconds);
 
         await voidCallProxy.CallAsync(cts.Token);
-        
+
         conn.Dispose();
         cts.Cancel();
         await serverTask;

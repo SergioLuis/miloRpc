@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -31,30 +32,32 @@ public class ActiveConnectionsTests
 
         ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
 
-        Assert.That(tcpServer.ActiveConnections.Connections, Is.Empty);
+        Assert.That(tcpServer.Connections.All, Is.Empty);
 
         ConnectionToServer firstConn = await connectToTcpServer.ConnectAsync(cts.Token);
         ConnectionToServer secondConn = await connectToTcpServer.ConnectAsync(cts.Token);
         ConnectionToServer thirdConn = await connectToTcpServer.ConnectAsync(cts.Token);
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Connections,
+            () => tcpServer.Connections.All,
             Has.Count.EqualTo(3).After(3000, 10));
 
-        ActiveConnections.ActiveConnection? firstConnFromClient =
-            tcpServer.ActiveConnections.Connections.FirstOrDefault(
+        List<Connections.CancellableConnection> connections = tcpServer.Connections.All;
+
+        Connections.CancellableConnection? firstConnFromClient =
+            connections.FirstOrDefault(
                 activeConn => activeConn.Connection.Context.Id == 1);
 
         Assert.That(firstConnFromClient, Is.Not.Null);
 
-        ActiveConnections.ActiveConnection? secondConnFromClient =
-            tcpServer.ActiveConnections.Connections.FirstOrDefault(
+        Connections.CancellableConnection? secondConnFromClient =
+            connections.FirstOrDefault(
                 activeConn => activeConn.Connection.Context.Id == 2);
 
         Assert.That(secondConnFromClient, Is.Not.Null);
 
-        ActiveConnections.ActiveConnection? thirdConnFromClient =
-            tcpServer.ActiveConnections.Connections.FirstOrDefault(
+        Connections.CancellableConnection? thirdConnFromClient =
+            connections.FirstOrDefault(
                 activeConn => activeConn.Connection.Context.Id == 3);
 
         Assert.That(thirdConnFromClient, Is.Not.Null);
@@ -87,13 +90,13 @@ public class ActiveConnectionsTests
         // The ActiveConnections monitor loop gets triggered after 30 seconds
         // unless a recollection is forced
         Assert.That(
-            () => tcpServer.ActiveConnections.Connections,
+            () => tcpServer.Connections.All,
             Has.Count.EqualTo(3).After(1000, 10));
 
-        await tcpServer.ActiveConnections.ForceConnectionRecollectAsync();
+        await tcpServer.Connections.ForceConnectionRecollectAsync();
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Connections,
+            () => tcpServer.Connections.All,
             Has.Count.EqualTo(0).After(1000, 10));
 
         Assert.That(firstConn.IsConnected(), Is.False);
@@ -125,30 +128,30 @@ public class ActiveConnectionsTests
 
         ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
 
-        Assert.That(tcpServer.ActiveConnections.Connections, Is.Empty);
+        Assert.That(tcpServer.Connections.All, Is.Empty);
 
         ConnectionToServer firstConn = await connectToTcpServer.ConnectAsync(cts.Token);
         ConnectionToServer secondConn = await connectToTcpServer.ConnectAsync(cts.Token);
         ConnectionToServer thirdConn = await connectToTcpServer.ConnectAsync(cts.Token);
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Connections,
+            () => tcpServer.Connections.All,
             Has.Count.EqualTo(3).After(3000, 10));
 
-        ActiveConnections.ActiveConnection? firstConnFromClient =
-            tcpServer.ActiveConnections.Connections.FirstOrDefault(
+        Connections.CancellableConnection? firstConnFromClient =
+            tcpServer.Connections.All.FirstOrDefault(
                 activeConn => activeConn.Connection.Context.Id == 1);
 
         Assert.That(firstConnFromClient, Is.Not.Null);
 
-        ActiveConnections.ActiveConnection? secondConnFromClient =
-            tcpServer.ActiveConnections.Connections.FirstOrDefault(
+        Connections.CancellableConnection? secondConnFromClient =
+            tcpServer.Connections.All.FirstOrDefault(
                 activeConn => activeConn.Connection.Context.Id == 2);
 
         Assert.That(secondConnFromClient, Is.Not.Null);
 
-        ActiveConnections.ActiveConnection? thirdConnFromClient =
-            tcpServer.ActiveConnections.Connections.FirstOrDefault(
+        Connections.CancellableConnection? thirdConnFromClient =
+            tcpServer.Connections.All.FirstOrDefault(
                 activeConn => activeConn.Connection.Context.Id == 3);
 
         Assert.That(thirdConnFromClient, Is.Not.Null);
@@ -162,9 +165,9 @@ public class ActiveConnectionsTests
         Assert.That(thirdConn.IsConnected(), Is.True);
         Assert.That(thirdConnFromClient!.Connection.IsConnected(), Is.True);
 
-        firstConnFromClient.Cts.Cancel();
-        secondConnFromClient.Cts.Cancel();
-        thirdConnFromClient.Cts.Cancel();
+        firstConnFromClient.CancellationTokenSource.Cancel();
+        secondConnFromClient.CancellationTokenSource.Cancel();
+        thirdConnFromClient.CancellationTokenSource.Cancel();
 
         Assert.That(
             () => firstConnFromClient.Connection.CurrentStatus,
@@ -181,13 +184,13 @@ public class ActiveConnectionsTests
         // The ActiveConnections monitor loop gets triggered after 30 seconds
         // unless a recollection is forced
         Assert.That(
-            () => tcpServer.ActiveConnections.Connections,
+            () => tcpServer.Connections.All,
             Has.Count.EqualTo(3).After(1000, 10));
 
-        await tcpServer.ActiveConnections.ForceConnectionRecollectAsync();
+        await tcpServer.Connections.ForceConnectionRecollectAsync();
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Connections,
+            () => tcpServer.Connections.All,
             Has.Count.EqualTo(0).After(1000, 10));
 
         Assert.That(firstConn.IsConnected(), Is.False);
@@ -222,16 +225,16 @@ public class ActiveConnectionsTests
 
         ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
 
-        Assert.That(tcpServer.ActiveConnections.Connections, Is.Empty);
+        Assert.That(tcpServer.Connections.All, Is.Empty);
 
         ConnectionToServer conn = await connectToTcpServer.ConnectAsync(cts.Token);
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Connections,
+            () => tcpServer.Connections.All,
             Has.Count.EqualTo(1).After(3000, 10));
 
-        ActiveConnections.ActiveConnection? connFromClient =
-            tcpServer.ActiveConnections.Connections.FirstOrDefault(
+        Connections.CancellableConnection? connFromClient =
+            tcpServer.Connections.All.FirstOrDefault(
                 activeConn => activeConn.Connection.Context.Id == 1);
 
         Assert.That(connFromClient, Is.Not.Null);
@@ -258,13 +261,13 @@ public class ActiveConnectionsTests
         // The ActiveConnections monitor loop gets triggered after 30 seconds
         // unless a recollection is forced
         Assert.That(
-            () => tcpServer.ActiveConnections.Connections,
+            () => tcpServer.Connections.All,
             Has.Count.EqualTo(1).After(1000, 10));
 
-        await tcpServer.ActiveConnections.ForceConnectionRecollectAsync();
+        await tcpServer.Connections.ForceConnectionRecollectAsync();
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Connections,
+            () => tcpServer.Connections.All,
             Has.Count.EqualTo(0).After(1000, 10));
 
         Assert.That(conn.IsConnected(), Is.False);
@@ -297,16 +300,16 @@ public class ActiveConnectionsTests
 
         ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
 
-        Assert.That(tcpServer.ActiveConnections.Connections, Is.Empty);
+        Assert.That(tcpServer.Connections.All, Is.Empty);
 
         ConnectionToServer connToServer = await connectToTcpServer.ConnectAsync(CancellationToken.None);
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Connections,
+            () => tcpServer.Connections.All,
             Has.Count.EqualTo(1).After(3000, 10));
 
-        ActiveConnections.ActiveConnection? connFromClient =
-            tcpServer.ActiveConnections.Connections.FirstOrDefault(
+        Connections.CancellableConnection? connFromClient =
+            tcpServer.Connections.All.FirstOrDefault(
                 activeConn => activeConn.Connection.Context.Id == 1);
 
         Assert.That(connFromClient, Is.Not.Null);
