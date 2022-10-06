@@ -209,6 +209,9 @@ public class ConnectionFromClient
                             SerializableException.FromException(ex));
                         mRpc.Writer.Flush();
                     }
+
+                    if (ex is StreamNotConsumedRpcException)
+                        return;
                 }
                 finally
                 {
