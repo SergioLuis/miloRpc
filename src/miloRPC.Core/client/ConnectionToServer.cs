@@ -122,6 +122,7 @@ public class ConnectionToServer : IDisposable
 
             if (result == MethodCallResult.NotSupported)
             {
+                methodCallFinished = true;
                 EndOfDataSequence.ProcessFromClient(mRpc.Writer, mRpc.Reader);
                 throw new NotSupportedException(
                     $"Method {methodId} is not supported by the server");
@@ -149,6 +150,8 @@ public class ConnectionToServer : IDisposable
                     "Stream-oriented method call {MethodId} finished!",
                     methodId);
                 UpdateMetricsAfterMethodCall(methodCallId);
+                mCurrentStatus = Status.Idling;
+                mCallSemaphore.Release();
             });
 
             ConnectionToServer thisConn = this;
@@ -164,7 +167,11 @@ public class ConnectionToServer : IDisposable
         finally
         {
             if (methodCallFinished)
+            {
                 UpdateMetricsAfterMethodCall(methodCallId);
+                mCurrentStatus = Status.Idling;
+                mCallSemaphore.Release();
+            }
         }
     }
 
@@ -202,9 +209,6 @@ public class ConnectionToServer : IDisposable
 
         mClientMetrics.MethodCallEnd(callReadBytes, callWrittenBytes);
         mIdleStopwatch.Restart();
-
-        mCurrentStatus = Status.Idling;
-        mCallSemaphore.Release();
     }
 
     void Dispose(bool disposing)
