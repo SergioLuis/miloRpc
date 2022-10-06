@@ -244,6 +244,12 @@ public class ConnectionPool
         Monitor.Enter(mRentLock);
         try
         {
+            if (connection.CurrentStatus is ConnectionToServer.Status.Exited)
+            {
+                mRentedConnections.Remove(connId);
+                return;
+            }
+
             if (connection.CurrentStatus is not ConnectionToServer.Status.Idling)
             {
                 throw new InvalidOperationException(
