@@ -20,7 +20,7 @@ public class TcpServer : IServer<IPEndPoint>
 
     string IServer<IPEndPoint>.ServerProtocol => WellKnownProtocols.TCP;
     IPEndPoint? IServer<IPEndPoint>.BindAddress => mBindAddress;
-    ActiveConnections IServer<IPEndPoint>.ActiveConnections => mActiveConnections;
+    Connections IServer<IPEndPoint>.Connections => mConnections;
     ConnectionTimeouts IServer<IPEndPoint>.ConnectionTimeouts => mConnectionTimeouts;
 
     public TcpServer(
@@ -52,7 +52,8 @@ public class TcpServer : IServer<IPEndPoint>
             negotiateProtocol,
             readMethodId,
             writeMethodCallResult,
-            ConnectionTimeouts.Default) { }
+            ConnectionTimeouts.Default,
+            TimeSpan.FromSeconds(10)) { }
 
     public TcpServer(
         IPEndPoint bindTo,
@@ -60,16 +61,18 @@ public class TcpServer : IServer<IPEndPoint>
         INegotiateRpcProtocol negotiateProtocol,
         IReadMethodId readMethodId,
         IWriteMethodCallResult writeMethodCallResult,
-        ConnectionTimeouts connectionTimeouts)
+        ConnectionTimeouts connectionTimeouts,
+        TimeSpan connectionMonitorFrequency)
     {
         mBindEndpoint = bindTo;
         mConnectionTimeouts = connectionTimeouts;
-        mActiveConnections = new ActiveConnections(
+        mConnections = new Connections(
             stubCollection,
             negotiateProtocol,
             readMethodId,
             writeMethodCallResult,
-            connectionTimeouts);
+            connectionTimeouts,
+            connectionMonitorFrequency);
         mLog = RpcLoggerFactory.CreateLogger("TcpServer");
     }
 
@@ -91,8 +94,12 @@ public class TcpServer : IServer<IPEndPoint>
             mLog.LogTrace("TcpListener stopped");
         });
 
+        CancellationTokenSource connectionMonitorCts =
+            CancellationTokenSource.CreateLinkedTokenSource(ct);
+
         int launchCount = 0;
-        mActiveConnections.StartConnectionMonitor(TimeSpan.FromSeconds(30), ct);
+        Task connectionMonitorTask =
+            mConnections.RunConnectionsMonitorLoopAsync(connectionMonitorCts.Token);
         while (true)
         {
             AcceptLoopStartEventArgs startArgs = new(launchCount++);
@@ -119,7 +126,7 @@ public class TcpServer : IServer<IPEndPoint>
                         CancellationTokenSource.CreateLinkedTokenSource(ct);
                     IRpcChannel rpcChannel = new TcpRpcChannel(socket, connCts.Token);
 
-                    mActiveConnections.LaunchNewConnection(rpcChannel, connCts);
+                    mConnections.LaunchNewConnection(rpcChannel, connCts);
                 }
 
                 break;
@@ -136,7 +143,8 @@ public class TcpServer : IServer<IPEndPoint>
         AcceptLoopStopEventArgs endArgs = new(launchCount);
         AcceptLoopStop?.Invoke(this, endArgs);
 
-        await mActiveConnections.StopConnectionMonitorAsync();
+        connectionMonitorCts.Cancel();
+        await connectionMonitorTask;
 
         mLog.LogTrace("AcceptLoop completed");
     }
@@ -158,7 +166,7 @@ public class TcpServer : IServer<IPEndPoint>
     }
 
     IPEndPoint? mBindAddress;
-    readonly ActiveConnections mActiveConnections;
+    readonly Connections mConnections;
     readonly ConnectionTimeouts mConnectionTimeouts;
     readonly IPEndPoint mBindEndpoint;
     readonly ILogger mLog;
