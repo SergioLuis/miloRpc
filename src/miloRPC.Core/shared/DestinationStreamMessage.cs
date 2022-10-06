@@ -78,7 +78,8 @@ public class DestinationStreamMessage : INetworkMessage
             if (mPosition != Length)
             {
                 FailedDisposeAction?.Invoke();
-                throw new RpcException("Stream is disposed but not completely consumed!");
+                throw new StreamNotConsumedRpcException(
+                    "Stream is disposed but not completely consumed!");
             }
 
             foreach (Action disposeAction in SuccessfulDisposeActions)
