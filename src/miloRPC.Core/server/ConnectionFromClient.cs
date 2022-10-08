@@ -260,7 +260,7 @@ public class ConnectionFromClient
                 "Caught an exception not handled by ProcessConnMessagesLoop, " +
                 "the connection is going to exit");
             mLog.LogError("Type: {ExType}, Message: {ExMessage}", ex.GetType(), ex.Message);
-            mLog.LogDebug("StackTrace:\r\n{ExStackTrace}", ex.StackTrace);
+            mLog.LogDebug("StackTrace:{0}{ExStackTrace}", Environment.NewLine, ex.StackTrace);
         }
         finally
         {
