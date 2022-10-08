@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -79,6 +80,8 @@ public class ConnectionToServer : IDisposable
         RpcNetworkMessages messages,
         CancellationToken ct)
     {
+        bool methodCallFinished = false;
+
         await mCallSemaphore.WaitAsync(ct);
         uint methodCallId = mClientMetrics.MethodCallStart();
         try
@@ -109,7 +112,7 @@ public class ConnectionToServer : IDisposable
             MethodCallResult result = mReadMethodCallResult.Read(
                 mRpc.Reader,
                 out bool isResultAvailable,
-                out RpcException? ex);
+                out SerializableException? ex);
 
             if (isResultAvailable)
                 messages.Response.Deserialize(mRpc.Reader);
@@ -119,49 +122,93 @@ public class ConnectionToServer : IDisposable
 
             if (result == MethodCallResult.NotSupported)
             {
+                methodCallFinished = true;
                 EndOfDataSequence.ProcessFromClient(mRpc.Writer, mRpc.Reader);
                 throw new NotSupportedException(
                     $"Method {methodId} is not supported by the server");
             }
+
+            if (messages.Response is not DestinationStreamMessage m)
+            {
+                methodCallFinished = true;
+                return;
+            }
+
+            mLog.LogWarning(
+                "Connection is processing stream-oriented method call {MethodId}, " +
+                "setting up disposing actions...",
+                methodId);
+
+            var cappedNetworkStream =
+                Unsafe.As<DestinationStreamMessage.CappedNetworkStream>(m.Stream);
+
+            // Ours is the most important dispose action and must be run first,
+            // despite of what the user might've set up
+            cappedNetworkStream.SuccessfulDisposeActions.Insert(0, () =>
+            {
+                mLog.LogDebug(
+                    "Stream-oriented method call {MethodId} finished!",
+                    methodId);
+                UpdateMetricsAfterMethodCall(methodCallId);
+                mCurrentStatus = Status.Idling;
+                mCallSemaphore.Release();
+            });
+
+            ConnectionToServer thisConn = this;
+            cappedNetworkStream.FailedDisposeAction = () =>
+            {
+                mLog.LogCritical(
+                    "Stream-oriented method call {MethodId} disposed the stream " +
+                    "without consuming it!",
+                    methodId);
+                thisConn.Dispose();
+            };
         }
         finally
         {
-            TimeSpan callIdlingTime = mIdleStopwatch.Elapsed;
-            TimeSpan callWritingTime = mRpcChannel.Stream.WriteTime - mLastWriteTime;
-            TimeSpan callWaitingTime = mWaitStopwatch.Elapsed;
-            TimeSpan callReadingTime = mRpcChannel.Stream.ReadTime - mLastReadTime;
-
-            ulong callWrittenBytes = mRpcChannel.Stream.WrittenBytes - mLastWrittenBytes;
-            ulong callReadBytes = mRpcChannel.Stream.ReadBytes - mLastReadBytes;
-
-            mLog.LogTrace(
-                "T {MethodCallId} > Idling: {IdlingTimeMs}ms | Writing: {WritingTimeMs}ms " +
-                "| Waiting: {WaitingTimeMs}ms | Reading: {ReadingTimeMs}ms ",
-                methodCallId,
-                callIdlingTime.TotalMilliseconds,
-                callWritingTime.TotalMilliseconds,
-                callWaitingTime.TotalMilliseconds,
-                callReadingTime.TotalMilliseconds);
-            mLog.LogTrace(
-                "B {MethodCallId} > Written: {WrittenBytes} | Read: {ReadBytes}",
-                methodCallId, callWrittenBytes, callReadBytes);
-
-            mTotalIdlingTime += callIdlingTime;
-            mTotalWaitingTime += callWaitingTime;
-
-            mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
-            mLastReadBytes = mRpcChannel.Stream.ReadBytes;
-            mLastWriteTime = mRpcChannel.Stream.WriteTime;
-            mLastReadTime = mRpcChannel.Stream.ReadTime;
-
-            mWaitStopwatch.Reset();
-
-            mClientMetrics.MethodCallEnd(callReadBytes, callWrittenBytes);
-            mIdleStopwatch.Restart();
-
-            mCurrentStatus = Status.Idling;
-            mCallSemaphore.Release();
+            if (methodCallFinished)
+            {
+                UpdateMetricsAfterMethodCall(methodCallId);
+                mCurrentStatus = Status.Idling;
+                mCallSemaphore.Release();
+            }
         }
+    }
+
+    void UpdateMetricsAfterMethodCall(uint methodCallId)
+    {
+        TimeSpan callIdlingTime = mIdleStopwatch.Elapsed;
+        TimeSpan callWritingTime = mRpcChannel.Stream.WriteTime - mLastWriteTime;
+        TimeSpan callWaitingTime = mWaitStopwatch.Elapsed;
+        TimeSpan callReadingTime = mRpcChannel.Stream.ReadTime - mLastReadTime;
+
+        ulong callWrittenBytes = mRpcChannel.Stream.WrittenBytes - mLastWrittenBytes;
+        ulong callReadBytes = mRpcChannel.Stream.ReadBytes - mLastReadBytes;
+
+        mLog.LogTrace(
+            "T {MethodCallId} > Idling: {IdlingTimeMs}ms | Writing: {WritingTimeMs}ms " +
+            "| Waiting: {WaitingTimeMs}ms | Reading: {ReadingTimeMs}ms ",
+            methodCallId,
+            callIdlingTime.TotalMilliseconds,
+            callWritingTime.TotalMilliseconds,
+            callWaitingTime.TotalMilliseconds,
+            callReadingTime.TotalMilliseconds);
+        mLog.LogTrace(
+            "B {MethodCallId} > Written: {WrittenBytes} | Read: {ReadBytes}",
+            methodCallId, callWrittenBytes, callReadBytes);
+
+        mTotalIdlingTime += callIdlingTime;
+        mTotalWaitingTime += callWaitingTime;
+
+        mLastWrittenBytes = mRpcChannel.Stream.WrittenBytes;
+        mLastReadBytes = mRpcChannel.Stream.ReadBytes;
+        mLastWriteTime = mRpcChannel.Stream.WriteTime;
+        mLastReadTime = mRpcChannel.Stream.ReadTime;
+
+        mWaitStopwatch.Reset();
+
+        mClientMetrics.MethodCallEnd(callReadBytes, callWrittenBytes);
+        mIdleStopwatch.Restart();
     }
 
     void Dispose(bool disposing)

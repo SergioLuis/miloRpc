@@ -31,42 +31,42 @@ public class RpcCountersTests
         ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.TotalConnections,
+            () => tcpServer.Connections.Counters.TotalConnections,
             Is.Zero.After(100, 10));
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            () => tcpServer.Connections.Counters.ActiveConnections,
             Is.Zero.After(100, 10));
 
         ConnectionToServer firstConnection = await connectToTcpServer.ConnectAsync(cts.Token);
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.TotalConnections,
+            () => tcpServer.Connections.Counters.TotalConnections,
             Is.EqualTo(1).After(100, 10));
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            () => tcpServer.Connections.Counters.ActiveConnections,
             Is.EqualTo(1).After(1000, 10));
 
         ConnectionToServer secondConnection = await connectToTcpServer.ConnectAsync(cts.Token);
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.TotalConnections,
+            () => tcpServer.Connections.Counters.TotalConnections,
             Is.EqualTo(2).After(1000, 10));
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            () => tcpServer.Connections.Counters.ActiveConnections,
             Is.EqualTo(2).After(1000, 10));
 
         firstConnection.Dispose();
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.TotalConnections,
+            () => tcpServer.Connections.Counters.TotalConnections,
             Is.EqualTo(2).After(1000, 10));
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            () => tcpServer.Connections.Counters.ActiveConnections,
             Is.EqualTo(1).After(1000, 10));
 
         secondConnection.Dispose();
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.TotalConnections,
+            () => tcpServer.Connections.Counters.TotalConnections,
             Is.EqualTo(2).After(1000, 10));
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            () => tcpServer.Connections.Counters.ActiveConnections,
             Is.EqualTo(0).After(1000, 10));
 
         cts.Cancel();
@@ -92,10 +92,10 @@ public class RpcCountersTests
         ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!);
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.TotalMethodCalls,
+            () => tcpServer.Connections.Counters.TotalMethodCalls,
             Is.Zero.After(100, 10));
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveMethodCalls,
+            () => tcpServer.Connections.Counters.ActiveMethodCalls,
             Is.Zero.After(100, 10));
 
         Task<ConnectionToServer> firstConnTask = connectToTcpServer.ConnectAsync(cts.Token);
@@ -113,18 +113,18 @@ public class RpcCountersTests
 
         Task firstMethodCallTask = firstProxy.CallAsync(cts.Token);
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.TotalMethodCalls,
+            () => tcpServer.Connections.Counters.TotalMethodCalls,
             Is.EqualTo(1).After(100, 10));
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveMethodCalls,
+            () => tcpServer.Connections.Counters.ActiveMethodCalls,
             Is.EqualTo(1).After(100, 10));
 
         Task secondMethodCallTask = secondProxy.CallAsync(cts.Token);
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.TotalMethodCalls,
+            () => tcpServer.Connections.Counters.TotalMethodCalls,
             Is.EqualTo(2).After(100, 10));
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveMethodCalls,
+            () => tcpServer.Connections.Counters.ActiveMethodCalls,
             Is.EqualTo(2).After(100, 10));
 
         voidCallStub.Reset();
@@ -132,10 +132,10 @@ public class RpcCountersTests
         await Task.WhenAll(firstMethodCallTask, secondMethodCallTask);
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.TotalMethodCalls,
+            () => tcpServer.Connections.Counters.TotalMethodCalls,
             Is.EqualTo(2).After(100, 10));
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveMethodCalls,
+            () => tcpServer.Connections.Counters.ActiveMethodCalls,
             Is.EqualTo(0).After(100, 10));
 
         firstConnection.Dispose();

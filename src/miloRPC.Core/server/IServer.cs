@@ -51,7 +51,7 @@ public interface IServer<T>
 
     string ServerProtocol { get; }
     T? BindAddress { get; }
-    ActiveConnections ActiveConnections { get; }
+    Connections Connections { get; }
     ConnectionTimeouts ConnectionTimeouts { get; }
     Task ListenAsync(CancellationToken ct);
 }

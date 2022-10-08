@@ -244,6 +244,20 @@ public class ConnectionPool
         Monitor.Enter(mRentLock);
         try
         {
+            if (connection.CurrentStatus is ConnectionToServer.Status.Exited)
+            {
+                mRentedConnections.Remove(connId);
+                return;
+            }
+
+            if (connection.CurrentStatus is not ConnectionToServer.Status.Idling)
+            {
+                throw new InvalidOperationException(
+                    "The returned connection is still processing a method call. "
+                    + "This might be because of a bad Proxy logic, or because "
+                    + "the connection is still processing a stream-oriented method call");
+            }
+
             if (!mRentedConnections.Contains(connId))
             {
                 connection.Dispose();

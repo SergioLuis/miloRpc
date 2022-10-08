@@ -71,8 +71,9 @@ public class ListenCommand : AsyncCommand<ListenCommand.Settings>
             e.Cancel = true;
         };
 
-        StubCollection stubCollection = new();
-        stubCollection.RegisterStub(new SpeedTestStub(new SpeedTestService()));
+        StubCollection stubCollection = new(
+            new SpeedTestStub(new SpeedTestService()),
+            new FileTransferServiceStub(new FileTransferService()));
 
         List<Task> serverTasks = new();
         if (settings.TcpBindEndPoint is not "none")

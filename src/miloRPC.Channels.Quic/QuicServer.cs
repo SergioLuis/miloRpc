@@ -26,7 +26,7 @@ public class QuicServer : IServer<IPEndPoint>
 
     string IServer<IPEndPoint>.ServerProtocol => WellKnownProtocols.QUIC;
     IPEndPoint? IServer<IPEndPoint>.BindAddress => mBindAddress;
-    ActiveConnections IServer<IPEndPoint>.ActiveConnections => mActiveConnections;
+    Connections IServer<IPEndPoint>.Connections => mConnections;
     ConnectionTimeouts IServer<IPEndPoint>.ConnectionTimeouts => mConnectionTimeouts;
 
     public QuicServer(
@@ -57,7 +57,8 @@ public class QuicServer : IServer<IPEndPoint>
             negotiateProtocol,
             readMethodId,
             writeMethodCallResult,
-            ConnectionTimeouts.Default) { }
+            ConnectionTimeouts.Default,
+            TimeSpan.FromSeconds(10)) { }
 
     public QuicServer(
         IPEndPoint bindTo,
@@ -65,17 +66,19 @@ public class QuicServer : IServer<IPEndPoint>
         INegotiateServerQuicRpcProtocol negotiateProtocol,
         IReadMethodId readMethodId,
         IWriteMethodCallResult writeMethodCallResult,
-        ConnectionTimeouts connectionTimeouts)
+        ConnectionTimeouts connectionTimeouts,
+        TimeSpan connectionMonitorFrequency)
     {
         mBindEndpoint = bindTo;
         mConnectionTimeouts = connectionTimeouts;
         mNegotiateProtocol = negotiateProtocol;
-        mActiveConnections = new ActiveConnections(
+        mConnections = new Connections(
             stubCollection,
             mNegotiateProtocol,
             readMethodId,
             writeMethodCallResult,
-            connectionTimeouts);
+            connectionTimeouts,
+            connectionMonitorFrequency);
         mLog = RpcLoggerFactory.CreateLogger("QuicServer");
     }
 
@@ -105,7 +108,7 @@ public class QuicServer : IServer<IPEndPoint>
         });
 
         int launchCount = 0;
-        mActiveConnections.StartConnectionMonitor(TimeSpan.FromSeconds(30), ct);
+        Task connectionMonitorTask = mConnections.RunConnectionsMonitorLoopAsync(ct);
         while (true)
         {
             AcceptLoopStartEventArgs startArgs = new(launchCount++);
@@ -133,7 +136,7 @@ public class QuicServer : IServer<IPEndPoint>
                         CancellationTokenSource.CreateLinkedTokenSource(ct);
                     IRpcChannel rpcChannel = QuicRpcChannel.CreateForServer(conn, connCts.Token);
 
-                    mActiveConnections.LaunchNewConnection(rpcChannel, connCts);
+                    mConnections.LaunchNewConnection(rpcChannel, connCts);
                 }
 
                 break;
@@ -150,13 +153,13 @@ public class QuicServer : IServer<IPEndPoint>
         AcceptLoopStopEventArgs endArgs = new(launchCount);
         AcceptLoopStop?.Invoke(this, endArgs);
 
-        await mActiveConnections.StopConnectionMonitorAsync();
+        await connectionMonitorTask;
 
         mLog.LogTrace("AcceptLoop completed");
     }
 
     IPEndPoint? mBindAddress;
-    readonly ActiveConnections mActiveConnections;
+    readonly Connections mConnections;
     readonly ConnectionTimeouts mConnectionTimeouts;
     readonly INegotiateServerQuicRpcProtocol mNegotiateProtocol;
     readonly IPEndPoint mBindEndpoint;

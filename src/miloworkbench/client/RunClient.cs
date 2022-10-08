@@ -13,6 +13,10 @@ public static class RunClient
         var commandApp = new CommandApp();
         commandApp.Configure(config =>
         {
+            config.AddCommand<DownloadFileCommand>("download")
+                .WithDescription("Downloads a file from a remote server");
+            config.AddCommand<UploadFileCommand>("upload")
+                .WithDescription("Uploads a file to a remote server");
             config.AddCommand<SpeedTestCommand>("speedtest")
                 .WithDescription("Runs a speed test against the specified server");
         });

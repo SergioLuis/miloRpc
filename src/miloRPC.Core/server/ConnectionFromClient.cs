@@ -38,6 +38,10 @@ public class ConnectionFromClient
     public ulong TotalBytesRead => mRpcChannel.Stream.ReadBytes;
     public ulong TotalBytesWritten => mRpcChannel.Stream.WrittenBytes;
 
+    internal delegate void ConnectionStatusEventHandler(ConnectionFromClient sender);
+    internal event ConnectionStatusEventHandler? ConnectionActive;
+    internal event ConnectionStatusEventHandler? ConnectionInactive;
+
     public Status CurrentStatus { get; private set; }
 
     internal ConnectionFromClient(
@@ -77,6 +81,7 @@ public class ConnectionFromClient
         CancellationToken runningCt = CancellationToken.None;
         try
         {
+            ConnectionActive?.Invoke(this);
             while (!ct.IsCancellationRequested)
             {
                 CurrentStatus = Status.Idling;
@@ -200,9 +205,13 @@ public class ConnectionFromClient
                             "client is still connected, sending the exception as " +
                             "a failed method call result");
                         mWriteMethodCallResult.Write(
-                            mRpc.Writer, MethodCallResult.Failed, RpcException.FromException(ex));
+                            mRpc.Writer, MethodCallResult.Failed,
+                            SerializableException.FromException(ex));
                         mRpc.Writer.Flush();
                     }
+
+                    if (ex is StreamNotConsumedRpcException)
+                        return;
                 }
                 finally
                 {
@@ -251,11 +260,13 @@ public class ConnectionFromClient
                 "Caught an exception not handled by ProcessConnMessagesLoop, " +
                 "the connection is going to exit");
             mLog.LogError("Type: {ExType}, Message: {ExMessage}", ex.GetType(), ex.Message);
-            mLog.LogDebug("StackTrace:\r\n{ExStackTrace}", ex.StackTrace);
+            mLog.LogDebug("StackTrace:{0}{ExStackTrace}", Environment.NewLine, ex.StackTrace);
         }
         finally
         {
             CurrentStatus = Status.Exited;
+            ConnectionInactive?.Invoke(this);
+
             mServerMetrics.ConnectionEnd();
             mRpcChannel.Dispose();
         }
@@ -279,7 +290,6 @@ public class ConnectionFromClient
     readonly IRpcChannel mRpcChannel;
     readonly ConnectionTimeouts mConnectionTimeouts;
     readonly ConnectionContext mContext;
-
     readonly Stopwatch mIdleStopwatch;
     readonly Stopwatch mRunStopwatch;
     readonly ILogger mLog;

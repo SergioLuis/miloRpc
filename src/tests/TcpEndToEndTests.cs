@@ -28,7 +28,6 @@ public class TcpEndToEndTests
     {
         try
         {
-
             int acceptLoopStartEvents = 0;
             EventHandler<AcceptLoopStartEventArgs> acceptLoopStartEventHandler = (sender, args) =>
             {
@@ -54,7 +53,7 @@ public class TcpEndToEndTests
                 Assert.That(args.CancelRequested, Is.False);
             };
 
-            Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
+            Mock<IDummyService> serverFuncMock = new(MockBehavior.Strict);
             serverFuncMock.Setup(
                     mock => mock.CallAsync(It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
@@ -70,7 +69,7 @@ public class TcpEndToEndTests
 
             IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
-            StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
+            StubCollection stubCollection = new(new DummyServiceStub(serverFuncMock.Object));
             IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
             tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
             tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
@@ -82,10 +81,10 @@ public class TcpEndToEndTests
 
             ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
             ConnectionToServer connectionToServer = await connectToTcpServer.ConnectAsync(cts.Token);
-            IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
+            IDummyService serverFuncProxy = new DummyServiceProxy(connectionToServer);
 
             Assert.That(
-                () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+                () => tcpServer.Connections.Counters.ActiveConnections,
                 Is.EqualTo(1).After(1000, 10));
 
             await serverFuncProxy.CallAsync(cts.Token);
@@ -143,7 +142,7 @@ public class TcpEndToEndTests
 
             const string exceptionMsg = "This method will be implemented on v3.1";
 
-            Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
+            Mock<IDummyService> serverFuncMock = new(MockBehavior.Strict);
             serverFuncMock.Setup(
                     mock => mock.CallAsync(It.IsAny<CancellationToken>()))
                 .Throws(new NotImplementedException(exceptionMsg));
@@ -159,7 +158,7 @@ public class TcpEndToEndTests
 
             IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
-            StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
+            StubCollection stubCollection = new(new DummyServiceStub(serverFuncMock.Object));
             IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
             tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
             tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
@@ -171,21 +170,21 @@ public class TcpEndToEndTests
 
             ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
             ConnectionToServer connectionToServer = await connectToTcpServer.ConnectAsync(cts.Token);
-            IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
+            IDummyService serverFuncProxy = new DummyServiceProxy(connectionToServer);
 
             Assert.That(
-                () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+                () => tcpServer.Connections.Counters.ActiveConnections,
                 Is.EqualTo(1).After(1000, 10));
 
             Assert.That(
                 async () => await serverFuncProxy.CallAsync(cts.Token),
-                Throws.TypeOf<RpcException>()
+                Throws.TypeOf<SerializableException>()
                     .And.Property("Message").Contains(exceptionMsg)
                     .And.Property("ExceptionType").Contains(nameof(NotImplementedException))
-                    .And.Property("StackTrace").Contains(nameof(ServerFunctionalityStub)));
+                    .And.Property("StackTrace").Contains(nameof(DummyServiceStub)));
 
             Assert.That(
-                () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+                () => tcpServer.Connections.Counters.ActiveConnections,
                 Is.EqualTo(1).After(1000, 10));
 
             serverFuncMock.Verify(
@@ -239,7 +238,7 @@ public class TcpEndToEndTests
                 Assert.That(args.CancelRequested, Is.False);
             };
 
-            Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
+            Mock<IDummyService> serverFuncMock = new(MockBehavior.Strict);
 
             CancellationTokenSource cts = new();
             cts.CancelAfter(TestingConstants.Timeout);
@@ -252,7 +251,7 @@ public class TcpEndToEndTests
 
             IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
-            StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
+            StubCollection stubCollection = new(new DummyServiceStub(serverFuncMock.Object));
             IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
             tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
             tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
@@ -264,10 +263,10 @@ public class TcpEndToEndTests
 
             ConnectToTcpServer connectToTcpServer = new(tcpServer.BindAddress!, negotiateClientProtocol);
             ConnectionToServer connectionToServer = await connectToTcpServer.ConnectAsync(cts.Token);
-            IServerFunctionality serverFuncProxy = new ServerFunctionalityProxy(connectionToServer);
+            IDummyService serverFuncProxy = new DummyServiceProxy(connectionToServer);
 
             Assert.That(
-                () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+                () => tcpServer.Connections.Counters.ActiveConnections,
                 Is.EqualTo(1).After(1000, 10));
 
             Assert.That(
@@ -315,14 +314,14 @@ public class TcpEndToEndTests
             Assert.That(args.LaunchCount, Is.EqualTo(acceptLoopStopEvents));
         };
 
-        Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
+        Mock<IDummyService> serverFuncMock = new(MockBehavior.Strict);
 
         CancellationTokenSource cts = new();
-        cts.CancelAfter(TestingConstants.Timeout);
+        //cts.CancelAfter(TestingConstants.Timeout);
 
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
-        StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
+        StubCollection stubCollection = new(new DummyServiceStub(serverFuncMock.Object));
         IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection);
         tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
         tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
@@ -370,14 +369,14 @@ public class TcpEndToEndTests
             args.CancelRequested = cancelNextConnection;
         };
 
-        Mock<IServerFunctionality> serverFuncMock = new(MockBehavior.Strict);
+        Mock<IDummyService> serverFuncMock = new(MockBehavior.Strict);
 
         CancellationTokenSource cts = new();
         cts.CancelAfter(TestingConstants.Timeout);
 
         IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
 
-        StubCollection stubCollection = new(new ServerFunctionalityStub(serverFuncMock.Object));
+        StubCollection stubCollection = new(new DummyServiceStub(serverFuncMock.Object));
         IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection);
         tcpServer.AcceptLoopStart += acceptLoopStartEventHandler;
         tcpServer.AcceptLoopStop += acceptLoopStopEventHandler;
@@ -391,7 +390,7 @@ public class TcpEndToEndTests
         ConnectionToServer firstConnection = await connectToTcpServer.ConnectAsync(cts.Token);
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            () => tcpServer.Connections.Counters.ActiveConnections,
             Is.EqualTo(1).After(1000, 10));
 
         Assert.That(
@@ -402,7 +401,7 @@ public class TcpEndToEndTests
         ConnectionToServer secondConnection = await connectToTcpServer.ConnectAsync(cts.Token);
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            () => tcpServer.Connections.Counters.ActiveConnections,
             Is.EqualTo(1).After(1000, 10));
 
         Assert.That(
@@ -412,7 +411,7 @@ public class TcpEndToEndTests
         firstConnection.Dispose();
 
         Assert.That(
-            () => tcpServer.ActiveConnections.Counters.ActiveConnections,
+            () => tcpServer.Connections.Counters.ActiveConnections,
             Is.EqualTo(0).After(1000, 10));
 
         Assert.That(
@@ -429,6 +428,490 @@ public class TcpEndToEndTests
         Assert.That(connAcceptEvents, Is.EqualTo(2));
     }
 
+    [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
+    public async Task Stream_Based_Download_Call_Does_Not_End_Until_Stream_Is_Consumed(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
+    {
+        byte[] streamContent = ArrayPool<byte>.Shared.Rent(4 * 1024);
+        try
+        {
+            Random.Shared.NextBytes(streamContent);
+
+            Mock<IStreamService> serverFuncMock = new(MockBehavior.Strict);
+            serverFuncMock.Setup(
+                mock => mock.DownloadStreamAsync(
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MemoryStream(streamContent));
+
+            CancellationTokenSource cts = new();
+            cts.CancelAfter(TestingConstants.Timeout);
+
+            INegotiateRpcProtocol negotiateServerProtocol =
+                new DefaultServerProtocolNegotiation(serverSettings);
+
+            INegotiateRpcProtocol negotiateClientProtocol =
+                new DefaultClientProtocolNegotiation(clientSettings);
+
+            IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+            StubCollection stubCollection = new(new StreamServiceStub(serverFuncMock.Object));
+            IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+
+            Task serverTask = tcpServer.ListenAsync(cts.Token);
+            
+            Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+            IConnectToServer connectToServer = new ConnectToTcpServer(tcpServer.BindAddress!, negotiateClientProtocol);
+            ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(cts.Token);
+            IStreamService serverFuncProxy = new StreamServiceProxy(connectionToServer);
+            
+            Assert.That(
+                () => tcpServer.Connections.Counters.ActiveConnections,
+                Is.EqualTo(1).After(1000).PollEvery(10));
+            
+            Connections.CancellableConnection conn = tcpServer.Connections.All[0];
+
+            Stream downloadedStream = await serverFuncProxy.DownloadStreamAsync(cts.Token);
+
+            Assert.That(
+                () => connectionToServer.CurrentStatus,
+                Is.EqualTo(ConnectionToServer.Status.Reading).After(1000).PollEvery(10));
+
+            Assert.That(
+                StreamContentEquals(downloadedStream, streamContent),
+                Is.True);
+
+            await downloadedStream.DisposeAsync();
+
+            Assert.That(
+                () => conn.Connection.CurrentStatus,
+                Is.EqualTo(ConnectionFromClient.Status.Idling).After(1000).PollEvery(10));
+
+            Assert.That(
+                () => connectionToServer.CurrentStatus,
+                Is.EqualTo(ConnectionToServer.Status.Idling).After(1000).PollEvery(10));
+            
+            cts.Cancel();
+            await serverTask;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(streamContent);
+            if (File.Exists(serverSettings.Ssl.CertificatePath))
+                File.Delete(serverSettings.Ssl.CertificatePath);
+        }
+    }
+
+    [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
+    public async Task Stream_Based_Upload_Call_Does_Not_End_Until_Stream_Is_Consumed(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
+    {
+        byte[] streamContent = ArrayPool<byte>.Shared.Rent(4 * 1024);
+        try
+        {
+            Random.Shared.NextBytes(streamContent);
+
+            SemaphoreSlim semaphore = new(0, 1);
+
+            Mock<IStreamService> serverFuncMock = new(MockBehavior.Strict);
+            serverFuncMock.Setup(
+                    mock => mock.UploadStreamAsync(
+                        It.IsAny<Stream>(),
+                        It.IsAny<CancellationToken>()))
+                .Returns(async (Stream st, CancellationToken ct) =>
+                {
+                    await semaphore.WaitAsync(ct);
+                    StreamContentEquals(st, streamContent);
+                    await st.DisposeAsync();
+                });
+
+            CancellationTokenSource cts = new();
+            cts.CancelAfter(TestingConstants.Timeout);
+            
+            INegotiateRpcProtocol negotiateServerProtocol =
+                new DefaultServerProtocolNegotiation(serverSettings);
+
+            INegotiateRpcProtocol negotiateClientProtocol =
+                new DefaultClientProtocolNegotiation(clientSettings);
+
+            IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+            StubCollection stubCollection = new(new StreamServiceStub(serverFuncMock.Object));
+            
+            IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+            Task serverTask = tcpServer.ListenAsync(cts.Token);
+
+            Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+            
+            IConnectToServer connectToServer = new ConnectToTcpServer(tcpServer.BindAddress!, negotiateClientProtocol);
+            ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(cts.Token);
+            IStreamService serverFuncProxy = new StreamServiceProxy(connectionToServer);
+            
+            Assert.That(
+                () => tcpServer.Connections.Counters.ActiveConnections,
+                Is.EqualTo(1).After(1000).PollEvery(10));
+            
+            Connections.CancellableConnection conn = tcpServer.Connections.All[0];
+
+            Task uploadTask = serverFuncProxy.UploadStreamAsync(
+                new MemoryStream(streamContent), cts.Token);
+            
+            Assert.That(() => conn.Connection.CurrentStatus,
+                Is.EqualTo(ConnectionFromClient.Status.Running).After(1000).PollEvery(10));
+
+            semaphore.Release(1);
+            await uploadTask;
+            
+            Assert.That(() => conn.Connection.CurrentStatus,
+                Is.EqualTo(ConnectionFromClient.Status.Idling).After(1000).PollEvery(10));
+            
+            cts.Cancel();
+            await serverTask;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(streamContent);
+            if (File.Exists(serverSettings.Ssl.CertificatePath))
+                File.Delete(serverSettings.Ssl.CertificatePath);
+        }
+    }
+
+    [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
+    public async Task Stream_Based_Download_Call_Fails_Closing_Connection_If_Stream_Is_Disposed_But_Not_Consumed(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
+    {
+        byte[] streamContent = ArrayPool<byte>.Shared.Rent(4 * 1024);
+        try
+        {
+            Random.Shared.NextBytes(streamContent);
+
+            Mock<IStreamService> serverFuncMock = new(MockBehavior.Strict);
+            serverFuncMock.Setup(
+                    mock => mock.DownloadStreamAsync(
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MemoryStream(streamContent));
+            
+            CancellationTokenSource cts = new();
+            cts.CancelAfter(TestingConstants.Timeout);
+
+            INegotiateRpcProtocol negotiateServerProtocol =
+                new DefaultServerProtocolNegotiation(serverSettings);
+
+            INegotiateRpcProtocol negotiateClientProtocol =
+                new DefaultClientProtocolNegotiation(clientSettings);
+
+            IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+            StubCollection stubCollection = new(new StreamServiceStub(serverFuncMock.Object));
+            IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+
+            Task serverTask = tcpServer.ListenAsync(cts.Token);
+            
+            Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+            IConnectToServer connectToServer = new ConnectToTcpServer(tcpServer.BindAddress!, negotiateClientProtocol);
+            ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(cts.Token);
+            IStreamService serverFuncProxy = new StreamServiceProxy(connectionToServer);
+
+            Assert.That(
+                () => tcpServer.Connections.Counters.ActiveConnections,
+                Is.EqualTo(1).After(1000).PollEvery(10));
+
+            Stream downloadedStream = await serverFuncProxy.DownloadStreamAsync(cts.Token);
+            
+            Assert.That(
+                () => downloadedStream.Dispose(),
+                Throws.Exception.TypeOf<StreamNotConsumedRpcException>());
+            
+            Assert.That(
+                () => connectionToServer.CurrentStatus,
+                Is.EqualTo(ConnectionToServer.Status.Exited).After(1000).PollEvery(10));
+
+            Assert.That(
+                () => tcpServer.Connections.Counters.ActiveConnections,
+                Is.EqualTo(0).After(1000).PollEvery(10));
+
+            cts.Cancel();
+            await serverTask;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(streamContent);
+            if (File.Exists(serverSettings.Ssl.CertificatePath))
+                File.Delete(serverSettings.Ssl.CertificatePath);
+        }
+    }
+
+    [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
+    public async Task Stream_Based_Upload_Call_Fails_Closing_Connection_If_Stream_Is_Disposed_But_Not_Consumed(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
+    {
+        byte[] streamContent = ArrayPool<byte>.Shared.Rent(4 * 1024);
+        try
+        {
+            Random.Shared.NextBytes(streamContent);
+
+            Mock<IStreamService> serverFuncMock = new(MockBehavior.Strict);
+            serverFuncMock.Setup(
+                    mock => mock.UploadStreamAsync(
+                        It.IsAny<Stream>(),
+                        It.IsAny<CancellationToken>()))
+                .Returns(async (Stream st, CancellationToken ct) =>
+                {
+                    await st.DisposeAsync();
+                });
+            
+            CancellationTokenSource cts = new();
+            cts.CancelAfter(TestingConstants.Timeout);
+            
+            INegotiateRpcProtocol negotiateServerProtocol =
+                new DefaultServerProtocolNegotiation(serverSettings);
+
+            INegotiateRpcProtocol negotiateClientProtocol =
+                new DefaultClientProtocolNegotiation(clientSettings);
+
+            IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+            StubCollection stubCollection = new(new StreamServiceStub(serverFuncMock.Object));
+            
+            IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+            Task serverTask = tcpServer.ListenAsync(cts.Token);
+
+            Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+            
+            IConnectToServer connectToServer = new ConnectToTcpServer(tcpServer.BindAddress!, negotiateClientProtocol);
+            ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(cts.Token);
+            IStreamService serverFuncProxy = new StreamServiceProxy(connectionToServer);
+            
+            Assert.That(
+                () => tcpServer.Connections.Counters.ActiveConnections,
+                Is.EqualTo(1).After(1000).PollEvery(10));
+
+            Assert.That(
+                async () =>
+                { 
+                    await serverFuncProxy.UploadStreamAsync(
+                        new MemoryStream(streamContent), cts.Token);
+                },
+                Throws.Exception.TypeOf<SerializableException>());
+            
+            Assert.That(
+                () => connectionToServer.CurrentStatus,
+                Is.EqualTo(ConnectionToServer.Status.Exited).After(1000).PollEvery(10));
+
+            Assert.That(
+                () => tcpServer.Connections.Counters.ActiveConnections,
+                Is.EqualTo(0).After(1000).PollEvery(10));
+
+            cts.Cancel();
+            await serverTask;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(streamContent);
+            if (File.Exists(serverSettings.Ssl.CertificatePath))
+                File.Delete(serverSettings.Ssl.CertificatePath);
+        }
+    }
+
+    [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
+    public async Task Connection_Is_Still_Usable_After_Stream_Based_Call(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
+    {
+        byte[] streamContent = ArrayPool<byte>.Shared.Rent(4 * 1024);
+        try
+        {
+            Random.Shared.NextBytes(streamContent);
+            
+            Mock<IStreamService> streamServiceMock = new(MockBehavior.Strict);
+            streamServiceMock.Setup(
+                    mock => mock.DownloadStreamAsync(
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MemoryStream(streamContent));
+
+            Mock<IDummyService> dummyServiceMock = new(MockBehavior.Strict);
+            dummyServiceMock.Setup(
+                mock => mock.CallAsync(
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            CancellationTokenSource cts = new();
+            cts.CancelAfter(TestingConstants.Timeout);
+            
+            INegotiateRpcProtocol negotiateServerProtocol =
+                new DefaultServerProtocolNegotiation(serverSettings);
+
+            INegotiateRpcProtocol negotiateClientProtocol =
+                new DefaultClientProtocolNegotiation(clientSettings);
+
+            IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+            
+            StubCollection stubCollection = new(
+                new StreamServiceStub(streamServiceMock.Object),
+                new DummyServiceStub(dummyServiceMock.Object));
+            IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+            
+            Task serverTask = tcpServer.ListenAsync(cts.Token);
+            
+            Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+            IConnectToServer connectToServer = new ConnectToTcpServer(tcpServer.BindAddress!, negotiateClientProtocol);
+            ConnectionToServer connectionToServer = await connectToServer.ConnectAsync(cts.Token);
+            IStreamService streamServiceProxy = new StreamServiceProxy(connectionToServer);
+            IDummyService dummyServiceProxy = new DummyServiceProxy(connectionToServer);
+            
+            Assert.That(
+                () => tcpServer.Connections.Counters.ActiveConnections,
+                Is.EqualTo(1).After(1000).PollEvery(10));
+            
+            Stream downloadedStream = await streamServiceProxy.DownloadStreamAsync(cts.Token);
+            
+            Assert.That(
+                () => connectionToServer.CurrentStatus,
+                Is.EqualTo(ConnectionToServer.Status.Reading).After(1000).PollEvery(10));
+
+            Assert.That(
+                StreamContentEquals(downloadedStream, streamContent),
+                Is.True);
+            
+            await downloadedStream.DisposeAsync();
+
+            Assert.That(
+                () => connectionToServer.CurrentStatus,
+                Is.EqualTo(ConnectionToServer.Status.Idling).After(1000).PollEvery(10));
+
+            await dummyServiceProxy.CallAsync(cts.Token);
+            
+            cts.Cancel();
+            await serverTask;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(streamContent);
+            if (File.Exists(serverSettings.Ssl.CertificatePath))
+                File.Delete(serverSettings.Ssl.CertificatePath);
+        }
+    }
+
+    [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
+    public async Task Dispose_Actions_Are_Executed_In_Stream_Based_Call(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
+    {
+        byte[] streamContent = ArrayPool<byte>.Shared.Rent(4 * 1024);
+        try
+        {
+            Random.Shared.NextBytes(streamContent);
+
+            Mock<IStreamService> streamServiceStubMock = new(MockBehavior.Strict);
+            streamServiceStubMock.Setup(
+                    mock => mock.DownloadStreamAsync(
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MemoryStream(streamContent));
+
+            CancellationTokenSource cts = new();
+            cts.CancelAfter(TestingConstants.Timeout);
+
+            INegotiateRpcProtocol negotiateServerProtocol =
+                new DefaultServerProtocolNegotiation(serverSettings);
+
+            INegotiateRpcProtocol negotiateClientProtocol =
+                new DefaultClientProtocolNegotiation(clientSettings);
+
+            IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+            StubCollection stubCollection = new(new StreamServiceStub(streamServiceStubMock.Object));
+            IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+
+            Task serverTask = tcpServer.ListenAsync(cts.Token);
+            
+            Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+            IConnectToServer connectToServer = new ConnectToTcpServer(tcpServer.BindAddress!, negotiateClientProtocol);
+            ConnectionPool connectionPool = new(connectToServer, minimumPooledConnections: 1);
+            await connectionPool.WarmupPool();
+
+            Assert.That(
+                () => connectionPool.PooledConnections,
+                Is.EqualTo(1).After(1000).PollEvery(10));
+
+            Assert.That(
+                () => tcpServer.Connections.Counters.ActiveConnections,
+                Is.EqualTo(1).After(1000).PollEvery(10));
+
+            Mock<IStreamService> serviceStreamProxyMock = new(MockBehavior.Strict);
+            serviceStreamProxyMock.Setup(
+                    mock => mock.DownloadStreamAsync(It.IsAny<CancellationToken>()))
+                .Returns(async (CancellationToken ct) =>
+                {
+                    ConnectionToServer conn = await connectionPool.RentConnectionAsync(ct);
+
+                    VoidNetworkMessage req = new();
+                    DestinationStreamMessage res = new(() => connectionPool.ReturnConnection(conn));
+
+                    await conn.ProcessMethodCallAsync(
+                        CallDownloadStreamAsync,
+                        new RpcNetworkMessages(req, res),
+                        ct);
+
+                    return res.Stream;
+                });
+
+            IStreamService streamServiceProxy = serviceStreamProxyMock.Object;
+            Stream downloadedStream = await streamServiceProxy.DownloadStreamAsync(cts.Token);
+            
+            Assert.That(connectionPool.PooledConnections, Is.EqualTo(0));
+            Assert.That(connectionPool.RentedConnections, Is.EqualTo(1));
+            
+            Assert.That(StreamContentEquals(downloadedStream, streamContent), Is.True);
+            
+            Assert.That(connectionPool.PooledConnections, Is.EqualTo(0));
+            Assert.That(connectionPool.RentedConnections, Is.EqualTo(1));
+
+            await downloadedStream.DisposeAsync();
+            
+            Assert.That(connectionPool.PooledConnections, Is.EqualTo(1));
+            Assert.That(connectionPool.RentedConnections, Is.EqualTo(0));
+
+            cts.Cancel();
+            await serverTask;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(streamContent);
+            if (File.Exists(serverSettings.Ssl.CertificatePath))
+                File.Delete(serverSettings.Ssl.CertificatePath);
+        }
+    }
+    
+    static bool StreamContentEquals(Stream st, byte[] buffer)
+    {
+        if (st.Length != buffer.Length)
+            return false;
+
+        byte[] intermediate = ArrayPool<byte>.Shared.Rent(1024);
+        try
+        {
+            int pos = 0;
+            while (pos < st.Length)
+            {
+                int read = st.Read(intermediate);
+                for (int i = 0; i < read; i++)
+                {
+                    if (buffer[pos + i] != intermediate[i])
+                        return false;
+                }
+
+                pos += read;
+            }
+
+            return true;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(intermediate);
+        }
+    }
+    
     #region Proxy and stub implementations
 
     static IEnumerable<ITestCaseData> RpcCapabilitiesCombinations()
@@ -574,9 +1057,9 @@ public class TcpEndToEndTests
         yield return new TestCaseData(serverSettings, clientSettings);
     }
 
-    class ServerFunctionalityStub : IStub
+    class DummyServiceStub : IStub
     {
-        internal ServerFunctionalityStub(IServerFunctionality chained)
+        internal DummyServiceStub(IDummyService chained)
         {
             mChained = chained;
         }
@@ -619,18 +1102,88 @@ public class TcpEndToEndTests
             return new RpcNetworkMessages(req, res);
         }
 
-        readonly IServerFunctionality mChained;
+        readonly IDummyService mChained;
     }
 
-    class ServerFunctionalityProxy : IServerFunctionality
+    class StreamServiceStub : IStub
     {
-        public ServerFunctionalityProxy(ConnectionToServer connectionToServer)
+        public StreamServiceStub(IStreamService chained)
+        {
+            mChained = chained;
+        }
+
+        bool IStub.CanHandleMethod(IMethodId method)
+        {
+            DefaultMethodId dmi = Unsafe.As<DefaultMethodId>(method);
+            return dmi >= CallDownloadStreamAsync && dmi <= CallUploadStreamAsync;
+        }
+
+        IEnumerable<IMethodId> IStub.GetHandledMethods()
+            => new List<DefaultMethodId>
+        {
+            CallDownloadStreamAsync,
+            CallUploadStreamAsync
+        };
+
+        async Task<RpcNetworkMessages> IStub.RunMethodCallAsync(
+            IMethodId methodId,
+            BinaryReader reader,
+            IConnectionContext connectionContext,
+            Func<CancellationToken> beginMethodRunCallback)
+        {
+            DefaultMethodId dmi = Unsafe.As<DefaultMethodId>(methodId);
+            Func<BinaryReader, Func<CancellationToken>, Task<RpcNetworkMessages>> fn =
+                dmi.Id switch
+                {
+                    DownloadStreamAsync => RunDownloadStreamAsync,
+                    UploadStreamAsync => RunUploadStreamAsync,
+                    _ => throw new NotImplementedException()
+                };
+
+            return await fn(reader, beginMethodRunCallback);
+        }
+
+        async Task<RpcNetworkMessages> RunDownloadStreamAsync(
+            BinaryReader reader, Func<CancellationToken> beginMethodRunCallback)
+        {
+            VoidNetworkMessage req = new();
+            req.Deserialize(reader);
+
+            Stream result = await mChained.DownloadStreamAsync(beginMethodRunCallback());
+
+            SourceStreamMessage res = new(result.Dispose);
+            res.Stream = result;
+
+            return new RpcNetworkMessages(req, res);
+        }
+        
+        async Task<RpcNetworkMessages> RunUploadStreamAsync(
+            BinaryReader reader, Func<CancellationToken> beginMethodRunCallback)
+        {
+            DestinationStreamMessage req = new();
+            req.Deserialize(reader);
+
+            await mChained.UploadStreamAsync(req.Stream!, beginMethodRunCallback());
+
+            VoidNetworkMessage res = new();
+
+            return new RpcNetworkMessages(req, res);
+        }
+
+        readonly IStreamService mChained;
+    }
+
+    class DummyServiceProxy : IDummyService
+    {
+        public DummyServiceProxy(ConnectionToServer connectionToServer)
         {
             mConnToServer = connectionToServer;
         }
 
-        public async Task CallAsync(CancellationToken ct)
+        async Task IDummyService.CallAsync(CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
+
             VoidNetworkMessage req = new();
             VoidNetworkMessage res = new();
             RpcNetworkMessages msg = new(req, res);
@@ -639,8 +1192,10 @@ public class TcpEndToEndTests
                 CallAsyncMethodId, msg, ct);
         }
 
-        public async Task CallUnsupportedAsync(CancellationToken ct)
+        async Task IDummyService.CallUnsupportedAsync(CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
+
             VoidNetworkMessage req = new();
             VoidNetworkMessage res = new();
             RpcNetworkMessages msg = new(req, res);
@@ -652,21 +1207,76 @@ public class TcpEndToEndTests
         readonly ConnectionToServer mConnToServer;
     }
 
+    class StreamServiceProxy : IStreamService
+    {
+        public StreamServiceProxy(ConnectionToServer connectionToServer)
+        {
+            mConnToServer = connectionToServer;
+        }
+
+        async Task<Stream> IStreamService.DownloadStreamAsync(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            VoidNetworkMessage req = new();
+            DestinationStreamMessage res = new();
+
+            await mConnToServer.ProcessMethodCallAsync(
+                CallDownloadStreamAsync,
+                new RpcNetworkMessages(req, res),
+                ct);
+
+            return res.Stream;
+        }
+
+        async Task IStreamService.UploadStreamAsync(Stream st, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            SourceStreamMessage req = new();
+            req.Stream = st;
+
+            VoidNetworkMessage res = new();
+
+            await mConnToServer.ProcessMethodCallAsync(
+                CallUploadStreamAsync,
+                new RpcNetworkMessages(req, res),
+                ct);
+        }
+
+        readonly ConnectionToServer mConnToServer;
+    }
+
     // ReSharper disable once MemberCanBePrivate.Global
-    public interface IServerFunctionality
+    public interface IDummyService
     {
         Task CallAsync(CancellationToken ct);
         Task CallUnsupportedAsync(CancellationToken ct);
     }
 
+    public interface IStreamService
+    {
+        Task<Stream> DownloadStreamAsync(CancellationToken ct);
+        Task UploadStreamAsync(Stream st, CancellationToken ct);
+    }
+
     const byte CallAsyncId = 1;
     const byte CallUnsupportedAsyncId = 2;
+
+    const byte DownloadStreamAsync = 3;
+    const byte UploadStreamAsync = 4;
 
     static readonly DefaultMethodId CallAsyncMethodId =
         new(CallAsyncId, "CallAsync");
 
     static readonly DefaultMethodId CallUnsupportedAsyncMethodId =
         new(CallUnsupportedAsyncId, "CallUnsupportedAsync");
+
+    static readonly DefaultMethodId CallDownloadStreamAsync =
+        new(DownloadStreamAsync, "DownloadStreamAsync");
+
+    static readonly DefaultMethodId CallUploadStreamAsync =
+        new(UploadStreamAsync, "UploadStreamAsync");
 
     #endregion
 }

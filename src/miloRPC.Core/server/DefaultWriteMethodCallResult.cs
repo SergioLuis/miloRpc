@@ -7,19 +7,19 @@ namespace miloRPC.Core.Server;
 public interface IWriteMethodCallResult
 {
     void Write(
-        BinaryWriter writer, MethodCallResult result, RpcException? ex = null);
+        BinaryWriter writer, MethodCallResult result, SerializableException? ex = null);
 }
 
 public class DefaultWriteMethodCallResult : IWriteMethodCallResult
 {
     void IWriteMethodCallResult.Write(
-        BinaryWriter writer, MethodCallResult result, RpcException? ex)
+        BinaryWriter writer, MethodCallResult result, SerializableException? ex)
     {
         writer.Write((byte)result);
         writer.Write((bool)(ex is not null));
 
         if (ex is not null)
-            RpcException.ToWriter(ex, writer);
+            SerializableException.ToWriter(ex, writer);
     }
 
     public static readonly IWriteMethodCallResult Instance =
