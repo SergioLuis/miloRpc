@@ -792,6 +792,96 @@ public class TcpEndToEndTests
                 File.Delete(serverSettings.Ssl.CertificatePath);
         }
     }
+
+    [Test, Timeout(TestingConstants.Timeout), TestCaseSource(nameof(RpcCapabilitiesCombinations))]
+    public async Task Dispose_Actions_Are_Executed_In_Stream_Based_Call(
+        ConnectionSettings serverSettings, ConnectionSettings clientSettings)
+    {
+        byte[] streamContent = ArrayPool<byte>.Shared.Rent(4 * 1024);
+        try
+        {
+            Random.Shared.NextBytes(streamContent);
+
+            Mock<IStreamService> streamServiceStubMock = new(MockBehavior.Strict);
+            streamServiceStubMock.Setup(
+                    mock => mock.DownloadStreamAsync(
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MemoryStream(streamContent));
+
+            CancellationTokenSource cts = new();
+            cts.CancelAfter(TestingConstants.Timeout);
+
+            INegotiateRpcProtocol negotiateServerProtocol =
+                new DefaultServerProtocolNegotiation(serverSettings);
+
+            INegotiateRpcProtocol negotiateClientProtocol =
+                new DefaultClientProtocolNegotiation(clientSettings);
+
+            IPEndPoint endPoint = new(IPAddress.Loopback, port: 0);
+
+            StubCollection stubCollection = new(new StreamServiceStub(streamServiceStubMock.Object));
+            IServer<IPEndPoint> tcpServer = new TcpServer(endPoint, stubCollection, negotiateServerProtocol);
+
+            Task serverTask = tcpServer.ListenAsync(cts.Token);
+            
+            Assert.That(() => tcpServer.BindAddress, Is.Not.Null.After(1000, 10));
+
+            IConnectToServer connectToServer = new ConnectToTcpServer(tcpServer.BindAddress!, negotiateClientProtocol);
+            ConnectionPool connectionPool = new(connectToServer, minimumPooledConnections: 1);
+            await connectionPool.WarmupPool();
+
+            Assert.That(
+                () => connectionPool.PooledConnections,
+                Is.EqualTo(1).After(1000).PollEvery(10));
+
+            Assert.That(
+                () => tcpServer.Connections.Counters.ActiveConnections,
+                Is.EqualTo(1).After(1000).PollEvery(10));
+
+            Mock<IStreamService> serviceStreamProxyMock = new(MockBehavior.Strict);
+            serviceStreamProxyMock.Setup(
+                    mock => mock.DownloadStreamAsync(It.IsAny<CancellationToken>()))
+                .Returns(async (CancellationToken ct) =>
+                {
+                    ConnectionToServer conn = await connectionPool.RentConnectionAsync(ct);
+
+                    VoidNetworkMessage req = new();
+                    DestinationStreamMessage res = new(() => connectionPool.ReturnConnection(conn));
+
+                    await conn.ProcessMethodCallAsync(
+                        CallDownloadStreamAsync,
+                        new RpcNetworkMessages(req, res),
+                        ct);
+
+                    return res.Stream;
+                });
+
+            IStreamService streamServiceProxy = serviceStreamProxyMock.Object;
+            Stream downloadedStream = await streamServiceProxy.DownloadStreamAsync(cts.Token);
+            
+            Assert.That(connectionPool.PooledConnections, Is.EqualTo(0));
+            Assert.That(connectionPool.RentedConnections, Is.EqualTo(1));
+            
+            Assert.That(StreamContentEquals(downloadedStream, streamContent), Is.True);
+            
+            Assert.That(connectionPool.PooledConnections, Is.EqualTo(0));
+            Assert.That(connectionPool.RentedConnections, Is.EqualTo(1));
+
+            await downloadedStream.DisposeAsync();
+            
+            Assert.That(connectionPool.PooledConnections, Is.EqualTo(1));
+            Assert.That(connectionPool.RentedConnections, Is.EqualTo(0));
+
+            cts.Cancel();
+            await serverTask;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(streamContent);
+            if (File.Exists(serverSettings.Ssl.CertificatePath))
+                File.Delete(serverSettings.Ssl.CertificatePath);
+        }
+    }
     
     static bool StreamContentEquals(Stream st, byte[] buffer)
     {
