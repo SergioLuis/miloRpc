@@ -1,12 +1,26 @@
-# miloRpc - Understandable RPC for .NET
+# miloRpc - Unsurprising RPC for .NET
 
 miloRpc is a fully async Remote Procedure Calling framework for .NET, with minimum overhead and easy to use and understand.
 
-## Getting miloRpc
+## An unsurprising RPC framework
 
-miloRpc does not rely in code generation to work. This means that you will need a little bit more boilerplate code here and there, but you will also understand what is going on under the hood at every single step.
+miloRpc does not rely (for now) in code generation nor reflection to work. This means that you will need to implement some boilerplate code (`Client proxy` and `Server stub` in the diagram below) to get it working, but it also means that you keep control on how things work until almost the network layer itself.
 
-> _In the future, miloRpc will support coding client and server-side like modern ASP.NET Controllers - just decorate your methods with some attributes and the framework will do the magic for you. But even then you will be able to decide how much of the stack is under your control, and how much you want miloRpc to take care of._
+```text
+    ┌────────────────────┐       ▲ ┌────────────────────┐
+    │Client code         │ │     │ │         Server code│  your application code
+    ├────────────────────┤ │     │ ├────────────────────┤  ─────────────────────
+    │Client proxy        │ │     │ │         Server stub│           boilerplate
+    ├────────────────────┤ │     │ ├────────────────────┤  ─────────────────────
+    │miloRpc abstractions│ │     │ │miloRpc abstractions│
+    ├────────────────────┤ │     │ ├────────────────────┤                miloRpc
+    │Channel (network)   │ │     │ │   Channel (network)│
+    └────────────────────┘ ▼       └────────────────────┘
+```
+
+In the near future, miloRpc will support generating proxies and stubs automatically, letting you program your RPC endpoints and consumers in a modern way (only `Client code` and `Server code` layers). In any case, miloRpc will still allow you to implement your code at the deepest level of abstraction possible.
+
+## miloRpc packages
 
 miloRpc is split accross several packages. You will need the `miloRpc.Core` package, and **at least** one _channel_ package, which will most probably be `miloRpc.Channels.Tcp` (for connections over TCP and TCP/SSL).
 
@@ -34,7 +48,7 @@ Whilst the library is at a production-ready status, many things are ahead for mi
   - Different type of content might have different compression needs.
   - If you know you are going to send content that doesn't compress, or doesn't compress well, it is not worth it to spend CPU time, you should be able to temporarily disable compression altogether.
 - Clients will be able to do client-side load balancing.
-  - Bear in mind that for this to work your server side application must support the client transition...!
+  - Bear in mind that for this to work your server side application must support client transition...!
 - Server and client will provide percentile times for method invocations
 
 ## How to start using miloRpc
@@ -148,19 +162,15 @@ public EchoStub : IStub
     {
         DefaultMethodId dmi = Unsafe.As<DefaultMethodId>(methodId);
 
-        return dmi switch
-        {
-            EchoServerMethodIds.DirectEcho
-                => await RunDirectEchoAsync(reader, beginMethodRunCallback),
+        if (dmi == EchoServerMethodIds.DirectEcho)
+            return await RunDirectEchoAsync(reader, beginMethodRunCallback);
 
-            EchoServerMethodIds.ReverseEcho
-                => await RunReverseEchoAsync(reader, beginMethodRunCallback),
+        if (dmi == EchoServerMethodIds.ReverseEcho)
+            return await RunReverseEchoAsync(reader, beginMethodRunCallback);
 
-            // Can't happen because the framework will prevent calling the IStub
-            // with a method that the IStub does not declare, but this construct
-            // requires a default case to build
-            _ => throw new NotSupportedException("Unknown method")
-        };
+        // Can't happen because the framework will prevent calling the IStub
+        // with a method that the IStub does not declare
+        throw new NotSupportedException("Unknown method");
     }
 
     // You don't need to wrap these methods in a try/catch block
@@ -279,7 +289,7 @@ public static async Task Main(string[] args)
 
     IPEndPoint serverEndPoint = IPEndPoint.Parse("0.0.0.0:9999");
 
-    // To use the TcpServer you need miloRpc.Channels.Tcp
+    // To use the TcpServer you need package miloRpc.Channels.Tcp
     IServer<IPEndPoint> server = new TcpServer(serverEndPoint, stubs);
 
     CancellationTokenSource cts = new();
@@ -307,13 +317,13 @@ public class EchoProxy : IEcho
 {
     public EchoProxy(ConnectionPool connPool)
     {
-        // Each ConnectionPool instance pools connections to a single server / endpoint
+        // Each ConnectionPool instance pools connections to a single server/endpoint
         mPool = connPool;
     }
 
     async Task<EchoResponse> IEcho.DirectAsync(string message, CancellationToken ct)
     {
-        ConnectionToServer conn = mPool.RentConnectionAsync(TimeSpan.Zero, ct);
+        ConnectionToServer conn = await mPool.RentConnectionAsync(TimeSpan.Zero, ct);
         try
         {
             NetworkMessage<string> request = new();
@@ -345,7 +355,7 @@ public class EchoProxy : IEcho
 
     async Task<EchoResponse> IEcho.ReverseAsync(string message, CancellationToken ct)
     {
-        ConnectionToServer conn = mPool.RentConnectionAsync(TimeSpan.Zero, ct);
+        ConnectionToServer conn = await mPool.RentConnectionAsync(TimeSpan.Zero, ct);
         try
         {
             NetworkMessage<string> request = new();
@@ -396,12 +406,12 @@ public static async Task Main(string[] args)
         echo.DirectAsync("hello world!", cts.Token);
 
     Task<EchoResponse> reverseResponseTask =
-        echo.ReverseAsync("!dlrow olleh", cts.Token);
+        echo.ReverseAsync("hello world!", cts.Token);
 
     await Task.WhenAll(directResponseTask, reverseResponseTask);
 
-    Console.WriteLine(directResponseTask.Result.Message);
-    Console.WriteLine(reverseResponseTask.Result.Message);
+    Console.WriteLine(directResponseTask.Result.Message);  // hello world!
+    Console.WriteLine(reverseResponseTask.Result.Message); // !dlrow olleh
 }
 ```
 
