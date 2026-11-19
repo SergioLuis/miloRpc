@@ -139,9 +139,6 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
         if (sslSettings.Status is not SharedCapabilityEnablement.EnabledMandatory)
             throw new ArgumentException("SslSettings.Status must be EnabledMandatory when using QUIC");
 
-        if (string.IsNullOrEmpty(sslSettings.CertificatePassword))
-            throw new ArgumentException("SSL is necessary but no cert. password is set");
-
         string? certificatePath = sslSettings.CertificatePath;
         if (string.IsNullOrEmpty(certificatePath))
         {
@@ -156,6 +153,12 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
 
         if (!File.Exists(certificatePath))
         {
+            // The password is only mandatory to export a newly generated
+            // certificate. An existing certificate may have no password.
+            if (string.IsNullOrEmpty(sslSettings.CertificatePassword))
+                throw new ArgumentException(
+                    "SSL is necessary but no cert. password is set to generate a self-signed certificate");
+
             mLog.LogDebug(
                 "Creating self-signed certificate on path '{CertPath}'",
                 certificatePath);
@@ -226,14 +229,15 @@ public class DefaultQuicServerProtocolNegotiation : INegotiateServerQuicRpcProto
 
     bool TryReadCertificate(
         string certificatePath,
-        string certificatePassword,
+        string? certificatePassword,
         out X509Certificate2? result)
     {
         try
         {
+            // a passwordless certificate is loaded with a null password
             result = new X509Certificate2(
                 certificatePath,
-                certificatePassword,
+                string.IsNullOrEmpty(certificatePassword) ? null : certificatePassword,
                 X509KeyStorageFlags.Exportable);
             return true;
         }
