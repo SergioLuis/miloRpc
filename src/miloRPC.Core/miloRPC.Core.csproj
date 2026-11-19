@@ -15,10 +15,15 @@
     <Copyright>Copyright (c) Sergio Luis Para 2022</Copyright>
     <Description>miloRpc is a fully async Remote Procedure Calling framework for .NET, with minimum overhead and easy to use and understand</Description>
     <RepositoryUrl>https://github.com/SergioLuis/miloRpc</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\NUGET-README.md" Pack="true" PackagePath="\README.md" />
   </ItemGroup>
 
 </Project>
