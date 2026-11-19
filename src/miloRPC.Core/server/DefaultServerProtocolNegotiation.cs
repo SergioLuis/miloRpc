@@ -127,9 +127,6 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
         if (sslSettings.Status is SharedCapabilityEnablement.Disabled)
             return null;
 
-        if (string.IsNullOrEmpty(sslSettings.CertificatePassword))
-            throw new ArgumentException("SSL is necessary but no cert. password is set");
-
         string? certificatePath = sslSettings.CertificatePath;
         if (string.IsNullOrEmpty(certificatePath))
         {
@@ -144,6 +141,12 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 
         if (!File.Exists(certificatePath))
         {
+            // The password is only mandatory to export a newly generated
+            // certificate. An existing certificate may have no password.
+            if (string.IsNullOrEmpty(sslSettings.CertificatePassword))
+                throw new ArgumentException(
+                    "SSL is necessary but no cert. password is set to generate a self-signed certificate");
+
             mLog.LogDebug(
                 "Creating self-signed certificate on path '{0}'",
                 certificatePath);
@@ -214,12 +217,15 @@ public class DefaultServerProtocolNegotiation : INegotiateRpcProtocol
 
     bool TryReadCertificate(
         string certificatePath,
-        string certificatePassword,
+        string? certificatePassword,
         out X509Certificate2? result)
     {
         try
         {
-            result = new X509Certificate2(certificatePath, certificatePassword);
+            // a passwordless certificate is loaded with a null password
+            result = new X509Certificate2(
+                certificatePath,
+                string.IsNullOrEmpty(certificatePassword) ? null : certificatePassword);
             return true;
         }
         catch (Exception ex)
